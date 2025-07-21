@@ -64,76 +64,9 @@ export const sidebarItems: NavGroup[] = [
         icon: Banknote,
       },
       {
-        title: "Analytics",
-        url: "/dashboard/analytics",
-        icon: Gauge,
-        comingSoon: true,
-      },
-      {
-        title: "E-commerce",
-        url: "/dashboard/e-commerce",
-        icon: ShoppingBag,
-        comingSoon: true,
-      },
-      {
-        title: "Academy",
-        url: "/dashboard/academy",
-        icon: GraduationCap,
-        comingSoon: true,
-      },
-      {
-        title: "Logistics",
-        url: "/dashboard/logistics",
-        icon: Forklift,
-        comingSoon: true,
-      },
-    ],
-  },
-  {
-    id: 2,
-    label: "Pages",
-    items: [
-      {
-        title: "Email",
-        url: "/mail",
-        icon: Mail,
-        comingSoon: true,
-      },
-      {
-        title: "Chat",
-        url: "/chat",
-        icon: MessageSquare,
-        comingSoon: true,
-      },
-      {
-        title: "Calendar",
-        url: "/calendar",
-        icon: Calendar,
-        comingSoon: true,
-      },
-      {
-        title: "Kanban",
-        url: "/kanban",
-        icon: Kanban,
-        comingSoon: true,
-      },
-      {
-        title: "Invoice",
-        url: "/invoice",
-        icon: ReceiptText,
-        comingSoon: true,
-      },
-      {
         title: "Users",
-        url: "/users",
+        url: "/dashboard/users",
         icon: Users,
-        comingSoon: true,
-      },
-      {
-        title: "Roles",
-        url: "/roles",
-        icon: Lock,
-        comingSoon: true,
       },
       {
         title: "Authentication",
@@ -146,18 +79,84 @@ export const sidebarItems: NavGroup[] = [
           { title: "Register v2", url: "/auth/v2/register", newTab: true },
         ],
       },
+      // {
+      //   title: "Analytics",
+      //   url: "/dashboard/analytics",
+      //   icon: Gauge,
+      //   comingSoon: true,
+      // },
+      // {
+      //   title: "E-commerce",
+      //   url: "/dashboard/e-commerce",
+      //   icon: ShoppingBag,
+      //   comingSoon: true,
+      // },
+      // {
+      //   title: "Academy",
+      //   url: "/dashboard/academy",
+      //   icon: GraduationCap,
+      //   comingSoon: true,
+      // },
+      // {
+      //   title: "Logistics",
+      //   url: "/dashboard/logistics",
+      //   icon: Forklift,
+      //   comingSoon: true,
+      // },
     ],
   },
-  {
-    id: 3,
-    label: "Misc",
-    items: [
-      {
-        title: "Others",
-        url: "/others",
-        icon: SquareArrowUpRight,
-        comingSoon: true,
-      },
-    ],
-  },
+  // {
+  //   id: 2,
+  //   label: "Pages",
+  //   items: [
+  //     {
+  //       title: "Email",
+  //       url: "/mail",
+  //       icon: Mail,
+  //       comingSoon: true,
+  //     },
+  //     {
+  //       title: "Chat",
+  //       url: "/chat",
+  //       icon: MessageSquare,
+  //       comingSoon: true,
+  //     },
+  //     {
+  //       title: "Calendar",
+  //       url: "/calendar",
+  //       icon: Calendar,
+  //       comingSoon: true,
+  //     },
+  //     {
+  //       title: "Kanban",
+  //       url: "/kanban",
+  //       icon: Kanban,
+  //       comingSoon: true,
+  //     },
+  //     {
+  //       title: "Invoice",
+  //       url: "/invoice",
+  //       icon: ReceiptText,
+  //       comingSoon: true,
+  //     },
+  //     {
+  //       title: "Roles",
+  //       url: "/roles",
+  //       icon: Lock,
+  //       comingSoon: true,
+  //     },
+  //   ],
+  // },
+  // {
+  //   id: 3,
+  //   label: "Misc",
+  //   items: [
+  //     {
+  //       title: "Others",
+  //       url: "/others",
+  //       icon: SquareArrowUpRight,
+  //       comingSoon: true,
+  //     },
+  //   ],
+  // },
 ];

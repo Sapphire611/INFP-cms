@@ -1,5 +1,9 @@
 "use client";
 
+import { useState } from "react";
+
+import { useRouter } from "next/navigation";
+
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -17,6 +21,9 @@ const FormSchema = z.object({
 });
 
 export function LoginForm() {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState(false);
+
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: {
@@ -27,13 +34,35 @@ export function LoginForm() {
   });
 
   const onSubmit = async (data: z.infer<typeof FormSchema>) => {
-    toast("You submitted the following values", {
-      description: (
-        <pre className="mt-2 w-[320px] rounded-md bg-neutral-950 p-4">
-          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-        </pre>
-      ),
-    });
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success) {
+        toast.success("登录成功！");
+        // 跳转到仪表板
+        router.push("/dashboard/default");
+      } else {
+        toast.error(result.error ?? "登录失败，请检查邮箱和密码");
+      }
+    } catch (error) {
+      console.error("Login error:", error);
+      toast.error("登录时发生错误，请稍后重试");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -90,9 +119,23 @@ export function LoginForm() {
             </FormItem>
           )}
         />
-        <Button className="w-full" type="submit">
-          Login
-        </Button>
+        <div className="space-y-3">
+          <Button
+            className="bg-primary text-primary-foreground hover:bg-primary/90 h-10 w-full text-sm font-medium"
+            type="submit"
+            disabled={isLoading}
+          >
+            {isLoading ? "登录中..." : "Sign In"}
+          </Button>
+          <Button
+            className="h-10 w-full text-sm font-medium"
+            type="button"
+            variant="outline"
+            onClick={() => router.push("/register")}
+          >
+            Create Account
+          </Button>
+        </div>
       </form>
     </Form>
   );
