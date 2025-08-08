@@ -1,5 +1,4 @@
 import { ColumnDef } from "@tanstack/react-table";
-
 import { format } from "date-fns";
 
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,7 +15,7 @@ export const userColumns: ColumnDef<UserWithCallback>[] = [
         <Checkbox
           checked={table.getIsAllPageRowsSelected()}
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-          aria-label="Select all"
+          aria-label="全选"
         />
       </div>
     ),
@@ -25,7 +24,7 @@ export const userColumns: ColumnDef<UserWithCallback>[] = [
         <Checkbox
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label="Select row"
+          aria-label="选择行"
         />
       </div>
     ),
@@ -34,26 +33,26 @@ export const userColumns: ColumnDef<UserWithCallback>[] = [
   },
   {
     accessorKey: "name",
-    header: "Name",
+    header: "姓名",
     cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
   },
   {
     accessorKey: "email",
-    header: "Email",
+    header: "邮箱",
     cell: ({ row }) => <span className="text-muted-foreground">{row.original.email}</span>,
   },
   {
     accessorKey: "createdAt",
-    header: "Created At",
+    header: "创建时间",
     cell: ({ row }) => (
-      <span className="text-muted-foreground text-sm">{format(new Date(row.original.createdAt), "MMM dd, yyyy")}</span>
+      <span className="text-muted-foreground text-sm">{format(new Date(row.original.createdAt), "yyyy年MM月dd日")}</span>
     ),
   },
   {
     accessorKey: "updatedAt",
-    header: "Updated At",
+    header: "更新时间",
     cell: ({ row }) => (
-      <span className="text-muted-foreground text-sm">{format(new Date(row.original.updatedAt), "MMM dd, yyyy")}</span>
+      <span className="text-muted-foreground text-sm">{format(new Date(row.original.updatedAt), "yyyy年MM月dd日")}</span>
     ),
   },
   {

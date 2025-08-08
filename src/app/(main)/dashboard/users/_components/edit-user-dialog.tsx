@@ -19,15 +19,14 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-// 用户表单验证模式
 const userFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email address"),
+  name: z.string().min(1, "姓名为必填项"),
+  email: z.string().email("邮箱格式不正确"),
   password: z
     .string()
     .optional()
     .refine((val) => !val || val.length >= 6, {
-      message: "Password must be at least 6 characters if provided",
+      message: "如需修改密码，至少 6 位",
     }),
 });
 
@@ -70,17 +69,17 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
       });
 
       if (response.ok) {
-        toast.success("User updated successfully");
+        toast.success("更新用户成功");
         onUserUpdated?.();
         onOpenChange(false);
         form.reset();
       } else {
         const error = await response.json();
-        toast.error(error.error ?? "Failed to update user");
+        toast.error(error.error ?? "更新用户失败");
       }
     } catch (error) {
       console.error("Error updating user:", error);
-      toast.error("Failed to update user");
+      toast.error("更新用户失败");
     }
   };
 
@@ -88,8 +87,8 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit User</DialogTitle>
-          <DialogDescription>Update user information. Leave password empty to keep current password.</DialogDescription>
+          <DialogTitle>编辑用户</DialogTitle>
+          <DialogDescription>更新用户信息。若不修改密码，请留空。</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -98,7 +97,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>姓名</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
@@ -111,7 +110,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>邮箱</FormLabel>
                   <FormControl>
                     <Input type="email" {...field} />
                   </FormControl>
@@ -124,7 +123,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password (leave empty to keep current)</FormLabel>
+                  <FormLabel>密码（留空则不修改）</FormLabel>
                   <FormControl>
                     <Input type="password" {...field} />
                   </FormControl>
@@ -134,9 +133,9 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
             />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+                取消
               </Button>
-              <Button type="submit">Update User</Button>
+              <Button type="submit">更新</Button>
             </DialogFooter>
           </form>
         </Form>

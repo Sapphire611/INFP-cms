@@ -45,19 +45,22 @@ export async function GET() {
     });
 
     // 计算趋势百分比
-    const trendPercentage = newUsersYesterday > 0 
-      ? parseFloat(((newUsersToday - newUsersYesterday) / newUsersYesterday * 100).toFixed(1))
-      : newUsersToday > 0 ? 100 : 0;
+    const trendPercentage =
+      newUsersYesterday > 0
+        ? parseFloat((((newUsersToday - newUsersYesterday) / newUsersYesterday) * 100).toFixed(1))
+        : newUsersToday > 0
+          ? 100
+          : 0;
 
     return NextResponse.json({
       totalUsers,
       newUsersToday,
       newUsersLast7Days,
       trendPercentage,
-      trendDirection: newUsersToday >= newUsersYesterday ? 'up' : 'down'
+      trendDirection: newUsersToday >= newUsersYesterday ? "up" : "down",
     });
   } catch (error) {
     console.error("Error fetching user stats:", error);
     return NextResponse.json({ error: "Failed to fetch user stats" }, { status: 500 });
   }
-} 
+}

@@ -47,18 +47,18 @@ export function DataTableColumnHeader<TData, TValue>({
         <DropdownMenuContent align="start">
           <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
             <ArrowUp className="text-muted-foreground/70 h-3.5 w-3.5" />
-            Asc
+            升序
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
             <ArrowDown className="text-muted-foreground/70 h-3.5 w-3.5" />
-            Desc
+            降序
           </DropdownMenuItem>
           {column.columnDef.enableHiding !== false && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
                 <EyeOff className="text-muted-foreground/70 h-3.5 w-3.5" />
-                Hide
+                隐藏
               </DropdownMenuItem>
             </>
           )}

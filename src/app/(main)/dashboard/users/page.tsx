@@ -55,10 +55,10 @@ export default function UsersPage() {
     return (
       <div className="@container/main flex flex-col gap-4 md:gap-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Users</h1>
+          <h1 className="text-2xl font-bold">用户</h1>
         </div>
         <div className="flex h-64 items-center justify-center">
-          <span className="text-muted-foreground">Loading users...</span>
+          <span className="text-muted-foreground">正在加载用户...</span>
         </div>
       </div>
     );
@@ -68,18 +68,18 @@ export default function UsersPage() {
     <div className="@container/main flex flex-col gap-4 md:gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Users</h1>
-          <p className="text-muted-foreground">Manage your application users</p>
+          <h1 className="text-2xl font-bold">用户</h1>
+          <p className="text-muted-foreground">管理应用用户</p>
         </div>
         <Button onClick={() => setIsAddOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          Add User
+          新增用户
         </Button>
       </div>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <Badge variant="secondary">{users.length} users</Badge>
+          <Badge variant="secondary">{users.length} 位用户</Badge>
         </div>
         <DataTableViewOptions table={table} />
       </div>

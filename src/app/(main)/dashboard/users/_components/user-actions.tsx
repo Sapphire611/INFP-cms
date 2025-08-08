@@ -41,16 +41,16 @@ export function UserActions({ user, onUserUpdated }: UserActionsProps) {
       });
 
       if (response.ok) {
-        toast.success("User deleted successfully");
+        toast.success("删除用户成功");
         onUserUpdated?.();
         setIsDeleteOpen(false);
       } else {
         const error = await response.json();
-        toast.error(error.error ?? "Failed to delete user");
+        toast.error(error.error ?? "删除用户失败");
       }
     } catch (error) {
       console.error("Error deleting user:", error);
-      toast.error("Failed to delete user");
+      toast.error("删除用户失败");
     }
   };
 
@@ -59,19 +59,19 @@ export function UserActions({ user, onUserUpdated }: UserActionsProps) {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="ghost" className="h-8 w-8 p-0">
-            <span className="sr-only">Open menu</span>
+            <span className="sr-only">打开菜单</span>
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
           <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
             <Edit className="mr-2 h-4 w-4" />
-            Edit
+            编辑
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem className="text-red-600" onClick={() => setIsDeleteOpen(true)}>
             <Trash2 className="mr-2 h-4 w-4" />
-            Delete
+            删除
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -83,17 +83,17 @@ export function UserActions({ user, onUserUpdated }: UserActionsProps) {
       <Dialog open={isDeleteOpen} onOpenChange={setIsDeleteOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete User</DialogTitle>
+            <DialogTitle>删除用户</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete user &quot;{user.name}&quot;? This action cannot be undone.
+              确定要删除用户“{user.name}”吗？此操作无法撤销。
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>
-              Cancel
+              取消
             </Button>
             <Button variant="destructive" onClick={handleDelete}>
-              Delete
+              删除
             </Button>
           </DialogFooter>
         </DialogContent>

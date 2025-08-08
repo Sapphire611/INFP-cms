@@ -1,13 +1,13 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 interface UserStats {
   totalUsers: number;
   newUsersToday: number;
   newUsersLast7Days: number;
   trendPercentage: number;
-  trendDirection: 'up' | 'down';
+  trendDirection: "up" | "down";
 }
 
 export function useUserStats() {
@@ -19,14 +19,14 @@ export function useUserStats() {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const response = await fetch('/api/users/stats');
+        const response = await fetch("/api/users/stats");
         if (!response.ok) {
-          throw new Error('Failed to fetch user stats');
+          throw new Error("Failed to fetch user stats");
         }
         const data = await response.json();
         setStats(data);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
+        setError(err instanceof Error ? err.message : "An error occurred");
       } finally {
         setLoading(false);
       }

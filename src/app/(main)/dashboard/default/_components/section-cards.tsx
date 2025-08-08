@@ -34,7 +34,7 @@ function ErrorCard() {
   );
 }
 
-function TotalUsersCard({ totalUsers }: { totalUsers: number }) {
+function TotalUsersCard({ totalUsers }: { totalUsers  : number }) {
   return (
     <Card className="@container/card">
       <CardHeader>
@@ -186,12 +186,12 @@ export function SectionCards() {
         trendDirection={stats.trendDirection}
         trendPercentage={stats.trendPercentage}
       />
-      <ActiveAccountsCard totalUsers={stats.totalUsers} />
-      <TodayNewUsersCard
+      {/* <ActiveAccountsCard totalUsers={stats.totalUsers} /> */}
+      {/* <TodayNewUsersCard
         newUsersToday={stats.newUsersToday}
         trendDirection={stats.trendDirection}
         trendPercentage={stats.trendPercentage}
-      />
+      /> */}
     </div>
   );
 }

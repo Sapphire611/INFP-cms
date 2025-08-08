@@ -19,7 +19,7 @@ export async function GET() {
     });
 
     // 确保日期字段是字符串格式
-    const usersWithStringDates = users.map(user => ({
+    const usersWithStringDates = users.map((user) => ({
       ...user,
       createdAt: user.createdAt.toISOString(),
       updatedAt: user.updatedAt.toISOString(),

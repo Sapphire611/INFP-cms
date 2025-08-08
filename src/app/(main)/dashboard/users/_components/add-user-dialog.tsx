@@ -19,11 +19,10 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-// 用户表单验证模式
 const userFormSchema = z.object({
-  name: z.string().min(1, "Name is required"),
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  name: z.string().min(1, "姓名为必填项"),
+  email: z.string().email("邮箱格式不正确"),
+  password: z.string().min(6, "密码至少 6 位"),
 });
 
 type UserFormData = z.infer<typeof userFormSchema>;
@@ -55,17 +54,17 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
       });
 
       if (response.ok) {
-        toast.success("User created successfully");
+        toast.success("创建用户成功");
         onUserAdded?.();
         onOpenChange(false);
         form.reset();
       } else {
         const error = await response.json();
-        toast.error(error.error ?? "Failed to create user");
+        toast.error(error.error ?? "创建用户失败");
       }
     } catch (error) {
       console.error("Error creating user:", error);
-      toast.error("Failed to create user");
+      toast.error("创建用户失败");
     }
   };
 
@@ -73,8 +72,8 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add New User</DialogTitle>
-          <DialogDescription>Create a new user account with the following information.</DialogDescription>
+          <DialogTitle>新增用户</DialogTitle>
+          <DialogDescription>请填写以下信息以创建新用户。</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -83,7 +82,7 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>姓名</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>
@@ -96,7 +95,7 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email</FormLabel>
+                  <FormLabel>邮箱</FormLabel>
                   <FormControl>
                     <Input type="email" {...field} />
                   </FormControl>
@@ -109,7 +108,7 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
               name="password"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Password</FormLabel>
+                  <FormLabel>密码</FormLabel>
                   <FormControl>
                     <Input type="password" {...field} />
                   </FormControl>
@@ -119,9 +118,9 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
             />
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                Cancel
+                取消
               </Button>
-              <Button type="submit">Create User</Button>
+              <Button type="submit">创建</Button>
             </DialogFooter>
           </form>
         </Form>
