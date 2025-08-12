@@ -34,7 +34,7 @@ function ErrorCard() {
   );
 }
 
-function TotalUsersCard({ totalUsers }: { totalUsers  : number }) {
+function TotalUsersCard({ totalUsers }: { totalUsers: number }) {
   return (
     <Card className="@container/card">
       <CardHeader>
@@ -101,71 +101,71 @@ function NewUsers7DaysCard({
   );
 }
 
-function ActiveAccountsCard({ totalUsers }: { totalUsers: number }) {
-  return (
-    <Card className="@container/card">
-      <CardHeader>
-        <CardDescription className="flex items-center gap-2">
-          <UserCheck className="size-4" />
-          活跃账户
-        </CardDescription>
-        <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-          {(totalUsers * 0.85).toFixed(0)}
-        </CardTitle>
-        <CardAction>
-          <Badge variant="outline">
-            <TrendingUp />
-            +85%
-          </Badge>
-        </CardAction>
-      </CardHeader>
-      <CardFooter className="flex-col items-start gap-1.5 text-sm">
-        <div className="line-clamp-1 flex gap-2 font-medium">
-          用户活跃度良好 <TrendingUp className="size-4" />
-        </div>
-        <div className="text-muted-foreground">用户参与度超过目标</div>
-      </CardFooter>
-    </Card>
-  );
-}
+// function ActiveAccountsCard({ totalUsers }: { totalUsers: number }) {
+//   return (
+//     <Card className="@container/card">
+//       <CardHeader>
+//         <CardDescription className="flex items-center gap-2">
+//           <UserCheck className="size-4" />
+//           活跃账户
+//         </CardDescription>
+//         <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+//           {(totalUsers * 0.85).toFixed(0)}
+//         </CardTitle>
+//         <CardAction>
+//           <Badge variant="outline">
+//             <TrendingUp />
+//             +85%
+//           </Badge>
+//         </CardAction>
+//       </CardHeader>
+//       <CardFooter className="flex-col items-start gap-1.5 text-sm">
+//         <div className="line-clamp-1 flex gap-2 font-medium">
+//           用户活跃度良好 <TrendingUp className="size-4" />
+//         </div>
+//         <div className="text-muted-foreground">用户参与度超过目标</div>
+//       </CardFooter>
+//     </Card>
+//   );
+// }
 
-function TodayNewUsersCard({
-  newUsersToday,
-  trendDirection,
-  trendPercentage,
-}: {
-  newUsersToday: number;
-  trendDirection: "up" | "down";
-  trendPercentage: number;
-}) {
-  return (
-    <Card className="@container/card">
-      <CardHeader>
-        <CardDescription className="flex items-center gap-2">
-          <UserPlus className="size-4" />
-          今日新增用户
-        </CardDescription>
-        <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-          {newUsersToday.toLocaleString()}
-        </CardTitle>
-        <CardAction>
-          <Badge variant="outline">
-            {trendDirection === "up" ? <TrendingUp /> : <TrendingDown />}
-            {trendDirection === "up" ? "+" : ""}
-            {trendPercentage}%
-          </Badge>
-        </CardAction>
-      </CardHeader>
-      <CardFooter className="flex-col items-start gap-1.5 text-sm">
-        <div className="line-clamp-1 flex gap-2 font-medium">
-          {trendDirection === "up" ? "今日用户增长" : "今日用户减少"}
-          {trendDirection === "up" ? <TrendingUp className="size-4" /> : <TrendingDown className="size-4" />}
-        </div>
-        <div className="text-muted-foreground">{trendDirection === "up" ? "用户注册活跃" : "需要关注用户获取"}</div>
-      </CardFooter>
-    </Card>
-  );
-}
+// function TodayNewUsersCard({
+//   newUsersToday,
+//   trendDirection,
+//   trendPercentage,
+// }: {
+//   newUsersToday: number;
+//   trendDirection: "up" | "down";
+//   trendPercentage: number;
+// }) {
+//   return (
+//     <Card className="@container/card">
+//       <CardHeader>
+//         <CardDescription className="flex items-center gap-2">
+//           <UserPlus className="size-4" />
+//           今日新增用户
+//         </CardDescription>
+//         <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
+//           {newUsersToday.toLocaleString()}
+//         </CardTitle>
+//         <CardAction>
+//           <Badge variant="outline">
+//             {trendDirection === "up" ? <TrendingUp /> : <TrendingDown />}
+//             {trendDirection === "up" ? "+" : ""}
+//             {trendPercentage}%
+//           </Badge>
+//         </CardAction>
+//       </CardHeader>
+//       <CardFooter className="flex-col items-start gap-1.5 text-sm">
+//         <div className="line-clamp-1 flex gap-2 font-medium">
+//           {trendDirection === "up" ? "今日用户增长" : "今日用户减少"}
+//           {trendDirection === "up" ? <TrendingUp className="size-4" /> : <TrendingDown className="size-4" />}
+//         </div>
+//         <div className="text-muted-foreground">{trendDirection === "up" ? "用户注册活跃" : "需要关注用户获取"}</div>
+//       </CardFooter>
+//     </Card>
+//   );
+// }
 
 export function SectionCards() {
   const { stats, loading, error } = useUserStats();
