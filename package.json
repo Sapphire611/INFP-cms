@@ -9,9 +9,13 @@
     "lint": "next lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky",
     "generate:presets": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/scripts/generate-theme-presets.ts",
     "init-db": "node scripts/init-db.js"
+  },
+  "lint-staged": {
+    "*.{js,ts,jsx,tsx}": [
+      "eslint --fix"
+    ]
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
@@ -69,8 +73,6 @@
     "eslint-plugin-sonarjs": "^3.0.4",
     "eslint-plugin-unused-imports": "^4.1.4",
     "globals": "^15.15.0",
-    "husky": "^9.1.7",
-    "lint-staged": "^15.5.2",
     "postcss": "^8.5.6",
     "prettier": "^3.6.2",
     "prettier-plugin-tailwindcss": "^0.6.14",

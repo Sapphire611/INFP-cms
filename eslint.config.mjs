@@ -22,7 +22,7 @@ export default [
       globals: globals.browser,
       parser: "@typescript-eslint/parser",
       parserOptions: {
-        // project: "./tsconfig.json", // 已注释以提升速度
+        project: "./tsconfig.json", // 已注释以提升速度
       },
     },
     settings: {
