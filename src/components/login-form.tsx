@@ -52,6 +52,9 @@ export function LoginForm() {
 
       if (response.ok && result.success) {
         toast.success("登录成功！");
+        // 设置认证 cookies
+        document.cookie = `auth-token=${result.token}; path=/; max-age=86400; SameSite=Strict`;
+        document.cookie = `user-info=${JSON.stringify(result.user)}; path=/; max-age=86400; SameSite=Strict`;
         // 跳转到仪表板
         router.push("/dashboard/default");
       } else {

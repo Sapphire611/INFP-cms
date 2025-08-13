@@ -1,63 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import bcrypt from "bcryptjs";
+import { compare } from "bcryptjs";
+import { sign } from "jsonwebtoken";
 
-import { prisma } from "@/lib/prisma";
+import { connectDB } from "@/lib/mongoose";
+import User from "@/models/user";
+
+interface LoginRequest {
+  email: string;
+  password: string;
+}
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    // Ensure database connection is established
+    await connectDB();
+    console.log("Database connection established for login request");
+
+    const body: LoginRequest = await request.json();
     const { email, password } = body;
 
-    // 验证必填字段
-    if (!email || !password) {
-      return NextResponse.json({ error: "Email and password are required" }, { status: 400 });
-    }
-
-    // 查找用户
-    const user = await prisma.user.findUnique({
-      where: { email },
-    });
-
+    // Find user by email
+    const user = await User.findOne({ email });
     if (!user) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    // 验证密码
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-
+    // Check if password matches
+    const isPasswordValid = await compare(password, user.password);
+    console.log({ isPasswordValid });
     if (!isPasswordValid) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+      return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    // 返回用户信息（不包含密码）
-    const { password: _, ...userWithoutPassword } = user;
+    // Create JWT token
+    const token = sign({ id: user._id, email: user.email, role: user.role }, process.env.JWT_SECRET ?? "", {
+      expiresIn: "1d",
+    });
 
-    // 创建响应
-    const response = NextResponse.json({
+    // Return token and user data
+    return NextResponse.json({
+      ok: true,
       success: true,
-      user: userWithoutPassword,
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
     });
-
-    // 设置认证cookie（7天过期）
-    response.cookies.set("auth-token", user.id, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-    });
-
-    // 设置用户信息cookie（7天过期）
-    response.cookies.set("user-info", JSON.stringify(userWithoutPassword), {
-      httpOnly: false, // 允许客户端访问
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 7 * 24 * 60 * 60, // 7 days
-    });
-
-    return response;
   } catch (error) {
-    console.error("Error during login:", error);
-    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    console.error("Login error:", error);
+    return NextResponse.json({ error: "Failed to login" }, { status: 500 });
   }
 }
