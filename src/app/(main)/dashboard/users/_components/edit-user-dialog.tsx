@@ -60,7 +60,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
         ...(data.password && data.password.trim() !== "" && { password: data.password }),
       };
 
-      const response = await fetch(`/api/users/${user.id}`, {
+      const response = await fetch(`/api/users/${user._id}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",

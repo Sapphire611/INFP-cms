@@ -48,7 +48,7 @@ export default function UsersPage() {
   const table = useDataTableInstance({
     data: users,
     columns: userColumns,
-    getRowId: (row) => row.id,
+    getRowId: (row) => row._id,
   });
 
   if (loading) {

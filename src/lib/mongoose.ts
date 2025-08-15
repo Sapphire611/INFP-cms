@@ -76,6 +76,8 @@ export { connectDB };
 export function withDBConnect<T>(handler: (req: NextRequest, ...args: T[]) => Promise<NextResponse>) {
   return async (...args: T[]) => {
     await connectDB();
-    return handler(...args);
+    const req = args[0] as NextRequest;
+    const restArgs = args.slice(1);
+    return handler(req, ...restArgs);
   };
 }
