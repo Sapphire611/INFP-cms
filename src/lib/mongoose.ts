@@ -73,11 +73,9 @@ export default mongoose;
 
 export { connectDB };
 
-export function withDBConnect<T>(handler: (req: NextRequest, ...args: T[]) => Promise<NextResponse>) {
-  return async (...args: T[]) => {
+export function withDBConnect<T extends unknown[]>(handler: (req: NextRequest, ...args: T) => Promise<NextResponse>) {
+  return async (req: NextRequest, ...args: T) => {
     await connectDB();
-    const req = args[0] as NextRequest;
-    const restArgs = args.slice(1);
-    return handler(req, ...restArgs);
+    return handler(req, ...args);
   };
 }
