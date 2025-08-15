@@ -48,8 +48,9 @@ export async function POST(request: NextRequest) {
         role: user.role,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Login error:", error);
-    return NextResponse.json({ error }, { status: 500 });
+    const message = error instanceof Error ? error.message : "An unexpected error occurred";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
