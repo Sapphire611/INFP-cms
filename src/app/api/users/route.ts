@@ -3,15 +3,17 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getToken } from "next-auth/jwt";
 
+import { connectDB } from "@/lib/mongoose";
 import User from "@/models/user";
 import { CreateUserRequest, UpdateUserRequest } from "@/types/user";
+
 
 // GET /api/users - 获取用户列表
 export async function GET(request: NextRequest) {
   try {
+    await connectDB();
     const users = await User.find().select("-password");
 
-    // 转换日期为字符串并将_id重命名为id
     const formattedUsers = users.map((user) => ({
       ...user.toObject(),
       createdAt: user.createdAt.toISOString(),
@@ -28,6 +30,7 @@ export async function GET(request: NextRequest) {
 // POST /api/users - 创建新用户
 export async function POST(request: NextRequest) {
   try {
+    connectDB
     const body: CreateUserRequest = await request.json();
     const { name, email, password } = body;
 

@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { getToken } from "next-auth/jwt";
 
+import { connectDB } from "@/lib/mongoose";
 import User from "@/models/user";
 
 // GET /api/users/stats - 获取用户统计数据
 export async function GET(request: NextRequest) {
   try {
+    await connectDB();
     // 获取当前日期
     const now = new Date();
     const currentMonth = now.getMonth();

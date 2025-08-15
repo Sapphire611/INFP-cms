@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
-import bcrypt from "bcryptjs";
 
+import bcrypt from "bcryptjs";
+import { getToken } from "next-auth/jwt";
+
+import { connectDB } from "@/lib/mongoose";
 import User from "@/models/user";
 import { UpdateUserRequest } from "@/types/user";
+
 
 // GET /api/users/[id] - 获取单个用户
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await connectDB();
     // Await params before accessing id
     const { id } = await params;
     const user = await User.findById(id).select("-password");
@@ -33,6 +37,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 // PATCH /api/users/[id] - 更新用户
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await connectDB();
     // Await params before accessing id
     const { id } = await params;
     const body: UpdateUserRequest = await request.json();
