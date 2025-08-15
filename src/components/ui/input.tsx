@@ -2,7 +2,30 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-function Input({ className, type, ...props }: React.ComponentProps<"input">) {
+import { useState, useCallback } from 'react';
+
+function Input({ className, type, value: propValue, defaultValue, onChange: propOnChange, ...props }: React.ComponentProps<"input">) {
+  // Ensure consistent controlled/uncontrolled behavior
+  const [isControlled] = useState(() => propValue !== undefined);
+  const [internalValue, setInternalValue] = useState(defaultValue);
+
+  // Use controlled value if provided, otherwise use internal state
+  const value = isControlled ? propValue : internalValue;
+
+  // Create onChange handler that works for both controlled and uncontrolled
+  const onChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    if (propOnChange) {
+      propOnChange(e);
+    }
+    if (!isControlled) {
+      setInternalValue(e.target.value);
+    }
+  }, [propOnChange, isControlled]);
+
+  // Prevent switching between controlled/uncontrolled
+  const safeProps = isControlled ?
+    { ...props, value, onChange } :
+    { ...props, defaultValue, onChange };
   return (
     <input
       type={type}
@@ -13,7 +36,7 @@ function Input({ className, type, ...props }: React.ComponentProps<"input">) {
         "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
         className
       )}
-      {...props}
+      {...safeProps}
     />
   )
 }

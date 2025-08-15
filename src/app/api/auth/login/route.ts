@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { compare } from "bcryptjs";
 import { sign } from "jsonwebtoken";
 
-import { connectDB } from "@/lib/mongoose";
+// 不再需要导入connectDB，因为中间件会处理数据库连接
 import User from "@/models/user";
 
 interface LoginRequest {
@@ -13,8 +13,6 @@ interface LoginRequest {
 
 export async function POST(request: NextRequest) {
   try {
-    // Ensure database connection is established
-    await connectDB();
     console.log("Database connection established for login request");
 
     const body: LoginRequest = await request.json();

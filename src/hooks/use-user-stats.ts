@@ -3,11 +3,10 @@
 import { useState, useEffect } from "react";
 
 interface UserStats {
-  totalUsers: number;
-  newUsersToday: number;
-  newUsersLast7Days: number;
-  trendPercentage: number;
-  trendDirection: "up" | "down";
+  total: number;
+  monthly: number;
+  weekly: number;
+  daily: number;
 }
 
 export function useUserStats() {

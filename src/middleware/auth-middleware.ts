@@ -6,8 +6,9 @@ export function authMiddleware(req: NextRequest) {
   const userInfo = req.cookies.get("user-info");
 
   // 检查是否已登录
-  const isLoggedIn = authToken && userInfo;
+  const isLoggedIn = authToken && userInfo ? true : false;
 
+  // console.log({ authToken, userInfo, isLoggedIn });
   // 如果访问dashboard但未登录，重定向到登录页
   if (!isLoggedIn && pathname.startsWith("/dashboard")) {
     return NextResponse.redirect(new URL("/login", req.url));

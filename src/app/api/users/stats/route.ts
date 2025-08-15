@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+
 import { getToken } from "next-auth/jwt";
 
 import User from "@/models/user";
@@ -6,11 +7,6 @@ import User from "@/models/user";
 // GET /api/users/stats - 获取用户统计数据
 export async function GET(request: NextRequest) {
   try {
-    const token = await getToken({ req: request });
-    if (!token || token.role !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
     // 获取当前日期
     const now = new Date();
     const currentMonth = now.getMonth();
@@ -36,6 +32,7 @@ export async function GET(request: NextRequest) {
     const startOfDay = new Date(currentYear, currentMonth, now.getDate());
     stats.daily = await User.countDocuments({ createdAt: { $gte: startOfDay } });
 
+    console.log(stats);
     return NextResponse.json(stats);
   } catch (error) {
     console.error("Error fetching user stats:", error);
