@@ -19,9 +19,9 @@ export async function GET(request: NextRequest) {
     }));
 
     return NextResponse.json(formattedUsers);
-  } catch (error) {
-    console.error("Error fetching users:", error);
-    return NextResponse.json({ error: "Failed to fetch users" }, { status: 500 });
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "An unexpected error occurred";
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
