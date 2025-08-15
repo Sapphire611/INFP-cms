@@ -3,8 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { compare } from "bcryptjs";
 import { sign } from "jsonwebtoken";
 
-// 不再需要导入connectDB，因为中间件会处理数据库连接
+import { connectDB } from "@/lib/mongoose";
 import User from "@/models/user";
+
 
 interface LoginRequest {
   email: string;
@@ -13,6 +14,7 @@ interface LoginRequest {
 
 export async function POST(request: NextRequest) {
   try {
+    await connectDB();
     console.log("Database connection established for login request");
 
     const body: LoginRequest = await request.json();
