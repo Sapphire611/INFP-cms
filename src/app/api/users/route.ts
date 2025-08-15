@@ -3,15 +3,13 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getToken } from "next-auth/jwt";
 
-import { connectDB } from "@/lib/mongoose";
+import { withDBConnect } from "@/lib/mongoose";
 import User from "@/models/user";
 import { CreateUserRequest, UpdateUserRequest } from "@/types/user";
 
-
 // GET /api/users - 获取用户列表
-export async function GET(request: NextRequest) {
+export const GET = withDBConnect(async function GET(request: NextRequest) {
   try {
-    await connectDB();
     const users = await User.find().select("-password");
 
     const formattedUsers = users.map((user) => ({
@@ -25,12 +23,11 @@ export async function GET(request: NextRequest) {
     const message = error instanceof Error ? error.message : "An unexpected error occurred";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-}
+});
 
 // POST /api/users - 创建新用户
-export async function POST(request: NextRequest) {
+export const POST = withDBConnect(async function POST(request: NextRequest) {
   try {
-    connectDB
     const body: CreateUserRequest = await request.json();
     const { name, email, password } = body;
 
@@ -72,10 +69,10 @@ export async function POST(request: NextRequest) {
     console.error("Error creating user:", error);
     return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
   }
-}
+});
 
 // PUT /api/users/:id - 更新用户信息
-export async function PUT(request: NextRequest) {
+export const PUT = withDBConnect(async function PUT(request: NextRequest) {
   try {
     const token = await getToken({ req: request });
     if (!token || token.role !== "admin") {
@@ -125,4 +122,4 @@ export async function PUT(request: NextRequest) {
     console.error("Error updating user:", error);
     return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
   }
-}
+});

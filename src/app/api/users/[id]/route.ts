@@ -1,17 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import bcrypt from "bcryptjs";
-import { getToken } from "next-auth/jwt";
 
-import { connectDB } from "@/lib/mongoose";
+import { withDBConnect } from "@/lib/mongoose";
 import User from "@/models/user";
 import { UpdateUserRequest } from "@/types/user";
 
-
 // GET /api/users/[id] - 获取单个用户
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const GET = withDBConnect(async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
-    await connectDB();
     // Await params before accessing id
     const { id } = await params;
     const user = await User.findById(id).select("-password");
@@ -32,12 +32,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     console.error("Error fetching user:", error);
     return NextResponse.json({ error: "Failed to fetch user" }, { status: 500 });
   }
-}
+});
 
 // PATCH /api/users/[id] - 更新用户
-export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const PATCH = withDBConnect(async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
-    await connectDB();
     // Await params before accessing id
     const { id } = await params;
     const body: UpdateUserRequest = await request.json();
@@ -79,10 +81,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     console.error("Error updating user:", error);
     return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
   }
-}
+});
 
 // DELETE /api/users/[id] - 删除用户
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export const DELETE = withDBConnect(async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
     // Await params before accessing id
     const { id } = await params;
@@ -97,4 +102,4 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     console.error("Error deleting user:", error);
     return NextResponse.json({ error: "Failed to delete user" }, { status: 500 });
   }
-}
+});
