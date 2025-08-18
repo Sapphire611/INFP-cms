@@ -34,7 +34,7 @@ export const GET = withDBConnect(async function GET(request: NextRequest) {
     }
 
     // 构建排序条件
-    const sortField = searchParams.get("sortField") ?? "title";
+    const sortField = searchParams.get("sortField") ?? "createdAt";
     const sortOrder = searchParams.get("sortOrder") === "desc" ? -1 : 1;
     const sortCriteria: any = {};
     sortCriteria[sortField] = sortOrder;

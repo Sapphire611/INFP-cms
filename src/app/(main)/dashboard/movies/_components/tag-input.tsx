@@ -39,9 +39,9 @@ export function TagInput({ label, tags, setTags, inputValue, setInputValue, plac
       <Label>{label}</Label>
       <div className="flex flex-wrap items-center gap-2">
         {tags.map((tag, index) => (
-          <Badge key={index} variant="secondary" className="flex items-center gap-1">
+          <Badge key={index} variant="secondary" className="flex items-center gap-1 px-2 py-1">
             {tag}
-            <X className="h-3 w-3 cursor-pointer" onClick={() => handleRemoveTag(tag)} />
+            <X className="h-4 w-4 cursor-pointer hover:text-red-500 transition-colors" onClick={() => handleRemoveTag(tag)} />
           </Badge>
         ))}
         <div className="flex flex-1 items-center gap-2">

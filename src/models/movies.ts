@@ -102,12 +102,10 @@ const MovieSchema: Schema = new Schema(
       },
       text: {
         type: String,
-        required: [true, "Please provide award text"],
       },
     },
     lastupdated: {
       type: String,
-      required: [true, "Please provide last updated timestamp"],
     },
     year: {
       type: Number,
@@ -134,52 +132,6 @@ const MovieSchema: Schema = new Schema(
     type: {
       type: String,
       required: [true, "Please provide type"],
-    },
-    tomatoes: {
-      viewer: {
-        rating: {
-          type: Number,
-          required: [true, "Please provide viewer rating"],
-        },
-        numReviews: {
-          type: Number,
-          required: [true, "Please provide number of viewer reviews"],
-        },
-        meter: {
-          type: Number,
-          required: [true, "Please provide viewer meter"],
-        },
-      },
-      fresh: {
-        type: Number,
-        required: [true, "Please provide fresh rating"],
-      },
-      critic: {
-        rating: {
-          type: Number,
-          required: [true, "Please provide critic rating"],
-        },
-        numReviews: {
-          type: Number,
-          required: [true, "Please provide number of critic reviews"],
-        },
-        meter: {
-          type: Number,
-          required: [true, "Please provide critic meter"],
-        },
-      },
-      rotten: {
-        type: Number,
-        required: [true, "Please provide rotten rating"],
-      },
-      lastUpdated: {
-        type: Date,
-        required: [true, "Please provide last updated date for tomatoes"],
-      },
-    },
-    num_mflix_comments: {
-      type: Number,
-      required: [true, "Please provide number of comments"],
     },
   },
   {

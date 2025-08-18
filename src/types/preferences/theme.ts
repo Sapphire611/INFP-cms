@@ -17,7 +17,7 @@ export type ThemeMode = (typeof THEME_MODE_VALUES)[number];
 
 export const THEME_PRESET_OPTIONS = [
   {
-    label: "Default",
+    label: "默认",
     value: "default",
     primary: {
       light: "oklch(0.205 0 0)",
@@ -25,7 +25,7 @@ export const THEME_PRESET_OPTIONS = [
     },
   },
   {
-    label: "Brutalist",
+    label: "野兽派",
     value: "brutalist",
     primary: {
       light: "oklch(0.6489 0.2370 26.9728)",
@@ -33,7 +33,7 @@ export const THEME_PRESET_OPTIONS = [
     },
   },
   {
-    label: "Soft Pop",
+    label: "柔和",
     value: "soft-pop",
     primary: {
       light: "oklch(0.5106 0.2301 276.9656)",
@@ -41,7 +41,7 @@ export const THEME_PRESET_OPTIONS = [
     },
   },
   {
-    label: "Tangerine",
+    label: "柑橘",
     value: "tangerine",
     primary: {
       light: "oklch(0.64 0.17 36.44)",

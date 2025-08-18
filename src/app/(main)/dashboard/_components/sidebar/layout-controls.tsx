@@ -24,8 +24,8 @@ export function LayoutControls(props: LayoutControlsProps) {
   const { variant, collapsible, contentLayout } = props;
 
   const themeMode = usePreferencesStore((s) => s.themeMode);
-  const setThemeMode = usePreferencesStore((s) => s.setThemeMode);
   const themePreset = usePreferencesStore((s) => s.themePreset);
+  const setThemeMode = usePreferencesStore((s) => s.setThemeMode);
   const setThemePreset = usePreferencesStore((s) => s.setThemePreset);
 
   const handleValueChange = async (key: string, value: any) => {
@@ -55,12 +55,12 @@ export function LayoutControls(props: LayoutControlsProps) {
       <PopoverContent align="end">
         <div className="flex flex-col gap-5">
           <div className="space-y-1.5">
-            <h4 className="text-sm leading-none font-medium">Layout Settings</h4>
-            <p className="text-muted-foreground text-xs">Customize your dashboard layout preferences.</p>
+            <h4 className="text-sm leading-none font-medium">布局设置</h4>
+            <p className="text-muted-foreground text-xs">自定义您的仪表板布局偏好</p>
           </div>
           <div className="space-y-3">
             <div className="space-y-1">
-              <Label className="text-xs font-medium">Preset</Label>
+              <Label className="text-xs font-medium">预设</Label>
               <Select value={themePreset} onValueChange={(value) => handleValueChange("theme_preset", value)}>
                 <SelectTrigger size="sm" className="w-full text-xs">
                   <SelectValue placeholder="Preset" />
@@ -82,7 +82,7 @@ export function LayoutControls(props: LayoutControlsProps) {
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-medium">Mode</Label>
+              <Label className="text-xs font-medium">模式</Label>
               <ToggleGroup
                 className="w-full"
                 size="sm"
@@ -92,16 +92,16 @@ export function LayoutControls(props: LayoutControlsProps) {
                 onValueChange={(value) => handleValueChange("theme_mode", value)}
               >
                 <ToggleGroupItem className="text-xs" value="light" aria-label="Toggle inset">
-                  Light
+                  浅色
                 </ToggleGroupItem>
                 <ToggleGroupItem className="text-xs" value="dark" aria-label="Toggle sidebar">
-                  Dark
+                  深色
                 </ToggleGroupItem>
               </ToggleGroup>
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-medium">Sidebar Variant</Label>
+              <Label className="text-xs font-medium">侧边栏样式</Label>
               <ToggleGroup
                 className="w-full"
                 size="sm"
@@ -111,19 +111,19 @@ export function LayoutControls(props: LayoutControlsProps) {
                 onValueChange={(value) => handleValueChange("sidebar_variant", value)}
               >
                 <ToggleGroupItem className="text-xs" value="inset" aria-label="Toggle inset">
-                  Inset
+                  内嵌式
                 </ToggleGroupItem>
                 <ToggleGroupItem className="text-xs" value="sidebar" aria-label="Toggle sidebar">
-                  Sidebar
+                  侧边栏
                 </ToggleGroupItem>
                 <ToggleGroupItem className="text-xs" value="floating" aria-label="Toggle floating">
-                  Floating
+                  悬浮式
                 </ToggleGroupItem>
               </ToggleGroup>
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-medium">Sidebar Collapsible</Label>
+              <Label className="text-xs font-medium">侧边栏折叠方式</Label>
               <ToggleGroup
                 className="w-full"
                 size="sm"
@@ -133,16 +133,16 @@ export function LayoutControls(props: LayoutControlsProps) {
                 onValueChange={(value) => handleValueChange("sidebar_collapsible", value)}
               >
                 <ToggleGroupItem className="text-xs" value="icon" aria-label="Toggle icon">
-                  Icon
+                  图标
                 </ToggleGroupItem>
                 <ToggleGroupItem className="text-xs" value="offcanvas" aria-label="Toggle offcanvas">
-                  OffCanvas
+                  侧边抽屉
                 </ToggleGroupItem>
               </ToggleGroup>
             </div>
 
             <div className="space-y-1">
-              <Label className="text-xs font-medium">Content Layout</Label>
+              <Label className="text-xs font-medium">内容布局</Label>
               <ToggleGroup
                 className="w-full"
                 size="sm"
@@ -152,10 +152,10 @@ export function LayoutControls(props: LayoutControlsProps) {
                 onValueChange={(value) => handleValueChange("content_layout", value)}
               >
                 <ToggleGroupItem className="text-xs" value="centered" aria-label="Toggle centered">
-                  Centered
+                  居中
                 </ToggleGroupItem>
                 <ToggleGroupItem className="text-xs" value="full-width" aria-label="Toggle full-width">
-                  Full Width
+                  全宽
                 </ToggleGroupItem>
               </ToggleGroup>
             </div>

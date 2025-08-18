@@ -61,7 +61,7 @@ export function AddMovieDialog({ open, onOpenChange, onMovieAdded }: AddMovieDia
       title: "",
       plot: "",
       fullplot: "",
-      runtime: 0,
+      runtime: 1,
       poster: "",
       rated: "",
       year: new Date().getFullYear(),
@@ -134,7 +134,7 @@ export function AddMovieDialog({ open, onOpenChange, onMovieAdded }: AddMovieDia
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-2xl">
+      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle>添加新电影</DialogTitle>
           <DialogDescription>填写以下信息添加一部新电影</DialogDescription>
