@@ -1,3 +1,5 @@
+import { IUser } from "../models/user";
+
 export interface CreateUserRequest {
   name: string;
   email: string;
@@ -10,11 +12,6 @@ export interface UpdateUserRequest {
   password?: string;
 }
 
-export interface UserResponse {
+export interface UserResponse extends IUser {
   _id: string;
-  name: string;
-  email: string;
-  role: string;
-  createdAt: Date;
-  updatedAt: Date;
 }

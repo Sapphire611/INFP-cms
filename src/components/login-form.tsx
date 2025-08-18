@@ -15,8 +15,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 
 const FormSchema = z.object({
-  email: z.string().email({ message: "Please enter a valid email address." }),
-  password: z.string().min(6, { message: "Password must be at least 6 characters." }),
+  email: z.string().email({ message: "请输入有效的邮箱地址。" }),
+  password: z.string().min(6, { message: "密码至少需要6个字符。" }),
   remember: z.boolean().optional(),
 });
 
@@ -76,9 +76,9 @@ export function LoginForm() {
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Email Address</FormLabel>
+              <FormLabel>邮箱地址</FormLabel>
               <FormControl>
-                <Input id="email" type="email" placeholder="you@example.com" autoComplete="email" {...field} />
+                <Input id="email" type="email" placeholder="您的邮箱地址" autoComplete="email" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -89,7 +89,7 @@ export function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>密码</FormLabel>
               <FormControl>
                 <Input
                   id="password"
@@ -117,7 +117,7 @@ export function LoginForm() {
                 />
               </FormControl>
               <FormLabel htmlFor="login-remember" className="text-muted-foreground ml-1 text-sm font-medium">
-                Remember me for 30 days
+                30天内记住我
               </FormLabel>
             </FormItem>
           )}
@@ -128,7 +128,7 @@ export function LoginForm() {
             type="submit"
             disabled={isLoading}
           >
-            {isLoading ? "登录中..." : "Sign In"}
+            {isLoading ? "登录中..." : "登录"}
           </Button>
           <Button
             className="h-10 w-full text-sm font-medium"
@@ -136,7 +136,7 @@ export function LoginForm() {
             variant="outline"
             onClick={() => router.push("/register")}
           >
-            Create Account
+            创建账户
           </Button>
         </div>
       </form>

@@ -31,7 +31,6 @@ export const GET = withDBConnect(async function GET(request: NextRequest) {
     const startOfDay = new Date(currentYear, currentMonth, now.getDate());
     stats.daily = await User.countDocuments({ createdAt: { $gte: startOfDay } });
 
-    console.log(stats);
     return NextResponse.json(stats);
   } catch (error) {
     console.error("Error fetching user stats:", error);

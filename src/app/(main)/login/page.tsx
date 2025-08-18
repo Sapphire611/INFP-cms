@@ -12,9 +12,9 @@ export default function Login() {
 
         <div className="relative w-full max-w-md space-y-10 py-24 lg:py-32">
           <div className="space-y-4 text-center">
-            <div className="text-2xl font-medium tracking-tight text-slate-900 dark:text-white">Login</div>
+            <div className="text-2xl font-medium tracking-tight text-slate-900 dark:text-white">登录</div>
             <div className="text-muted-foreground mx-auto max-w-xl">
-              Welcome back. Enter your email and password, let&apos;s hope you remember them this time.
+              欢迎回来。请输入您的邮箱和密码，希望您这次记得它们。
             </div>
           </div>
           <div className="space-y-4">

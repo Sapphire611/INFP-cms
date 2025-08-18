@@ -188,4 +188,15 @@ const MovieSchema: Schema = new Schema(
   },
 );
 
-export default mongoose.models.Movie ?? mongoose.model<IMovie>("Movie", MovieSchema);
+// 添加常用查询字段的索引以提高性能
+MovieSchema.index({ title: 1 });
+MovieSchema.index({ year: 1 });
+MovieSchema.index({ genres: 1 });
+MovieSchema.index({ "imdb.rating": 1 });
+MovieSchema.index({ createdAt: -1 });
+
+// 复合索引，优化常见的查询组合
+MovieSchema.index({ title: 1, year: 1 });
+MovieSchema.index({ genres: 1, "imdb.rating": -1 });
+
+export default mongoose.models.Movies ?? mongoose.model<IMovie>("Movies", MovieSchema);

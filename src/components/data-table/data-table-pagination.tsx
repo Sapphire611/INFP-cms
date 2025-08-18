@@ -23,7 +23,9 @@ export function DataTablePagination<TData>({ table }: DataTablePaginationProps<T
           <Select
             value={`${table.getState().pagination.pageSize}`}
             onValueChange={(value) => {
+              // 当页面大小改变时，重置到第一页
               table.setPageSize(Number(value));
+              table.setPageIndex(0);
             }}
           >
             <SelectTrigger size="sm" className="w-20" id="rows-per-page">

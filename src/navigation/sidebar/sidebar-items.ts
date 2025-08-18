@@ -15,6 +15,7 @@ import {
   Banknote,
   Gauge,
   GraduationCap,
+  Clapperboard,
   type LucideIcon,
 } from "lucide-react";
 
@@ -53,21 +54,22 @@ export const sidebarItems: NavGroup[] = [
         url: "/dashboard/default",
         icon: LayoutDashboard,
       },
-      // {
-      //   title: "CRM",
-      //   url: "/dashboard/crm",
-      //   icon: ChartBar,
-      // },
-      // {
-      //   title: "Finance",
-      //   url: "/dashboard/finance",
-      //   icon: Banknote,
-      // },
       {
         title: "用户管理",
         url: "/dashboard/users",
         icon: Users,
       },
+      {
+        title: "电影管理",
+        url: "/dashboard/movies",
+        icon: Clapperboard,
+      },
+      // {
+      //   title: "Finance",
+      //   url: "/dashboard/finance",
+      //   icon: Banknote,
+      // },
+
       // {
       //   title: "Authentication",
       //   url: "/auth",

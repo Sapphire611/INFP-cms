@@ -7,18 +7,67 @@ import { withDBConnect } from "@/lib/mongoose";
 import User from "@/models/user";
 import { CreateUserRequest, UpdateUserRequest } from "@/types/user";
 
-// GET /api/users - 获取用户列表
+// Helper function to extract and validate pagination parameters
+function extractPaginationParams(url: URL) {
+  const pageParam = url.searchParams.get("page");
+  const limitParam = url.searchParams.get("limit");
+  const page = pageParam ? parseInt(pageParam) : 1;
+  const limit = limitParam ? parseInt(limitParam) : 20;
+  const skip = (page - 1) * limit;
+  return { page, limit, skip };
+}
+
+// Helper function to extract sorting parameters
+function extractSortingParams(url: URL) {
+  const sortField = url.searchParams.get("sortField") ?? "createdAt";
+  const sortOrder = url.searchParams.get("sortOrder") ?? "desc";
+  const sort: Record<string, 1 | -1> = {};
+  sort[sortField] = sortOrder === "asc" ? 1 : -1;
+  return sort;
+}
+
+// Helper function to build query conditions
+function buildQueryConditions(url: URL) {
+  const query: Record<string, any> = {};
+  const search = url.searchParams.get("search") ?? "";
+  const role = url.searchParams.get("role") ?? "";
+
+  if (search) {
+    query.$or = [{ name: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }];
+  }
+  if (role) {
+    query.role = role;
+  }
+
+  return query;
+}
+
+// GET /api/users - 获取用户列表（支持分页、筛选和排序）
 export const GET = withDBConnect(async function GET(request: NextRequest) {
   try {
-    const users = await User.find().select("-password");
+    const url = new URL(request.url);
 
-    const formattedUsers = users.map((user) => ({
-      ...user.toObject(),
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString(),
-    }));
+    // Extract and validate parameters
+    const { page, limit, skip } = extractPaginationParams(url);
+    const sort = extractSortingParams(url);
+    const query = buildQueryConditions(url);
 
-    return NextResponse.json(formattedUsers);
+    // Database operations
+    const total = await User.countDocuments(query);
+    const users = await User.find(query).select("-password").sort(sort).skip(skip).limit(limit);
+
+    // Format and return data
+    const totalPages = Math.ceil(total / limit);
+
+    return NextResponse.json({
+      data: users,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages,
+      },
+    });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "An unexpected error occurred";
     return NextResponse.json({ error: message }, { status: 500 });
@@ -56,15 +105,7 @@ export const POST = withDBConnect(async function POST(request: NextRequest) {
     const userWithoutPassword = user.toObject();
     delete userWithoutPassword.password;
 
-    return NextResponse.json(
-      {
-        ...userWithoutPassword,
-        id: user._id.toString(),
-        createdAt: user.createdAt.toISOString(),
-        updatedAt: user.updatedAt.toISOString(),
-      },
-      { status: 201 },
-    );
+    return NextResponse.json(userWithoutPassword, { status: 201 });
   } catch (error) {
     console.error("Error creating user:", error);
     return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
@@ -112,12 +153,7 @@ export const PUT = withDBConnect(async function PUT(request: NextRequest) {
     const userWithoutPassword = user.toObject();
     delete userWithoutPassword.password;
 
-    return NextResponse.json({
-      ...userWithoutPassword,
-      id: user._id.toString(),
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString(),
-    });
+    return NextResponse.json(userWithoutPassword, { status: 200 });
   } catch (error) {
     console.error("Error updating user:", error);
     return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
