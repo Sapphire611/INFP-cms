@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Plus } from "lucide-react";
 
@@ -24,11 +24,15 @@ export interface PaginationInfo {
   totalPages: number;
 }
 
+interface Filters {
+  search?: string;
+}
 export default function MoviesPage() {
-  const [movies, setMovies] = React.useState<MovieWithCallback[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [isAddOpen, setIsAddOpen] = React.useState(false);
-  const [pagination, setPagination] = React.useState<PaginationInfo>({
+  const [movies, setMovies] = useState<MovieWithCallback[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [filters, setFilters] = useState<Filters>({});
+  const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
     page: 1,
     limit: 20,
@@ -36,54 +40,47 @@ export default function MoviesPage() {
   });
 
   // 获取电影数据（支持分页）
-  const fetchMovies = async (page = 1, filters = {}) => {
-    try {
-      setLoading(true);
+  const fetchMovies = useCallback(
+    async (page = 1, pageSize: number) => {
+      try {
+        setLoading(true);
 
-      // 构建查询参数
-      const queryParams = new URLSearchParams();
-      queryParams.append("page", page.toString());
-      queryParams.append("limit", pagination.limit.toString());
+        // 构建查询参数
+        const queryParams = new URLSearchParams();
+        queryParams.append("page", page.toString());
+        queryParams.append("limit", pageSize.toString());
 
-      // 添加筛选条件
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) queryParams.append(key, value.toString());
-      });
+        // 添加筛选条件
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value) queryParams.append(key, value.toString());
+        });
 
-      const response = await fetch(`/api/movies?${queryParams.toString()}`);
-      if (response.ok) {
-        const { data, pagination: newPagination } = await response.json();
+        const response = await fetch(`/api/movies?${queryParams.toString()}`);
+        if (response.ok) {
+          const { data, pagination: newPagination } = await response.json();
 
-        // 为每个电影添加更新回调
-        const moviesWithCallbacks = data.map((movie: MovieResponse) => ({
-          ...movie,
-          onMovieUpdated: fetchMovies,
-        }));
+          // 为每个电影添加更新回调
+          const moviesWithCallbacks = data.map((movie: MovieResponse) => ({
+            ...movie,
+            onMovieUpdated: fetchMovies,
+          }));
 
-        setMovies(moviesWithCallbacks);
-        setPagination(newPagination);
+          setMovies(moviesWithCallbacks);
+          setPagination(newPagination);
+        }
+      } catch (error) {
+        console.error("Error fetching movies:", error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Error fetching movies:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [filters],
+  );
 
-  React.useEffect(() => {
-    fetchMovies(1);
-  }, []);
-
-  // 处理页码变化
-  const handlePageChange = (newPage: number) => {
-    fetchMovies(newPage);
-  };
-
-  // 处理每页显示数量变化
-  const handlePageSizeChange = (newPageSize: number) => {
-    setPagination((prev) => ({ ...prev, limit: newPageSize }));
-    fetchMovies(1); // 重置为第一页
-  };
+  useEffect(() => {
+    // 初始化时获取第一页数据
+    fetchMovies(1, pagination.limit);
+  }, [fetchMovies, pagination.limit]);
 
   // 创建表格实例
   const table = useDataTableInstance({
@@ -137,7 +134,21 @@ export default function MoviesPage() {
         <DataTable table={table} columns={movieColumns} />
       </div>
 
-      <DataTablePagination table={table} />
+      <DataTablePagination
+        table={table}
+        currentPage={pagination.page}
+        pageSize={pagination.limit}
+        totalCount={pagination.total}
+        totalPages={pagination.totalPages}
+        isLoading={loading}
+        onPageChange={async (page) => {
+          await fetchMovies(page, pagination.limit);
+        }}
+        onPageSizeChange={async (newPageSize) => {
+          await fetchMovies(1, newPageSize);
+        }}
+        pageSizeOptions={[10, 20, 30, 50]}
+      />
 
       {/* 添加电影对话框 */}
       <AddMovieDialog open={isAddOpen} onOpenChange={setIsAddOpen} onMovieAdded={fetchMovies} />

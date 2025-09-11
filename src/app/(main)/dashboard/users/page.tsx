@@ -16,8 +16,6 @@ import { AddUserDialog } from "./_components/add-user-dialog";
 import { UserWithCallback } from "./_components/types";
 import { userColumns } from "./_components/user-columns";
 
-
-
 // 定义分页信息接口
 export interface PaginationInfo {
   total: number;
@@ -43,7 +41,7 @@ export default function UsersPage() {
     totalPages: 1,
   });
 
-    // 获取用户数据（支持分页和筛选）
+  // 获取用户数据（支持分页和筛选）
   const fetchUsers = useCallback(
     async (page: number, pageSize: number) => {
       setLoading(true);
@@ -79,7 +77,7 @@ export default function UsersPage() {
         setLoading(false);
       }
     },
-    [filters]
+    [filters],
   );
 
   useEffect(() => {
@@ -156,11 +154,7 @@ export default function UsersPage() {
       />
 
       {/* 添加用户对话框 */}
-      <AddUserDialog
-        open={isAddOpen}
-        onOpenChange={setIsAddOpen}
-        onUserAdded={() => fetchUsers(1, pagination.limit)}
-      />
+      <AddUserDialog open={isAddOpen} onOpenChange={setIsAddOpen} onUserAdded={() => fetchUsers(1, pagination.limit)} />
     </div>
   );
 }
