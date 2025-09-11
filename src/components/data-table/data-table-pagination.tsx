@@ -1,5 +1,6 @@
+import * as React from "react";
 import { Table } from "@tanstack/react-table";
-import { ChevronRight, ChevronsRight, ChevronLeft, ChevronsLeft } from "lucide-react";
+import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -7,81 +8,112 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
+  currentPage: number; // 当前页码（从1开始）
+  pageSize: number; // 每页条数
+  totalCount: number; // 总记录数
+  totalPages: number; // 总页数
+  isLoading?: boolean; // 加载状态
+  onPageChange?: (page: number) => void; // 页码变化回调
+  onPageSizeChange?: (pageSize: number) => void; // 每页条数变化回调
+  pageSizeOptions?: number[]; // 可选的每页条数选项
 }
 
-export function DataTablePagination<TData>({ table }: DataTablePaginationProps<TData>) {
+export function DataTablePagination<TData>({
+  table,
+  currentPage,
+  pageSize,
+  totalCount,
+  totalPages,
+  isLoading = false,
+  onPageChange,
+  onPageSizeChange,
+  pageSizeOptions = [10, 20, 30, 40, 50],
+}: DataTablePaginationProps<TData>): JSX.Element {
+  const handlePageChange = React.useCallback(
+    (newPage: number) => {
+      if (onPageChange) {
+        onPageChange(newPage);
+      }
+    },
+    [onPageChange],
+  );
+
+  const handlePageSizeChange = React.useCallback(
+    (newPageSize: number) => {
+      if (onPageSizeChange) {
+        onPageSizeChange(newPageSize);
+      }
+    },
+    [onPageSizeChange],
+  );
+
   return (
     <div className="flex items-center justify-between px-4">
-      <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-        已选择 {table.getFilteredSelectedRowModel().rows.length} / {table.getFilteredRowModel().rows.length} 行
-      </div>
+      <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">总共 {totalCount} 条数据</div>
       <div className="flex w-full items-center gap-8 lg:w-fit">
         <div className="hidden items-center gap-2 lg:flex">
           <Label htmlFor="rows-per-page" className="text-sm font-medium">
             每页行数
           </Label>
           <Select
-            value={`${table.getState().pagination.pageSize}`}
-            onValueChange={(value) => {
-              // 当页面大小改变时，重置到第一页
-              table.setPageSize(Number(value));
-              table.setPageIndex(0);
+            value={`${pageSize}`}
+            onValueChange={async (value) => {
+              const newPageSize = Number(value);
+              handlePageSizeChange(newPageSize);
             }}
+            disabled={isLoading}
           >
             <SelectTrigger size="sm" className="w-20" id="rows-per-page">
-              <SelectValue placeholder={table.getState().pagination.pageSize} />
+              <SelectValue placeholder={`${pageSize}`} />
             </SelectTrigger>
             <SelectContent side="top">
-              {[10, 20, 30, 40, 50].map((pageSize) => (
-                <SelectItem key={pageSize} value={`${pageSize}`}>
-                  {pageSize}
+              {pageSizeOptions.map((size) => (
+                <SelectItem key={size} value={`${size}`}>
+                  {size}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
         <div className="flex w-fit items-center justify-center text-sm font-medium">
-          第 {table.getState().pagination.pageIndex + 1} 页，共 {table.getPageCount()} 页
+          第 {currentPage} 页，共 {totalPages} 页
         </div>
         <div className="ml-auto flex items-center gap-2 lg:ml-0">
           <Button
             variant="outline"
             className="hidden h-8 w-8 p-0 lg:flex"
-            onClick={() => table.setPageIndex(0)}
-            disabled={!table.getCanPreviousPage()}
+            onClick={() => handlePageChange(1)}
+            disabled={currentPage === 1 || isLoading}
           >
             <span className="sr-only">跳到第一页</span>
-            <ChevronsLeft />
+            <ChevronsLeft className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
-            className="size-8"
-            size="icon"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
+            className="h-8 w-8 p-0"
+            onClick={() => handlePageChange(currentPage - 1)}
+            disabled={currentPage === 1 || isLoading}
           >
             <span className="sr-only">上一页</span>
-            <ChevronLeft />
+            <ChevronLeft className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
-            className="size-8"
-            size="icon"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
+            className="h-8 w-8 p-0"
+            onClick={() => handlePageChange(currentPage + 1)}
+            disabled={currentPage === totalPages || isLoading}
           >
             <span className="sr-only">下一页</span>
-            <ChevronRight />
+            <ChevronRight className="h-4 w-4" />
           </Button>
           <Button
             variant="outline"
-            className="hidden size-8 lg:flex"
-            size="icon"
-            onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-            disabled={!table.getCanNextPage()}
+            className="hidden h-8 w-8 p-0 lg:flex"
+            onClick={() => handlePageChange(totalPages)}
+            disabled={currentPage === totalPages || isLoading}
           >
             <span className="sr-only">跳到最后一页</span>
-            <ChevronsRight />
+            <ChevronsRight className="h-4 w-4" />
           </Button>
         </div>
       </div>

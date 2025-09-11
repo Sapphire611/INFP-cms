@@ -12,6 +12,11 @@ export interface UpdateUserRequest {
   password?: string;
 }
 
-export interface UserResponse extends IUser {
-  _id: string;
+export interface UserResponse {
+  id: string;
+  name: string;
+  email: string;
+  role: "user" | "admin";
+  createdAt: string;
+  updatedAt: string;
 }

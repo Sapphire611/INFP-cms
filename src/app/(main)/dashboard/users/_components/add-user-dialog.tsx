@@ -28,9 +28,9 @@ const userFormSchema = z.object({
 type UserFormData = z.infer<typeof userFormSchema>;
 
 interface AddUserDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onUserAdded?: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+  onUserAdded?: (page: number, pageSize: number) => Promise<void>;
 }
 
 export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialogProps) {
@@ -55,8 +55,9 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
 
       if (response.ok) {
         toast.success("创建用户成功");
-        onUserAdded?.();
-        onOpenChange(false);
+        // 创建成功后刷新第一页数据
+        await onUserAdded?.(1, 10);
+        onOpenChange?.(false);
         form.reset();
       } else {
         const error = await response.json();
@@ -117,7 +118,7 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
               )}
             />
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+              <Button type="button" variant="outline" onClick={() => onOpenChange?.(false)}>
                 取消
               </Button>
               <Button type="submit">创建</Button>

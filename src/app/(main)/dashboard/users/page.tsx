@@ -1,6 +1,6 @@
 "use client";
 
-import * as React from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { Plus } from "lucide-react";
 
@@ -16,6 +16,8 @@ import { AddUserDialog } from "./_components/add-user-dialog";
 import { UserWithCallback } from "./_components/types";
 import { userColumns } from "./_components/user-columns";
 
+
+
 // 定义分页信息接口
 export interface PaginationInfo {
   total: number;
@@ -24,78 +26,80 @@ export interface PaginationInfo {
   totalPages: number;
 }
 
+interface Filters {
+  role?: string;
+  search?: string;
+}
+
 export default function UsersPage() {
-  const [users, setUsers] = React.useState<UserWithCallback[]>([]);
-  const [loading, setLoading] = React.useState(true);
-  const [isAddOpen, setIsAddOpen] = React.useState(false);
-  const [pagination, setPagination] = React.useState<PaginationInfo>({
+  const [users, setUsers] = useState<UserWithCallback[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [filters, setFilters] = useState<Filters>({});
+  const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
     page: 1,
     limit: 20,
     totalPages: 1,
   });
 
-  // 获取用户数据（支持分页）
-  const fetchUsers = async (page = 1, filters = {}) => {
-    try {
+    // 获取用户数据（支持分页和筛选）
+  const fetchUsers = useCallback(
+    async (page: number, pageSize: number) => {
       setLoading(true);
+      try {
+        // 构建查询参数
+        const queryParams = new URLSearchParams();
+        queryParams.append("page", page.toString());
+        queryParams.append("limit", pageSize.toString());
 
-      // 构建查询参数
-      const queryParams = new URLSearchParams();
-      queryParams.append("page", page.toString());
-      queryParams.append("limit", pagination.limit.toString());
+        // 添加筛选条件
+        Object.entries(filters).forEach(([key, value]) => {
+          if (value) queryParams.append(key, value.toString());
+        });
 
-      // 添加筛选条件
-      Object.entries(filters).forEach(([key, value]) => {
-        if (value) queryParams.append(key, value.toString());
-      });
+        const response = await fetch(`/api/users?${queryParams.toString()}`);
+        if (response.ok) {
+          const { data, pagination: newPagination } = await response.json();
 
-      const response = await fetch(`/api/users?${queryParams.toString()}`);
-      if (response.ok) {
-        const { data, pagination: newPagination } = await response.json();
+          // 为每个用户添加更新回调
+          const usersWithCallbacks = data.map((user: UserResponse) => ({
+            ...user,
+            onUserUpdated: () => fetchUsers(page, pageSize),
+          }));
 
-        // 为每个用户添加更新回调
-        const usersWithCallbacks = data.map((user: UserResponse) => ({
-          ...user,
-          onUserUpdated: fetchUsers,
-        }));
-
-        setUsers(usersWithCallbacks);
-        setPagination(newPagination);
+          setUsers(usersWithCallbacks);
+          setPagination(newPagination);
+        } else {
+          console.error("Failed to fetch users");
+        }
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Error fetching users:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [filters]
+  );
 
-  React.useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  // 处理页码变化
-  const handlePageChange = (newPage: number) => {
-    fetchUsers(newPage);
-  };
-
-  // 处理页面大小变化
-  const handlePageSizeChange = (newPageSize: number) => {
-    setPagination((prev) => ({ ...prev, limit: newPageSize }));
-    fetchUsers(1); // 重置为第一页
-  };
+  useEffect(() => {
+    // 初始化时获取第一页数据
+    fetchUsers(1, pagination.limit);
+  }, [fetchUsers, pagination.limit]);
 
   const table = useDataTableInstance({
     data: users,
     columns: userColumns,
-    getRowId: (row) => row._id,
+    getRowId: (row) => row.id,
     meta: {
       pagination: {
-        pageIndex: pagination.page - 1,
+        pageIndex: 0, // 始终从第一页开始
         pageSize: pagination.limit,
         totalRows: pagination.total,
       },
     },
+    defaultPageIndex: 0, // 始终从第一页开始
+    defaultPageSize: pagination.limit,
   });
 
   if (loading) {
@@ -135,10 +139,28 @@ export default function UsersPage() {
         <DataTable table={table} columns={userColumns} />
       </div>
 
-      <DataTablePagination table={table} />
+      <DataTablePagination
+        table={table}
+        currentPage={pagination.page}
+        pageSize={pagination.limit}
+        totalCount={pagination.total}
+        totalPages={pagination.totalPages}
+        isLoading={loading}
+        onPageChange={async (page) => {
+          await fetchUsers(page, pagination.limit);
+        }}
+        onPageSizeChange={async (newPageSize) => {
+          await fetchUsers(1, newPageSize);
+        }}
+        pageSizeOptions={[10, 20, 30, 50]}
+      />
 
       {/* 添加用户对话框 */}
-      <AddUserDialog open={isAddOpen} onOpenChange={setIsAddOpen} onUserAdded={fetchUsers} />
+      <AddUserDialog
+        open={isAddOpen}
+        onOpenChange={setIsAddOpen}
+        onUserAdded={() => fetchUsers(1, pagination.limit)}
+      />
     </div>
   );
 }
