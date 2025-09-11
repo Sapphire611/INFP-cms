@@ -9,7 +9,6 @@ export default function Page() {
       <OverviewCards />
       <InsightCards />
       <OperationalCards />
-      <TableCards />
     </div>
   );
 }

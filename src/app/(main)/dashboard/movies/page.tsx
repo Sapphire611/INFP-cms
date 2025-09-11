@@ -151,7 +151,11 @@ export default function MoviesPage() {
       />
 
       {/* 添加电影对话框 */}
-      <AddMovieDialog open={isAddOpen} onOpenChange={setIsAddOpen} onMovieAdded={fetchMovies} />
+      <AddMovieDialog
+        open={isAddOpen}
+        onOpenChange={setIsAddOpen}
+        onMovieAdded={() => fetchMovies(1, pagination.limit)}
+      />
     </div>
   );
 }

@@ -30,7 +30,7 @@ export async function getUserList({
     items: Array(limit)
       .fill(null)
       .map((_, index) => ({
-        id: String((page - 1) * limit + index + 1),
+        _id: String((page - 1) * limit + index + 1),
         name: `User ${(page - 1) * limit + index + 1}`,
         email: `user${(page - 1) * limit + index + 1}@example.com`,
         role: "user",

@@ -39,7 +39,7 @@ export function TableCards() {
           <div className="overflow-hidden rounded-md border">
             <DataTable table={table} columns={recentLeadsColumns} />
           </div>
-          <DataTablePagination table={table} />
+          {/* <DataTablePagination table={table} /> */}
         </CardContent>
       </Card>
     </div>

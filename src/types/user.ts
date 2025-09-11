@@ -13,7 +13,7 @@ export interface UpdateUserRequest {
 }
 
 export interface UserResponse {
-  id: string;
+  _id: string;
   name: string;
   email: string;
   role: "user" | "admin";
