@@ -17,15 +17,9 @@ export interface GetUsersParams {
   limit?: number;
 }
 
-export async function getUserList({
-  page = 1,
-  limit = 10,
-}: GetUsersParams = {}): Promise<PaginatedResponse<UserResponse>> {
-  // 这里应该是从数据库获取用户列表的逻辑
-  // 为了演示，我们先返回模拟数据
-  // 模拟延迟
-  await new Promise((resolve) => setTimeout(resolve, 500));
-
+export async function getUserList({ page = 1, limit = 10 }: GetUsersParams = {}): Promise<
+  PaginatedResponse<UserResponse>
+> {
   return {
     items: Array(limit)
       .fill(null)
@@ -44,9 +38,7 @@ export async function getUserList({
   };
 }
 
-export async function getValueFromCookie(
-  key: string,
-): Promise<string | undefined> {
+export async function getValueFromCookie(key: string): Promise<string | undefined> {
   const cookieStore = await cookies();
   return cookieStore.get(key)?.value;
 }
@@ -63,11 +55,7 @@ export async function setValueToCookie(
   });
 }
 
-export async function getPreference<T extends string>(
-  key: string,
-  allowed: readonly T[],
-  fallback: T,
-): Promise<T> {
+export async function getPreference<T extends string>(key: string, allowed: readonly T[], fallback: T): Promise<T> {
   const cookieStore = await cookies();
   const cookie = cookieStore.get(key);
   const value = cookie ? cookie.value.trim() : undefined;

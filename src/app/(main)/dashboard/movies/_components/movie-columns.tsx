@@ -12,7 +12,11 @@ export const movieColumns: ColumnDef<MovieWithCallback>[] = [
     header: "电影标题",
     cell: ({ row }) => {
       const movie = row.original;
-        return <div className="w-[300px] truncate overflow-hidden font-medium whitespace-nowrap" title={movie.title}>{movie.title}</div>;
+      return (
+        <div className="w-[300px] truncate overflow-hidden font-medium whitespace-nowrap" title={movie.title}>
+          {movie.title}
+        </div>
+      );
     },
   },
   {
@@ -60,7 +64,7 @@ export const movieColumns: ColumnDef<MovieWithCallback>[] = [
     header: "分级",
     cell: ({ row }) => {
       const movie = row.original;
-      return <Badge variant="outline">{movie.rated}</Badge>;
+      return movie.rated ? <Badge variant="outline">{movie.rated}</Badge> : <Badge variant="outline">N/A</Badge>;
     },
   },
   {
