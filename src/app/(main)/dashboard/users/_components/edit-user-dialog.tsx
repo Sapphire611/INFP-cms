@@ -61,7 +61,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
       };
 
       const response = await fetch(`/api/users/${user._id}`, {
-        method: "PUT",
+        method: "PATCH",
         headers: {
           "Content-Type": "application/json",
         },

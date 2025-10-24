@@ -1,3 +1,5 @@
+import React, { useState } from "react";
+
 import { ColumnDef } from "@tanstack/react-table";
 import { Edit, Trash2 } from "lucide-react";
 
@@ -56,7 +58,7 @@ export const movieColumns: ColumnDef<MovieWithCallback>[] = [
     header: "IMDB评分",
     cell: ({ row }) => {
       const movie = row.original;
-      return <span>{movie.imdb?.rating || "N/A"}</span>;
+      return <span>{movie.imdb.rating}</span>;
     },
   },
   {
@@ -78,8 +80,13 @@ export const movieColumns: ColumnDef<MovieWithCallback>[] = [
             variant="ghost"
             size="sm"
             onClick={() => {
-              // 编辑电影逻辑
-              console.log("Edit movie:", movie);
+              // 编辑电影逻辑：如果父组件提供了 onEdit 回调则调用它（用于打开编辑对话框），
+              // 否则回退到跳转到独立编辑页面的行为。
+              if (movie.onEdit) {
+                movie.onEdit();
+                return;
+              }
+              window.location.href = `/dashboard/movies/${movie._id}`;
             }}
           >
             <Edit className="h-4 w-4" />

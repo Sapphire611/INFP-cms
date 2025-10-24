@@ -31,6 +31,8 @@ export default function MoviesPage() {
   const [movies, setMovies] = useState<MovieWithCallback[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [selectedMovie, setSelectedMovie] = useState<MovieResponse | null>(null);
   const [filters, setFilters] = useState<Filters>({});
   const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
@@ -59,10 +61,26 @@ export default function MoviesPage() {
         if (response.ok) {
           const { data, pagination: newPagination } = await response.json();
 
-          // 为每个电影添加更新回调
+          // 为每个电影添加更新回调和编辑回调
           const moviesWithCallbacks = data.map((movie: MovieResponse) => ({
             ...movie,
-            onMovieUpdated: fetchMovies,
+            // ensure callers can simply call onMovieUpdated() without args
+            onMovieUpdated: () => fetchMovies(1, pagination.limit),
+            // when editing, fetch the full movie details from the API before opening the dialog
+            onEdit: async () => {
+              try {
+                const res = await fetch(`/api/movies/${movie._id}`);
+                if (res.ok) {
+                  const full = await res.json();
+                  setSelectedMovie(full as MovieResponse);
+                  setIsEditOpen(true);
+                } else {
+                  console.error("Failed to fetch movie details for edit");
+                }
+              } catch (err) {
+                console.error("Error fetching movie for edit:", err);
+              }
+            },
           }));
 
           setMovies(moviesWithCallbacks);
@@ -155,6 +173,21 @@ export default function MoviesPage() {
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
         onMovieAdded={() => fetchMovies(1, pagination.limit)}
+      />
+
+      {/* 编辑电影对话框（复用同一个组件） */}
+      <AddMovieDialog
+        open={isEditOpen}
+        onOpenChange={(v) => {
+          setIsEditOpen(v);
+          if (!v) setSelectedMovie(null);
+        }}
+        movie={selectedMovie}
+        onMovieAdded={() => {
+          fetchMovies(1, pagination.limit);
+          setIsEditOpen(false);
+          setSelectedMovie(null);
+        }}
       />
     </div>
   );

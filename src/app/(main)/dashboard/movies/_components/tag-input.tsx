@@ -38,12 +38,16 @@ export function TagInput({ label, tags, setTags, inputValue, setInputValue, plac
     <div className="space-y-2">
       <Label>{label}</Label>
       <div className="flex flex-wrap items-center gap-2">
-        {tags.map((tag, index) => (
-          <Badge key={index} variant="secondary" className="flex items-center gap-1 px-2 py-1">
-            {tag}
-            <X className="h-4 w-4 cursor-pointer hover:text-red-500 transition-colors" onClick={() => handleRemoveTag(tag)} />
-          </Badge>
-        ))}
+        {tags &&
+          tags.map((tag, index) => (
+            <Badge key={index} variant="secondary" className="flex items-center gap-1 px-2 py-1">
+              {tag}
+              <X
+                className="h-4 w-4 cursor-pointer transition-colors hover:text-red-500"
+                onClick={() => handleRemoveTag(tag)}
+              />
+            </Badge>
+          ))}
         <div className="flex flex-1 items-center gap-2">
           <Input
             placeholder={placeholder}

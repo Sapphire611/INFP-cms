@@ -2,6 +2,7 @@ import * as React from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
+import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -16,7 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { MovieRequest } from "@/types/movie";
+import { MovieRequest, MovieResponse } from "@/types/movie";
 
 import { TagInput } from "./tag-input";
 // 定义表单验证模式
@@ -36,9 +37,13 @@ interface AddMovieDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onMovieAdded: () => void;
+  // optional movie to edit; if provided the dialog will act as an editor
+  movie?: MovieResponse | null;
 }
 
-export function AddMovieDialog({ open, onOpenChange, onMovieAdded }: AddMovieDialogProps) {
+// Allow higher complexity for this component since it manages form state and editing flow
+/* eslint-disable-next-line complexity */
+export function AddMovieDialog({ open, onOpenChange, onMovieAdded, movie }: AddMovieDialogProps) {
   // 初始化日期为当前日期的 ISO 格式字符串 (YYYY-MM-DD)
   const [selectedDate, setSelectedDate] = React.useState<string>(() => {
     const today = new Date();
@@ -54,6 +59,7 @@ export function AddMovieDialog({ open, onOpenChange, onMovieAdded }: AddMovieDia
   const [languages, setLanguages] = React.useState<string[]>([]);
   const [directors, setDirectors] = React.useState<string[]>([]);
   const [countries, setCountries] = React.useState<string[]>([]);
+  const [dateError, setDateError] = React.useState<string | null>(null);
 
   const form = useForm<MovieFormValues>({
     resolver: zodResolver(movieFormSchema),
@@ -68,8 +74,73 @@ export function AddMovieDialog({ open, onOpenChange, onMovieAdded }: AddMovieDia
     },
   });
 
+  const isEditing = Boolean(movie);
+  const populateFromMovie = React.useCallback(
+    (m: MovieResponse) => {
+      form.reset({
+        title: m.title,
+        plot: m.plot,
+        fullplot: m.fullplot,
+        runtime: m.runtime ?? 1,
+        poster: m.poster,
+        rated: m.rated,
+        year: m.year ?? new Date().getFullYear(),
+      });
+
+      setGenres(m.genres);
+      setCast(m.cast);
+      setLanguages(m.languages);
+      setDirectors(m.directors);
+      setCountries(m.countries);
+
+      // set released date string if valid, otherwise keep the current selectedDate
+      if (m.released) {
+        const d = new Date(m.released);
+        if (!isNaN(d.getTime())) {
+          setSelectedDate(d.toISOString().split("T")[0]);
+          setDateError(null);
+        } else {
+          setDateError("电影的发布日期无效，已保留当前日期");
+        }
+      }
+    },
+    [form],
+  );
+
+  React.useEffect(() => {
+    if (open && movie) {
+      populateFromMovie(movie);
+    }
+
+    if (!open && !movie) {
+      form.reset();
+      setGenres([]);
+      setCast([]);
+      setLanguages([]);
+      setDirectors([]);
+      setCountries([]);
+      setGenreInput("");
+      setCastInput("");
+      setLanguageInput("");
+      setDirectorInput("");
+      setCountryInput("");
+      setSelectedDate(new Date().toISOString().split("T")[0]);
+      setDateError(null);
+    }
+  }, [open, movie, populateFromMovie]);
+
+  /* eslint-disable-next-line complexity */
   const handleSubmit = async (data: MovieFormValues) => {
     try {
+      // validate selectedDate before submitting
+      if (selectedDate) {
+        const d = new Date(selectedDate);
+        if (isNaN(d.getTime())) {
+          setDateError("请选择有效的发布日期");
+          return;
+        }
+        setDateError(null);
+      }
       // 构建电影数据对象
       const movieData: MovieRequest = {
         title: data.title,
@@ -97,9 +168,13 @@ export function AddMovieDialog({ open, onOpenChange, onMovieAdded }: AddMovieDia
         },
       };
 
-      // 发送POST请求到API
-      const response = await fetch("/api/movies", {
-        method: "POST",
+      // Determine whether to create or update
+      const url = movie && movie._id ? `/api/movies/${movie._id}` : "/api/movies";
+      const method = movie && movie._id ? "PATCH" : "POST";
+
+      // send request to API
+      const response = await fetch(url, {
+        method,
         headers: {
           "Content-Type": "application/json",
         },
@@ -107,6 +182,14 @@ export function AddMovieDialog({ open, onOpenChange, onMovieAdded }: AddMovieDia
       });
 
       if (response.ok) {
+        const title = data.title || movieData.title || "";
+        // success toast
+        if (method === "PATCH") {
+          toast.success(`更新 ${title} 电影成功`);
+        } else {
+          toast.success(`添加 ${title} 电影成功`);
+        }
+
         // 关闭对话框
         onOpenChange(false);
         // 重置表单
@@ -124,7 +207,12 @@ export function AddMovieDialog({ open, onOpenChange, onMovieAdded }: AddMovieDia
         // 通知父组件更新数据
         onMovieAdded();
       } else {
-        throw new Error("Failed to add movie");
+        try {
+          const err = await response.json();
+          toast.error(err.error ?? "操作失败");
+        } catch (e) {
+          toast.error("操作失败");
+        }
       }
     } catch (error) {
       console.error("Error adding movie:", error);
@@ -136,53 +224,71 @@ export function AddMovieDialog({ open, onOpenChange, onMovieAdded }: AddMovieDia
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>添加新电影</DialogTitle>
-          <DialogDescription>填写以下信息添加一部新电影</DialogDescription>
+          <DialogTitle>{isEditing ? "编辑电影" : "添加新电影"}</DialogTitle>
+          <DialogDescription>{isEditing ? "修改电影信息" : "填写以下信息添加一部新电影"}</DialogDescription>
         </DialogHeader>
         <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+          {Object.keys(form.formState.errors).length > 0 && (
+            <div className="destructive mt-1 text-sm">
+              {Object.values(form.formState.errors)
+                .map((e) => String(e?.message))
+                .filter(Boolean)
+                .join("，")}
+            </div>
+          )}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="title">电影标题</Label>
-              <Input id="title" {...form.register("title")} />
+              <Input id="title" {...form.register("title")} aria-invalid={!!form.formState.errors.title} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="year">年份</Label>
-              <Input id="year" type="number" {...form.register("year")} />
+              <Input id="year" type="number" {...form.register("year")} aria-invalid={!!form.formState.errors.year} />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="plot">剧情简介</Label>
-            <Textarea id="plot" {...form.register("plot")} rows={3} />
+            <Textarea id="plot" {...form.register("plot")} rows={3} aria-invalid={!!form.formState.errors.plot} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="fullplot">完整剧情</Label>
-            <Textarea id="fullplot" {...form.register("fullplot")} rows={4} />
+            <Textarea
+              id="fullplot"
+              {...form.register("fullplot")}
+              rows={4}
+              aria-invalid={!!form.formState.errors.fullplot}
+            />
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-2">
               <Label htmlFor="runtime">时长(分钟)</Label>
-              <Input id="runtime" type="number" {...form.register("runtime")} />
+              <Input
+                id="runtime"
+                type="number"
+                {...form.register("runtime")}
+                aria-invalid={!!form.formState.errors.runtime}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="rated">分级</Label>
-              <Input id="rated" {...form.register("rated")} />
+              <Input id="rated" {...form.register("rated")} aria-invalid={!!form.formState.errors.rated} />
             </div>
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="poster">海报URL</Label>
-            <Input id="poster" {...form.register("poster")} />
+            <Input id="poster" {...form.register("poster")} aria-invalid={!!form.formState.errors.poster} />
           </div>
 
           <div className="space-y-2">
             <Label htmlFor="released">发布日期</Label>
             <Input id="released" type="date" value={selectedDate} onChange={(e) => setSelectedDate(e.target.value)} />
+            {dateError && <p className="destructive mt-1 text-sm">{dateError}</p>}
           </div>
 
-          {/* 类型标签输入 */}
           <TagInput
             label="类型"
             tags={genres}
@@ -191,8 +297,6 @@ export function AddMovieDialog({ open, onOpenChange, onMovieAdded }: AddMovieDia
             setInputValue={setGenreInput}
             placeholder="添加类型..."
           />
-
-          {/* 演员标签输入 */}
           <TagInput
             label="演员"
             tags={cast}
@@ -201,8 +305,6 @@ export function AddMovieDialog({ open, onOpenChange, onMovieAdded }: AddMovieDia
             setInputValue={setCastInput}
             placeholder="添加演员..."
           />
-
-          {/* 语言标签输入 */}
           <TagInput
             label="语言"
             tags={languages}
@@ -211,8 +313,6 @@ export function AddMovieDialog({ open, onOpenChange, onMovieAdded }: AddMovieDia
             setInputValue={setLanguageInput}
             placeholder="添加语言..."
           />
-
-          {/* 导演标签输入 */}
           <TagInput
             label="导演"
             tags={directors}
@@ -221,8 +321,6 @@ export function AddMovieDialog({ open, onOpenChange, onMovieAdded }: AddMovieDia
             setInputValue={setDirectorInput}
             placeholder="添加导演..."
           />
-
-          {/* 国家标签输入 */}
           <TagInput
             label="国家"
             tags={countries}
@@ -236,7 +334,7 @@ export function AddMovieDialog({ open, onOpenChange, onMovieAdded }: AddMovieDia
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               取消
             </Button>
-            <Button type="submit">添加电影</Button>
+            <Button type="submit">{isEditing ? "保存更改" : "添加电影"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

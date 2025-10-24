@@ -70,7 +70,6 @@ export function ChartAreaInteractive() {
     return date >= startDate;
   });
 
-  console.log({ filteredData }); // OK
   return (
     <Card className="@container/card">
       <CardHeader>
