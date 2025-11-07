@@ -95,12 +95,20 @@ export const POST = withDBConnect(async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Username already exists" }, { status: 409 });
     }
 
+    // 验证用户类型
+    if (userType !== "admin" && userType !== "teacher") {
+      return NextResponse.json(
+        { error: "Invalid user type. Only admin and teacher are allowed." },
+        { status: 400 }
+      );
+    }
+
     // 创建新用户
     const user = new User({
       username,
       email,
       password, // Password will be hashed by the pre-save middleware
-      userType: userType || "parent",
+      userType,
       profile: {
         name: profile.name,
         phone: profile.phone,
@@ -118,13 +126,6 @@ export const POST = withDBConnect(async function POST(request: NextRequest) {
           totalClasses: 0,
           totalStudents: 0,
         },
-      };
-    }
-
-    // 如果是家长，初始化家长信息
-    if (userType === "parent") {
-      user.parentInfo = {
-        children: [],
       };
     }
 

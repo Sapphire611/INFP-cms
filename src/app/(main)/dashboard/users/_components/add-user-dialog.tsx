@@ -26,7 +26,7 @@ const userFormSchema = z.object({
   email: z.string().email("邮箱格式不正确"),
   password: z.string().min(6, "密码至少 6 位"),
   phone: z.string().optional(),
-  userType: z.enum(["admin", "teacher", "parent"]),
+  userType: z.enum(["admin", "teacher"]),
   teacherId: z.string().optional(),
   subjects: z.string().optional(),
 });
@@ -48,7 +48,7 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
       email: "",
       password: "",
       phone: "",
-      userType: "parent",
+      userType: "teacher",
       teacherId: "",
       subjects: "",
     },
@@ -126,7 +126,6 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
                     <SelectContent>
                       <SelectItem value="admin">管理员</SelectItem>
                       <SelectItem value="teacher">教师</SelectItem>
-                      <SelectItem value="parent">家长</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

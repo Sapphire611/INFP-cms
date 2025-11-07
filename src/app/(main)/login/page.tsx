@@ -2,24 +2,95 @@ import { LoginForm } from "../../../components/login-form";
 
 export default function Login() {
   return (
-    <div className="flex h-dvh">
-      <div className="flex w-full items-center justify-center bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-8 dark:from-slate-900 dark:via-slate-800 dark:to-slate-900">
+    <div className="flex h-dvh flex-col lg:flex-row">
+      {/* Left side - Brand/Image section */}
+      <div className="relative hidden lg:flex lg:w-1/2 lg:h-full overflow-hidden bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
         {/* Background decorative elements */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute -top-40 -right-40 h-80 w-80 rounded-full bg-blue-400/10 blur-3xl dark:bg-blue-500/10" />
-          <div className="absolute -bottom-40 -left-40 h-80 w-80 rounded-full bg-indigo-400/10 blur-3xl dark:bg-indigo-500/10" />
+        <div className="absolute inset-0">
+          <div className="absolute top-1/4 left-1/4 h-96 w-96 rounded-full bg-blue-500/10 blur-3xl" />
+          <div className="absolute bottom-1/4 right-1/4 h-96 w-96 rounded-full bg-indigo-500/10 blur-3xl" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 h-[600px] w-[600px] rounded-full bg-purple-500/5 blur-3xl" />
         </div>
 
-        <div className="relative w-full max-w-md space-y-10 py-24 lg:py-32">
-          <div className="space-y-4 text-center">
-            <div className="text-2xl font-medium tracking-tight text-slate-900 dark:text-white">登录</div>
-            <div className="text-muted-foreground mx-auto max-w-xl">
-              欢迎回来。请输入您的邮箱和密码，希望您这次记得它们。
+        {/* Content */}
+        <div className="relative z-10 flex flex-col items-center justify-center w-full px-12 py-16 text-white">
+          <div className="max-w-xl space-y-6">
+            <div className="space-y-2">
+              <h1 className="text-4xl font-bold tracking-tight">
+                雷式幼儿园管理系统
+              </h1>
+              <p className="text-lg text-white/80">
+                专业的教育管理平台
+              </p>
+            </div>
+            <p className="text-white/70 leading-relaxed">
+              为教育工作者和管理者提供全方位的学生管理、班级管理、家长沟通等功能，让教育管理更轻松高效。
+            </p>
+
+            {/* Feature highlights */}
+            <div className="space-y-4 pt-8">
+              <div className="flex items-start gap-3">
+                <div className="mt-1 h-6 w-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold">智能班级管理</h3>
+                  <p className="text-sm text-white/70">轻松管理班级信息、学生档案和日常考勤</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="mt-1 h-6 w-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold">家校互通</h3>
+                  <p className="text-sm text-white/70">通过微信小程序实现家长与教师的高效沟通</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-3">
+                <div className="mt-1 h-6 w-6 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="font-semibold">数据安全</h3>
+                  <p className="text-sm text-white/70">企业级安全保障，保护每一位学生的隐私</p>
+                </div>
+              </div>
             </div>
           </div>
-          <div className="space-y-4">
-            <div className="rounded-xl border border-white/20 bg-white/70 p-6 shadow-lg backdrop-blur-sm dark:border-slate-700/50 dark:bg-slate-800/70">
+        </div>
+      </div>
+
+      {/* Right side - Login form */}
+      <div className="flex w-full h-full items-center justify-center bg-white dark:bg-slate-950 p-6 lg:w-1/2 lg:p-12">
+        <div className="w-full max-w-md space-y-8">
+          {/* Logo and title for mobile */}
+          <div className="space-y-2 text-center lg:hidden mb-8">
+            <h2 className="text-2xl font-bold tracking-tight">雷式幼儿园管理系统</h2>
+            <p className="text-sm text-muted-foreground">专业的教育管理平台</p>
+          </div>
+
+          <div className="space-y-6">
+            <div className="space-y-2">
+              <h1 className="text-3xl font-bold tracking-tight">欢迎回来</h1>
+              <p className="text-muted-foreground">
+                请输入您的账号信息以登录系统
+              </p>
+            </div>
+
+            <div className="rounded-xl border bg-card p-6 shadow-sm">
               <LoginForm />
+            </div>
+
+            <div className="text-center text-sm text-muted-foreground">
+              <p>仅限管理员和教师登录</p>
+              <p className="mt-1">家长请使用微信小程序访问</p>
             </div>
           </div>
         </div>

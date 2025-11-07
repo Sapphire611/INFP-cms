@@ -70,15 +70,22 @@ export function LoginForm() {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
         <FormField
           control={form.control}
           name="email"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>邮箱地址</FormLabel>
+              <FormLabel className="text-sm font-medium">邮箱地址</FormLabel>
               <FormControl>
-                <Input id="email" type="email" placeholder="您的邮箱地址" autoComplete="email" {...field} />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="name@example.com"
+                  autoComplete="email"
+                  className="h-11"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -89,13 +96,14 @@ export function LoginForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>密码</FormLabel>
+              <FormLabel className="text-sm font-medium">密码</FormLabel>
               <FormControl>
                 <Input
                   id="password"
                   type="password"
-                  placeholder="••••••••"
+                  placeholder="请输入密码"
                   autoComplete="current-password"
+                  className="h-11"
                   {...field}
                 />
               </FormControl>
@@ -107,7 +115,7 @@ export function LoginForm() {
           control={form.control}
           name="remember"
           render={({ field }) => (
-            <FormItem className="flex flex-row items-center">
+            <FormItem className="flex flex-row items-center space-y-0 gap-2">
               <FormControl>
                 <Checkbox
                   id="login-remember"
@@ -116,27 +124,32 @@ export function LoginForm() {
                   className="size-4"
                 />
               </FormControl>
-              <FormLabel htmlFor="login-remember" className="text-muted-foreground ml-1 text-sm font-medium">
-                30天内记住我
+              <FormLabel
+                htmlFor="login-remember"
+                className="text-sm font-normal text-muted-foreground cursor-pointer"
+              >
+                记住登录状态 (30天)
               </FormLabel>
             </FormItem>
           )}
         />
-        <div className="space-y-3">
+        <div className="space-y-3 pt-2">
           <Button
-            className="bg-primary text-primary-foreground hover:bg-primary/90 h-10 w-full text-sm font-medium"
+            className="h-11 w-full text-sm font-medium shadow-sm"
             type="submit"
             disabled={isLoading}
           >
-            {isLoading ? "登录中..." : "登录"}
-          </Button>
-          <Button
-            className="h-10 w-full text-sm font-medium"
-            type="button"
-            variant="outline"
-            onClick={() => router.push("/register")}
-          >
-            创建账户
+            {isLoading ? (
+              <span className="flex items-center gap-2">
+                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                </svg>
+                登录中...
+              </span>
+            ) : (
+              "登录"
+            )}
           </Button>
         </div>
       </form>

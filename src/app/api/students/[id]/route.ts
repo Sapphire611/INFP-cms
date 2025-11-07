@@ -54,7 +54,7 @@ export const GET = withDBConnect(async function GET(
 
     const student = await Child.findById(id)
       .populate("class", "name grade classCode academic")
-      .populate("parents.user", "profile.name email userType profile.phone")
+      .populate("parents.user", "profile.name profile.phone") // 引用 Parent 模型
       .lean();
 
     if (!student) {
@@ -145,7 +145,7 @@ export const PATCH = withDBConnect(async function PATCH(
     // 更新学生信息
     const updatedStudent = await Child.findByIdAndUpdate(id, updateData, { new: true })
       .populate("class", "name grade classCode academic")
-      .populate("parents.user", "profile.name email userType profile.phone")
+      .populate("parents.user", "profile.name profile.phone") // 引用 Parent 模型
       .lean();
 
     // 手动计算年龄

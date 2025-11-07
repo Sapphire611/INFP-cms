@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Plus } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
 import { UserResponse } from "@/types/user";
@@ -36,6 +37,7 @@ export default function UsersPage() {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>({});
   const [selectedUserType, setSelectedUserType] = useState<string>("all");
+  const [searchTerm, setSearchTerm] = useState<string>("");
   const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
     page: 1,
@@ -100,6 +102,24 @@ export default function UsersPage() {
     }
   };
 
+  const handleSearch = () => {
+    if (searchTerm.trim()) {
+      setFilters((prev) => ({ ...prev, search: searchTerm.trim() }));
+    } else {
+      setFilters((prev) => {
+        const newFilters = { ...prev };
+        delete newFilters.search;
+        return newFilters;
+      });
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      handleSearch();
+    }
+  };
+
   const table = useDataTableInstance({
     data: users,
     columns: userColumns,
@@ -141,7 +161,25 @@ export default function UsersPage() {
         </Button>
       </div>
 
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex flex-1 items-center gap-4">
+            <div className="relative w-full max-w-md">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="搜索用户名、姓名或邮箱..."
+                className="pl-9"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                onKeyDown={handleKeyDown}
+              />
+            </div>
+            <Button onClick={handleSearch} variant="secondary">
+              搜索
+            </Button>
+          </div>
+          <DataTableViewOptions table={table} />
+        </div>
         <div className="flex items-center gap-4">
           <div className="w-[200px]">
             <Select value={selectedUserType} onValueChange={handleUserTypeFilterChange}>
@@ -152,13 +190,11 @@ export default function UsersPage() {
                 <SelectItem value="all">全部用户</SelectItem>
                 <SelectItem value="admin">管理员</SelectItem>
                 <SelectItem value="teacher">教师</SelectItem>
-                <SelectItem value="parent">家长</SelectItem>
               </SelectContent>
             </Select>
           </div>
           <Badge variant="secondary">{pagination.total} 位用户</Badge>
         </div>
-        <DataTableViewOptions table={table} />
       </div>
 
       <div className="overflow-hidden rounded-lg border">

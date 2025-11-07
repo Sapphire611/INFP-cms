@@ -1,8 +1,8 @@
 import mongoose, { Document, Schema, Model } from "mongoose";
 import bcrypt from "bcryptjs";
 
-// 用户类型定义
-export type UserType = "admin" | "teacher" | "parent";
+// 用户类型定义（CMS后台用户：管理员和教师）
+export type UserType = "admin" | "teacher";
 
 // 教师班级关联接口
 export interface ITeacherClass {
@@ -23,11 +23,6 @@ export interface ITeacherInfo {
   };
 }
 
-// 家长信息接口
-export interface IParentInfo {
-  children: mongoose.Types.ObjectId[];
-}
-
 // 用户个人信息接口
 export interface IProfile {
   name: string;
@@ -43,9 +38,7 @@ export interface IUser extends Document {
   userType: UserType;
   profile: IProfile;
   teacherInfo?: ITeacherInfo;
-  parentInfo?: IParentInfo;
   isActive: boolean;
-  openid?: string;
   createdAt: Date;
   updatedAt: Date;
 
@@ -88,11 +81,11 @@ const UserSchema: Schema = new Schema(
       minlength: 6,
     },
 
-    // 用户类型：admin, teacher 或 parent
+    // 用户类型：admin 或 teacher（CMS后台登录用户）
     userType: {
       type: String,
       required: true,
-      enum: ["admin", "teacher", "parent"],
+      enum: ["admin", "teacher"],
     },
 
     // 个人信息
@@ -150,27 +143,10 @@ const UserSchema: Schema = new Schema(
       },
     },
 
-    // 家长专属字段
-    parentInfo: {
-      children: [
-        {
-          type: Schema.Types.ObjectId,
-          ref: "Child",
-        },
-      ],
-    },
-
     // 账户状态
     isActive: {
       type: Boolean,
       default: true,
-    },
-
-    // 微信小程序相关
-    openid: {
-      type: String,
-      unique: true,
-      sparse: true,
     },
   },
   {
@@ -208,7 +184,6 @@ UserSchema.methods.comparePassword = async function (
 UserSchema.methods.toJSON = function () {
   const userObject = this.toObject();
   delete userObject.password;
-  delete userObject.openid;
   return userObject;
 };
 

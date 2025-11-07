@@ -13,7 +13,7 @@ export type ReportType =
 export type ReportTargetType = "student" | "class" | "parent";
 
 // 报告目标模型
-export type ReportTargetModel = "Child" | "Class" | "User";
+export type ReportTargetModel = "Child" | "Class" | "Parent";
 
 // 报告状态
 export type ReportStatus =
@@ -264,7 +264,7 @@ const LearningReportSchema: Schema = new Schema({
   targetModel: {
     type: String,
     required: true,
-    enum: ["Child", "Class", "User"],
+    enum: ["Child", "Class", "Parent"],
   },
 
   // 报告标题
@@ -394,7 +394,7 @@ const LearningReportSchema: Schema = new Schema({
     submittedAt: Date,
     submittedBy: {
       type: Schema.Types.ObjectId,
-      ref: "User",
+      ref: "Parent", // 修改为引用 Parent 模型
     },
   },
 
@@ -886,8 +886,10 @@ LearningReportSchema.methods.shareWithParents = async function (
   studentId: mongoose.Types.ObjectId | string
 ): Promise<ILearningReport> {
   const Child = mongoose.model("Child");
+  const Parent = mongoose.model("Parent");
   const child = await Child.findById(studentId).populate("parents.user");
 
+  // parents.user 现在引用 Parent 模型
   const parentUsers = (child as any).parents.map((p: any) => p.user._id);
 
   parentUsers.forEach((parentId: mongoose.Types.ObjectId) => {

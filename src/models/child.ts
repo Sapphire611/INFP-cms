@@ -129,7 +129,7 @@ const ChildSchema: Schema = new Schema(
       {
         user: {
           type: Schema.Types.ObjectId,
-          ref: "User",
+          ref: "Parent", // 修改为引用 Parent 模型
         },
         relationship: {
           type: String,
@@ -249,7 +249,7 @@ ChildSchema.methods.addStars = function (count = 1): Promise<IChild> {
 ChildSchema.statics.findByClass = function (
   classId: mongoose.Types.ObjectId | string
 ) {
-  return this.find({ class: classId }).populate("parents.user", "profile.name email");
+  return this.find({ class: classId }).populate("parents.user", "profile.name profile.phone");
 };
 
 // 导出模型

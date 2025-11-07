@@ -78,6 +78,14 @@ export const PATCH = withDBConnect(async function PATCH(
 
     // 更新用户类型
     if (userType && userType !== existingUser.userType) {
+      // 验证用户类型
+      if (userType !== "admin" && userType !== "teacher") {
+        return NextResponse.json(
+          { error: "Invalid user type. Only admin and teacher are allowed." },
+          { status: 400 }
+        );
+      }
+
       const oldUserType = existingUser.userType;
       existingUser.userType = userType;
 
@@ -90,13 +98,6 @@ export const PATCH = withDBConnect(async function PATCH(
             totalClasses: 0,
             totalStudents: 0,
           },
-        };
-      }
-
-      // 如果从非家长变为家长，初始化 parentInfo
-      if (userType === "parent" && oldUserType !== "parent") {
-        existingUser.parentInfo = {
-          children: [],
         };
       }
     }

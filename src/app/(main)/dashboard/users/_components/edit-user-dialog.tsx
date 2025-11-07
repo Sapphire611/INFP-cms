@@ -25,7 +25,7 @@ const userFormSchema = z.object({
   name: z.string().min(1, "姓名为必填项"),
   email: z.string().email("邮箱格式不正确"),
   phone: z.string().optional(),
-  userType: z.enum(["admin", "teacher", "parent"]),
+  userType: z.enum(["admin", "teacher"]),
   password: z
     .string()
     .optional()
@@ -149,7 +149,6 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
                     <SelectContent>
                       <SelectItem value="admin">管理员</SelectItem>
                       <SelectItem value="teacher">教师</SelectItem>
-                      <SelectItem value="parent">家长</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />

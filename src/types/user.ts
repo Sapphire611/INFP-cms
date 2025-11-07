@@ -49,9 +49,6 @@ export interface UserResponse {
       totalStudents: number;
     };
   };
-  parentInfo?: {
-    children: string[];
-  };
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

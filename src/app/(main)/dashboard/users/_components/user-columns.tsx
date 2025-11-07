@@ -11,14 +11,12 @@ import { UserActions } from "./user-actions";
 const userTypeColors = {
   admin: "default",
   teacher: "secondary",
-  parent: "outline",
 } as const;
 
 // 用户类型中文映射
 const userTypeLabels = {
   admin: "管理员",
   teacher: "教师",
-  parent: "家长",
 } as const;
 
 // 用户列定义
@@ -85,15 +83,6 @@ export const userColumns: ColumnDef<UserWithCallback>[] = [
           <div className="text-sm">
             <div>管理班级: {classCount}个</div>
             <div className="text-muted-foreground">学生: {studentCount}人</div>
-          </div>
-        );
-      }
-
-      if (user.userType === "parent" && user.parentInfo) {
-        const childCount = user.parentInfo.children?.length || 0;
-        return (
-          <div className="text-sm">
-            关联学生: {childCount}人
           </div>
         );
       }

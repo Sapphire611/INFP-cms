@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 
-import { LayoutDashboard, ChartBar, Gauge, ShoppingBag, GraduationCap, Forklift, Search } from "lucide-react";
+import { LayoutDashboard, Users, UsersRound, School, GraduationCap, ClipboardList, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,16 +15,12 @@ import {
 } from "@/components/ui/command";
 
 const searchItems = [
-  { group: "Dashboards", icon: LayoutDashboard, label: "Default" },
-  { group: "Dashboards", icon: ChartBar, label: "CRM", disabled: true },
-  { group: "Dashboards", icon: Gauge, label: "Analytics", disabled: true },
-  { group: "Dashboards", icon: ShoppingBag, label: "E-Commerce", disabled: true },
-  { group: "Dashboards", icon: GraduationCap, label: "Academy", disabled: true },
-  { group: "Dashboards", icon: Forklift, label: "Logistics", disabled: true },
-  { group: "Authentication", label: "Login v1" },
-  { group: "Authentication", label: "Login v2" },
-  { group: "Authentication", label: "Register v1" },
-  { group: "Authentication", label: "Register v2" },
+  { group: "仪表盘", icon: LayoutDashboard, label: "数据概览", href: "/dashboard/default" },
+  { group: "用户管理", icon: Users, label: "用户列表", href: "/dashboard/users" },
+  { group: "家长管理", icon: UsersRound, label: "家长列表", href: "/dashboard/parents" },
+  { group: "班级管理", icon: School, label: "班级列表", href: "/dashboard/classes" },
+  { group: "学生管理", icon: GraduationCap, label: "学生列表", href: "/dashboard/students" },
+  { group: "学习管理", icon: ClipboardList, label: "学习表现", href: "/dashboard/performance" },
 ];
 
 export function SearchDialog() {
@@ -40,6 +36,11 @@ export function SearchDialog() {
     return () => document.removeEventListener("keydown", down);
   }, []);
 
+  const handleSelect = (href: string) => {
+    setOpen(false);
+    window.location.href = href;
+  };
+
   return (
     <>
       <Button
@@ -48,15 +49,15 @@ export function SearchDialog() {
         onClick={() => setOpen(true)}
       >
         <Search className="size-4" />
-        Search
+        搜索
         <kbd className="bg-muted inline-flex h-5 items-center gap-1 rounded border px-1.5 text-[10px] font-medium select-none">
           <span className="text-xs">⌘</span>J
         </kbd>
       </Button>
       <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="Search dashboards, users, and more…" />
+        <CommandInput placeholder="搜索功能模块、用户、班级等..." />
         <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
+          <CommandEmpty>未找到相关结果</CommandEmpty>
           {[...new Set(searchItems.map((item) => item.group))].map((group, i) => (
             <React.Fragment key={group}>
               {i !== 0 && <CommandSeparator />}
@@ -64,7 +65,7 @@ export function SearchDialog() {
                 {searchItems
                   .filter((item) => item.group === group)
                   .map((item) => (
-                    <CommandItem className="!py-1.5" key={item.label} onSelect={() => setOpen(false)}>
+                    <CommandItem className="!py-1.5" key={item.label} onSelect={() => handleSelect(item.href)}>
                       {item.icon && <item.icon />}
                       <span>{item.label}</span>
                     </CommandItem>

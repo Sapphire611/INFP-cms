@@ -24,6 +24,16 @@ export const POST = withDBConnect(async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
+    // Check if user type is allowed to login (only admin and teacher)
+    if (user.userType !== "admin" && user.userType !== "teacher") {
+      return NextResponse.json({ error: "Unauthorized user type" }, { status: 403 });
+    }
+
+    // Check if account is active
+    if (!user.isActive) {
+      return NextResponse.json({ error: "Account is disabled" }, { status: 403 });
+    }
+
     // Check if password matches
     const isPasswordValid = await compare(password, user.password);
     console.log({ isPasswordValid });

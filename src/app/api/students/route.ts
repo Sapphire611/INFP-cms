@@ -89,7 +89,7 @@ export const GET = withDBConnect(async function GET(request: NextRequest) {
     const total = await Child.countDocuments(query);
     const students = await Child.find(query)
       .populate("class", "name grade classCode")
-      .populate("parents.user", "profile.name email userType")
+      .populate("parents.user", "profile.name profile.phone") // 引用 Parent 模型
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -194,7 +194,7 @@ export const POST = withDBConnect(async function POST(request: NextRequest) {
     // 返回创建的学生
     const populatedStudent = await Child.findById(newStudent._id)
       .populate("class", "name grade classCode")
-      .populate("parents.user", "profile.name email userType")
+      .populate("parents.user", "profile.name profile.phone") // 引用 Parent 模型
       .lean();
 
     // 手动计算年龄
