@@ -4,13 +4,18 @@ import { connectDB } from "@/lib/mongoose";
 import User from "@/models/user";
 
 const userData = {
-  email: "liuliyi611@gmail.com",
-  password: "$2b$10$hRjTbGRl5NlKM26CFlgqcOMc6Drs/wOWcjBMX8gaMW41VIguJdqW6",
-  name: "Sapphire611",
-  role: "admin",
-  createdAt: new Date(),
-  updatedAt: new Date(),
+  username: "Admin",
+  email: "admin@jxrays.com",
+  password: "$2b$12$88q8HQEqsv33mXvhGmWLt.fEQivLNg5innUvWlRUj.RYOqek.LFQ.",
+  userType: "admin" as const,
+  profile: {
+    name: "admin",
+    phone: "",
+    avatar: "",
+  },
+  isActive: true,
 };
+
 
 async function initUser() {
   try {
@@ -21,18 +26,26 @@ async function initUser() {
     const existingUser = await User.findOne({ email: userData.email });
     if (existingUser) {
       console.log("User already exists in database");
+      console.log("User ID:", existingUser._id);
       return;
     }
 
-    // Create new user
-    const newUser = new User(userData);
-    await newUser.save();
-    console.log("Initial user created successfully");
+    // Create new user with pre-encrypted password
+    // 使用 insertMany 跳过 pre-save 钩子，避免密码二次加密
+    const [newUser] = await User.insertMany([userData], {
+      lean: false,
+    });
+
+    console.log("✅ Initial admin user created successfully");
+    console.log("📧 Email:", newUser.email);
+    console.log("👤 Username:", newUser.username);
+    console.log("🆔 User ID:", newUser._id);
   } catch (error) {
-    console.error("Error initializing user:", error);
+    console.error("❌ Error initializing user:", error);
     process.exit(1);
   } finally {
-    mongoose.disconnect();
+    await mongoose.disconnect();
+    console.log("\n🔌 Disconnected from MongoDB");
     process.exit(0);
   }
 }

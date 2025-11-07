@@ -16,6 +16,10 @@ import {
   Gauge,
   GraduationCap,
   Clapperboard,
+  School,
+  Baby,
+  UserCog,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 
@@ -47,7 +51,7 @@ export interface NavGroup {
 export const sidebarItems: NavGroup[] = [
   {
     id: 1,
-    label: "V1",
+    label: "幼儿园管理",
     items: [
       {
         title: "仪表盘",
@@ -55,14 +59,24 @@ export const sidebarItems: NavGroup[] = [
         icon: LayoutDashboard,
       },
       {
+        title: "班级列表",
+        url: "/dashboard/classes",
+        icon: School,
+      },
+      {
+        title: "学生列表",
+        url: "/dashboard/students",
+        icon: Baby,
+      },
+      {
         title: "用户管理",
         url: "/dashboard/users",
         icon: Users,
       },
       {
-        title: "电影管理",
-        url: "/dashboard/movies",
-        icon: Clapperboard,
+        title: "学习表现",
+        url: "/dashboard/performance",
+        icon: TrendingUp,
       },
       // {
       //   title: "Finance",

@@ -1,10 +1,25 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { format } from "date-fns";
 
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 
 import { UserWithCallback } from "./types";
 import { UserActions } from "./user-actions";
+
+// 用户类型标签颜色映射
+const userTypeColors = {
+  admin: "default",
+  teacher: "secondary",
+  parent: "outline",
+} as const;
+
+// 用户类型中文映射
+const userTypeLabels = {
+  admin: "管理员",
+  teacher: "教师",
+  parent: "家长",
+} as const;
 
 // 用户列定义
 export const userColumns: ColumnDef<UserWithCallback>[] = [
@@ -32,9 +47,18 @@ export const userColumns: ColumnDef<UserWithCallback>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "name",
+    accessorKey: "profile.name",
     header: "姓名",
-    cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    cell: ({ row }) => <span className="font-medium">{row.original.profile?.name || row.original.username}</span>,
+  },
+  {
+    accessorKey: "userType",
+    header: "用户类型",
+    cell: ({ row }) => (
+      <Badge variant={userTypeColors[row.original.userType]}>
+        {userTypeLabels[row.original.userType]}
+      </Badge>
+    ),
   },
   {
     accessorKey: "email",
@@ -42,17 +66,55 @@ export const userColumns: ColumnDef<UserWithCallback>[] = [
     cell: ({ row }) => <span className="text-muted-foreground">{row.original.email}</span>,
   },
   {
+    accessorKey: "profile.phone",
+    header: "联系电话",
+    cell: ({ row }) => (
+      <span className="text-muted-foreground">{row.original.profile?.phone || "-"}</span>
+    ),
+  },
+  {
+    id: "typeSpecific",
+    header: "角色信息",
+    cell: ({ row }) => {
+      const user = row.original;
+
+      if (user.userType === "teacher" && user.teacherInfo) {
+        const classCount = user.teacherInfo.classTeacherInfo?.totalClasses || 0;
+        const studentCount = user.teacherInfo.classTeacherInfo?.totalStudents || 0;
+        return (
+          <div className="text-sm">
+            <div>管理班级: {classCount}个</div>
+            <div className="text-muted-foreground">学生: {studentCount}人</div>
+          </div>
+        );
+      }
+
+      if (user.userType === "parent" && user.parentInfo) {
+        const childCount = user.parentInfo.children?.length || 0;
+        return (
+          <div className="text-sm">
+            关联学生: {childCount}人
+          </div>
+        );
+      }
+
+      return <span className="text-muted-foreground">-</span>;
+    },
+  },
+  {
+    accessorKey: "isActive",
+    header: "状态",
+    cell: ({ row }) => (
+      <Badge variant={row.original.isActive ? "default" : "destructive"}>
+        {row.original.isActive ? "激活" : "禁用"}
+      </Badge>
+    ),
+  },
+  {
     accessorKey: "createdAt",
     header: "创建时间",
     cell: ({ row }) => (
       <span className="text-muted-foreground text-sm">{format(new Date(row.original.createdAt), "yyyy年MM月dd日")}</span>
-    ),
-  },
-  {
-    accessorKey: "updatedAt",
-    header: "更新时间",
-    cell: ({ row }) => (
-      <span className="text-muted-foreground text-sm">{format(new Date(row.original.updatedAt), "yyyy年MM月dd日")}</span>
     ),
   },
   {

@@ -10,11 +10,11 @@ import { DataTableViewOptions } from "@/components/data-table/data-table-view-op
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
-import { MovieResponse } from "@/types/movie";
+import { IChild } from "@/models/child";
 
-import { AddMovieDialog } from "./_components/add-movie-dialog";
-import { movieColumns } from "./_components/movie-columns";
-import { MovieWithCallback } from "./_components/types";
+import { AddStudentDialog } from "./_components/add-student-dialog";
+import { studentColumns } from "./_components/student-columns";
+import { StudentWithCallback } from "./_components/types";
 
 // 定义分页信息接口
 export interface PaginationInfo {
@@ -26,13 +26,16 @@ export interface PaginationInfo {
 
 interface Filters {
   search?: string;
+  classId?: string;
+  status?: string;
 }
-export default function MoviesPage() {
-  const [movies, setMovies] = useState<MovieWithCallback[]>([]);
+
+export default function StudentsPage() {
+  const [students, setStudents] = useState<StudentWithCallback[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
-  const [selectedMovie, setSelectedMovie] = useState<MovieResponse | null>(null);
+  const [selectedStudent, setSelectedStudent] = useState<IChild | null>(null);
   const [filters, setFilters] = useState<Filters>({});
   const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
@@ -41,8 +44,8 @@ export default function MoviesPage() {
     totalPages: 1,
   });
 
-  // 获取电影数据（支持分页）
-  const fetchMovies = useCallback(
+  // 获取学生数据（支持分页）
+  const fetchStudents = useCallback(
     async (page = 1, pageSize: number) => {
       try {
         setLoading(true);
@@ -57,37 +60,35 @@ export default function MoviesPage() {
           if (value) queryParams.append(key, value.toString());
         });
 
-        const response = await fetch(`/api/movies?${queryParams.toString()}`);
+        const response = await fetch(`/api/students?${queryParams.toString()}`);
         if (response.ok) {
           const { data, pagination: newPagination } = await response.json();
 
-          // 为每个电影添加更新回调和编辑回调
-          const moviesWithCallbacks = data.map((movie: MovieResponse) => ({
-            ...movie,
-            // ensure callers can simply call onMovieUpdated() without args
-            onMovieUpdated: () => fetchMovies(1, pagination.limit),
-            // when editing, fetch the full movie details from the API before opening the dialog
+          // 为每个学生添加更新回调和编辑回调
+          const studentsWithCallbacks = data.map((student: IChild) => ({
+            ...student,
+            onStudentUpdated: () => fetchStudents(1, pagination.limit),
             onEdit: async () => {
               try {
-                const res = await fetch(`/api/movies/${movie._id}`);
+                const res = await fetch(`/api/students/${student._id}`);
                 if (res.ok) {
                   const full = await res.json();
-                  setSelectedMovie(full as MovieResponse);
+                  setSelectedStudent(full as IChild);
                   setIsEditOpen(true);
                 } else {
-                  console.error("Failed to fetch movie details for edit");
+                  console.error("Failed to fetch student details for edit");
                 }
               } catch (err) {
-                console.error("Error fetching movie for edit:", err);
+                console.error("Error fetching student for edit:", err);
               }
             },
           }));
 
-          setMovies(moviesWithCallbacks);
+          setStudents(studentsWithCallbacks);
           setPagination(newPagination);
         }
       } catch (error) {
-        console.error("Error fetching movies:", error);
+        console.error("Error fetching students:", error);
       } finally {
         setLoading(false);
       }
@@ -97,14 +98,14 @@ export default function MoviesPage() {
 
   useEffect(() => {
     // 初始化时获取第一页数据
-    fetchMovies(1, pagination.limit);
-  }, [fetchMovies, pagination.limit]);
+    fetchStudents(1, pagination.limit);
+  }, [fetchStudents, pagination.limit]);
 
   // 创建表格实例
   const table = useDataTableInstance({
-    data: movies,
-    columns: movieColumns,
-    getRowId: (row) => row._id,
+    data: students,
+    columns: studentColumns,
+    getRowId: (row) => row._id?.toString() || String(Math.random()),
     // 配置分页
     meta: {
       pagination: {
@@ -119,10 +120,10 @@ export default function MoviesPage() {
     return (
       <div className="@container/main flex flex-col gap-4 md:gap-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">电影</h1>
+          <h1 className="text-2xl font-bold">学生管理</h1>
         </div>
         <div className="flex h-64 items-center justify-center">
-          <span className="text-muted-foreground">正在加载电影...</span>
+          <span className="text-muted-foreground">正在加载学生...</span>
         </div>
       </div>
     );
@@ -132,24 +133,24 @@ export default function MoviesPage() {
     <div className="@container/main flex flex-col gap-4 md:gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">电影</h1>
-          <p className="text-muted-foreground">管理电影数据</p>
+          <h1 className="text-2xl font-bold">学生管理</h1>
+          <p className="text-muted-foreground">管理幼儿园学生信息</p>
         </div>
         <Button onClick={() => setIsAddOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
-          新增电影
+          添加学生
         </Button>
       </div>
 
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-2">
-          <Badge variant="secondary">{pagination.total} 部电影</Badge>
+          <Badge variant="secondary">{pagination.total} 名学生</Badge>
         </div>
         <DataTableViewOptions table={table} />
       </div>
 
       <div className="overflow-hidden rounded-lg border">
-        <DataTable table={table} columns={movieColumns} />
+        <DataTable table={table} columns={studentColumns} />
       </div>
 
       <DataTablePagination
@@ -160,33 +161,33 @@ export default function MoviesPage() {
         totalPages={pagination.totalPages}
         isLoading={loading}
         onPageChange={async (page) => {
-          await fetchMovies(page, pagination.limit);
+          await fetchStudents(page, pagination.limit);
         }}
         onPageSizeChange={async (newPageSize) => {
-          await fetchMovies(1, newPageSize);
+          await fetchStudents(1, newPageSize);
         }}
         pageSizeOptions={[10, 20, 30, 50]}
       />
 
-      {/* 添加电影对话框 */}
-      <AddMovieDialog
+      {/* 添加学生对话框 */}
+      <AddStudentDialog
         open={isAddOpen}
         onOpenChange={setIsAddOpen}
-        onMovieAdded={() => fetchMovies(1, pagination.limit)}
+        onStudentAdded={() => fetchStudents(1, pagination.limit)}
       />
 
-      {/* 编辑电影对话框（复用同一个组件） */}
-      <AddMovieDialog
+      {/* 编辑学生对话框（复用同一个组件） */}
+      <AddStudentDialog
         open={isEditOpen}
         onOpenChange={(v) => {
           setIsEditOpen(v);
-          if (!v) setSelectedMovie(null);
+          if (!v) setSelectedStudent(null);
         }}
-        movie={selectedMovie}
-        onMovieAdded={() => {
-          fetchMovies(1, pagination.limit);
+        student={selectedStudent}
+        onStudentAdded={() => {
+          fetchStudents(1, pagination.limit);
           setIsEditOpen(false);
-          setSelectedMovie(null);
+          setSelectedStudent(null);
         }}
       />
     </div>

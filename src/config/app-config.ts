@@ -3,11 +3,11 @@ import packageJson from "../../package.json";
 const currentYear = new Date().getFullYear();
 
 export const APP_CONFIG = {
-  name: "内容管理平台",
+  name: "雷式幼儿园",
   version: packageJson.version,
-  copyright: `© ${currentYear} Sapphire611`,
+  copyright: `© ${currentYear} JXRAYS`,
   meta: {
-    title: "Sapphire611's CMS",
-    description: "Test..",
+    title: "JXRAYS",
+    description: "JXRAYS..",
   },
 };

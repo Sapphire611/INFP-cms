@@ -30,13 +30,17 @@ function extractSortingParams(url: URL) {
 function buildQueryConditions(url: URL) {
   const query: Record<string, any> = {};
   const search = url.searchParams.get("search") ?? "";
-  const role = url.searchParams.get("role") ?? "";
+  const userType = url.searchParams.get("userType") ?? "";
 
   if (search) {
-    query.$or = [{ name: { $regex: search, $options: "i" } }, { email: { $regex: search, $options: "i" } }];
+    query.$or = [
+      { "profile.name": { $regex: search, $options: "i" } },
+      { username: { $regex: search, $options: "i" } },
+      { email: { $regex: search, $options: "i" } }
+    ];
   }
-  if (role) {
-    query.role = role;
+  if (userType) {
+    query.userType = userType;
   }
 
   return query;
@@ -78,45 +82,70 @@ export const GET = withDBConnect(async function GET(request: NextRequest) {
 export const POST = withDBConnect(async function POST(request: NextRequest) {
   try {
     const body: CreateUserRequest = await request.json();
-    const { name, email, password } = body;
+    const { username, email, password, userType, profile, teacherInfo } = body;
 
     // 检查用户是否已存在
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return NextResponse.json({ error: "User already exists" }, { status: 409 });
+    const existingUserByEmail = await User.findOne({ email });
+    if (existingUserByEmail) {
+      return NextResponse.json({ error: "Email already exists" }, { status: 409 });
     }
 
-    // 哈希密码
-    const hashedPassword = await bcrypt.hash(password, 12);
+    const existingUserByUsername = await User.findOne({ username });
+    if (existingUserByUsername) {
+      return NextResponse.json({ error: "Username already exists" }, { status: 409 });
+    }
 
     // 创建新用户
     const user = new User({
-      name,
+      username,
       email,
-      password: hashedPassword,
-      role: "user",
-      createdAt: new Date(),
-      updatedAt: new Date(),
+      password, // Password will be hashed by the pre-save middleware
+      userType: userType || "parent",
+      profile: {
+        name: profile.name,
+        phone: profile.phone,
+      },
+      isActive: true,
     });
+
+    // 如果是教师，添加教师信息
+    if (userType === "teacher" && teacherInfo) {
+      user.teacherInfo = {
+        teacherId: teacherInfo.teacherId,
+        classes: [],
+        subjects: teacherInfo.subjects || [],
+        classTeacherInfo: {
+          totalClasses: 0,
+          totalStudents: 0,
+        },
+      };
+    }
+
+    // 如果是家长，初始化家长信息
+    if (userType === "parent") {
+      user.parentInfo = {
+        children: [],
+      };
+    }
 
     await user.save();
 
     // 返回创建的用户（不含密码）
-    const userWithoutPassword = user.toObject();
-    delete userWithoutPassword.password;
+    const userObj = user.toObject() as any;
+    delete userObj.password;
 
-    return NextResponse.json(userWithoutPassword, { status: 201 });
+    return NextResponse.json(userObj, { status: 201 });
   } catch (error) {
     console.error("Error creating user:", error);
     return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
   }
 });
 
-// PUT /api/users/:id - 更新用户信息
+// PUT /api/users/:id - 更新用户信息 (deprecated - use PATCH /api/users/[id] instead)
 export const PUT = withDBConnect(async function PUT(request: NextRequest) {
   try {
     const token = await getToken({ req: request });
-    if (!token || token.role !== "admin") {
+    if (!token || token.userType !== "admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -129,7 +158,7 @@ export const PUT = withDBConnect(async function PUT(request: NextRequest) {
     }
 
     const body: UpdateUserRequest = await request.json();
-    const { name, email, password } = body;
+    const { username, email, password, profile, teacherInfo } = body;
 
     // 查找用户
     const user = await User.findById(userId);
@@ -138,22 +167,48 @@ export const PUT = withDBConnect(async function PUT(request: NextRequest) {
     }
 
     // 更新用户信息
-    if (name) user.name = name;
+    if (username) user.username = username;
     if (email) user.email = email;
     if (password) {
-      // 哈希新密码
-      const salt = await bcrypt.genSalt(10);
-      user.password = await bcrypt.hash(password, salt);
+      // Password will be hashed by the pre-save middleware
+      user.password = password;
     }
+
+    // 更新 profile
+    if (profile) {
+      if (profile.name) user.profile.name = profile.name;
+      if (profile.phone !== undefined) user.profile.phone = profile.phone;
+    }
+
+    // 如果是教师，更新教师信息
+    if (user.userType === "teacher" && teacherInfo) {
+      if (!user.teacherInfo) {
+        user.teacherInfo = {
+          classes: [],
+          subjects: [],
+          classTeacherInfo: {
+            totalClasses: 0,
+            totalStudents: 0,
+          },
+        };
+      }
+      if (teacherInfo.teacherId !== undefined) {
+        user.teacherInfo.teacherId = teacherInfo.teacherId;
+      }
+      if (teacherInfo.subjects !== undefined) {
+        user.teacherInfo.subjects = teacherInfo.subjects;
+      }
+    }
+
     user.updatedAt = new Date();
 
     await user.save();
 
     // 返回更新后的用户（不含密码）
-    const userWithoutPassword = user.toObject();
-    delete userWithoutPassword.password;
+    const userObj = user.toObject() as any;
+    delete userObj.password;
 
-    return NextResponse.json(userWithoutPassword, { status: 200 });
+    return NextResponse.json(userObj, { status: 200 });
   } catch (error) {
     console.error("Error updating user:", error);
     return NextResponse.json({ error: "Failed to update user" }, { status: 500 });

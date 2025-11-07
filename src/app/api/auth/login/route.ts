@@ -32,7 +32,7 @@ export const POST = withDBConnect(async function POST(request: NextRequest) {
     }
 
     // Create JWT token
-    const token = sign({ id: user._id, email: user.email, role: user.role }, process.env.JWT_SECRET ?? "", {
+    const token = sign({ id: user._id, email: user.email, userType: user.userType }, process.env.JWT_SECRET ?? "", {
       expiresIn: "1d",
     });
 
@@ -43,9 +43,9 @@ export const POST = withDBConnect(async function POST(request: NextRequest) {
       token,
       user: {
         id: user._id,
-        name: user.name,
+        name: user.profile?.name || user.username,
         email: user.email,
-        role: user.role,
+        userType: user.userType,
       },
     });
   } catch (error: unknown) {

@@ -25,9 +25,14 @@ export async function getUserList({ page = 1, limit = 10 }: GetUsersParams = {})
       .fill(null)
       .map((_, index) => ({
         _id: String((page - 1) * limit + index + 1),
-        name: `User ${(page - 1) * limit + index + 1}`,
+        username: `user${(page - 1) * limit + index + 1}`,
         email: `user${(page - 1) * limit + index + 1}@example.com`,
-        role: "user",
+        userType: "parent" as const,
+        profile: {
+          name: `User ${(page - 1) * limit + index + 1}`,
+          phone: "",
+        },
+        isActive: true,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       })),

@@ -13,16 +13,13 @@ import { useIsMobile } from "@/hooks/use-mobile";
 export const description = "An interactive area chart";
 
 const chartDataDemo = [
-  { date: "2024-04-01", user: 111 },
-  { date: "2024-04-02", user: 222 },
+  { date: "2024-04-01", stars: 0 },
+  { date: "2024-04-02", stars: 0 },
 ];
 
 const chartConfig = {
-  visitors: {
-    label: "Visitors",
-  },
-  user: {
-    label: "User",
+  stars: {
+    label: "星星",
     color: "var(--chart-1)",
   },
 } satisfies ChartConfig;
@@ -41,15 +38,14 @@ export function ChartAreaInteractive() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const response = await fetch("/api/users/stats/growth");
+        const response = await fetch("/api/dashboard/stars-trend");
         if (!response.ok) {
-          throw new Error("Failed to fetch user stats");
+          throw new Error("Failed to fetch stars trend");
         }
         const result = await response.json();
-        console.log({ result });
         setChartData(result);
       } catch (error) {
-        console.error("Error fetching user stats:", error);
+        console.error("Error fetching stars trend:", error);
       }
     };
 
@@ -73,10 +69,10 @@ export function ChartAreaInteractive() {
   return (
     <Card className="@container/card">
       <CardHeader>
-        <CardTitle>总访客数</CardTitle>
+        <CardTitle>星星趋势</CardTitle>
         <CardDescription>
-          <span className="hidden @[540px]/card:block">过去3个月的总访客数</span>
-          <span className="@[540px]/card:hidden">过去3个月</span>
+          <span className="hidden @[540px]/card:block">最近获得星星的趋势</span>
+          <span className="@[540px]/card:hidden">星星趋势</span>
         </CardDescription>
         <CardAction>
           <ToggleGroup
@@ -155,7 +151,7 @@ export function ChartAreaInteractive() {
                 />
               }
             />
-            <Area dataKey="user" type="natural" fill="url(#fillDesktop)" stroke="var(--color-user)" stackId="a" />
+            <Area dataKey="stars" type="natural" fill="url(#fillDesktop)" stroke="var(--color-stars)" stackId="a" />
           </AreaChart>
         </ChartContainer>
       </CardContent>

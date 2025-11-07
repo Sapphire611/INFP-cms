@@ -9,6 +9,7 @@ import { DataTablePagination } from "@/components/data-table/data-table-paginati
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
 import { UserResponse } from "@/types/user";
 
@@ -25,7 +26,7 @@ export interface PaginationInfo {
 }
 
 interface Filters {
-  role?: string;
+  userType?: string;
   search?: string;
 }
 
@@ -34,6 +35,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>({});
+  const [selectedUserType, setSelectedUserType] = useState<string>("all");
   const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
     page: 1,
@@ -85,6 +87,19 @@ export default function UsersPage() {
     fetchUsers(1, pagination.limit);
   }, [fetchUsers, pagination.limit]);
 
+  const handleUserTypeFilterChange = (value: string) => {
+    setSelectedUserType(value);
+    if (value === "all") {
+      setFilters((prev) => {
+        const newFilters = { ...prev };
+        delete newFilters.userType;
+        return newFilters;
+      });
+    } else {
+      setFilters((prev) => ({ ...prev, userType: value }));
+    }
+  };
+
   const table = useDataTableInstance({
     data: users,
     columns: userColumns,
@@ -126,8 +141,21 @@ export default function UsersPage() {
         </Button>
       </div>
 
-      <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
+          <div className="w-[200px]">
+            <Select value={selectedUserType} onValueChange={handleUserTypeFilterChange}>
+              <SelectTrigger>
+                <SelectValue placeholder="用户类型" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全部用户</SelectItem>
+                <SelectItem value="admin">管理员</SelectItem>
+                <SelectItem value="teacher">教师</SelectItem>
+                <SelectItem value="parent">家长</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           <Badge variant="secondary">{pagination.total} 位用户</Badge>
         </div>
         <DataTableViewOptions table={table} />
