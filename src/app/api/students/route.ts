@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { withDBConnect } from "@/lib/mongoose";
 import Child from "@/models/child";
 import Class from "@/models/class";
 import User from "@/models/user";
@@ -77,7 +76,7 @@ function buildQueryConditions(url: URL) {
 }
 
 // GET /api/students - 获取学生列表
-export const GET = withDBConnect(async function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
 
@@ -129,10 +128,10 @@ export const GET = withDBConnect(async function GET(request: NextRequest) {
     const message = error instanceof Error ? error.message : "An unexpected error occurred";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}
 
 // POST /api/students - 创建新学生
-export const POST = withDBConnect(async function POST(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { name, gender, birthDate, studentId, classId, parents, enrollment, healthInfo, notes } = body;
@@ -220,4 +219,4 @@ export const POST = withDBConnect(async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : "Failed to create student";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}

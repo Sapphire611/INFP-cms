@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { withDBConnect } from "@/lib/mongoose";
 import CheckIn from "@/models/checkin";
 import Child from "@/models/child";
 import Class from "@/models/class";
@@ -27,7 +26,7 @@ function buildDateRangeQuery(url: URL) {
 }
 
 // GET /api/performance - 获取学习表现数据
-export const GET = withDBConnect(async function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const classId = url.searchParams.get("classId");
@@ -139,4 +138,4 @@ export const GET = withDBConnect(async function GET(request: NextRequest) {
     const message = error instanceof Error ? error.message : "An unexpected error occurred";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}

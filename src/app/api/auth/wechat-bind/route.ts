@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { verify } from "jsonwebtoken";
 
-import { withDBConnect } from "@/lib/mongoose";
 import Parent from "@/models/parent";
 
 interface WechatBindRequest {
@@ -24,7 +23,7 @@ interface WechatBindRequest {
  * 2. 家长首次使用微信小程序时，通过手机号或其他方式验证身份
  * 3. 验证通过后，调用此API绑定微信openid
  */
-export const POST = withDBConnect(async function POST(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     const body: WechatBindRequest = await request.json();
     const { parentId, code, nickname, avatarUrl } = body;
@@ -104,14 +103,14 @@ export const POST = withDBConnect(async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : "An unexpected error occurred";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}
 
 /**
  * 解绑微信
  *
  * DELETE /api/auth/wechat-bind
  */
-export const DELETE = withDBConnect(async function DELETE(request: NextRequest) {
+export async function DELETE(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const parentId = url.searchParams.get("parentId");
@@ -141,4 +140,4 @@ export const DELETE = withDBConnect(async function DELETE(request: NextRequest) 
     const message = error instanceof Error ? error.message : "An unexpected error occurred";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}

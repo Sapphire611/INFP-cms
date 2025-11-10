@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { withDBConnect } from "@/lib/mongoose";
 import Child from "@/models/child";
 
 interface StarsDataPoint {
@@ -7,7 +6,7 @@ interface StarsDataPoint {
   stars: number;
 }
 
-export const GET = withDBConnect(async function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const days = parseInt(searchParams.get("days") || "7");
@@ -91,4 +90,4 @@ export const GET = withDBConnect(async function GET(request: NextRequest) {
       { status: 500 }
     );
   }
-});
+}

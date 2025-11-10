@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { withDBConnect } from "@/lib/mongoose";
 import Class from "@/models/class";
 import Child from "@/models/child";
 import User from "@/models/user";
@@ -35,7 +34,7 @@ async function updateTeacherStats(teacherId: string) {
 }
 
 // GET /api/classes/[id] - 获取单个班级详情
-export const GET = withDBConnect(async function GET(
+export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -57,10 +56,10 @@ export const GET = withDBConnect(async function GET(
     const message = error instanceof Error ? error.message : "Failed to fetch class";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}
 
 // PATCH /api/classes/[id] - 更新班级信息
-export const PATCH = withDBConnect(async function PATCH(
+export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -175,10 +174,10 @@ export const PATCH = withDBConnect(async function PATCH(
     const message = error instanceof Error ? error.message : "Failed to update class";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}
 
 // DELETE /api/classes/[id] - 删除班级
-export const DELETE = withDBConnect(async function DELETE(
+export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -225,4 +224,4 @@ export const DELETE = withDBConnect(async function DELETE(
     const message = error instanceof Error ? error.message : "Failed to delete class";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}

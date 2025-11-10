@@ -61,6 +61,30 @@ npm run dev
 
 ## 系统架构
 
+### 数据库连接
+
+系统采用**持久连接 + 连接池**架构：
+
+- ✅ **服务启动时建立连接** - 应用启动即连接数据库并保持
+- ✅ **连接池管理** - 2-10 个连接复用，提升性能
+- ✅ **自动重连** - 断线自动重连，无需人工干预
+- ✅ **全局缓存** - 所有 API 路由共享同一连接
+- ✅ **健康监控** - 访问 `/api/health` 查看连接状态
+
+```bash
+# 启动时会看到以下日志
+🔄 Attempting to connect to MongoDB...
+✅ MongoDB connection opened successfully
+✅ MongoDB: Connection established
+🚀 MongoDB: Initial connection successful
+```
+
+连接配置 (src/lib/mongoose.ts):
+- `maxPoolSize: 10` - 最大 10 个连接
+- `minPoolSize: 2` - 保持 2 个最小连接
+- `retryWrites: true` - 自动重试写入
+- `retryReads: true` - 自动重试读取
+
 ### 用户类型
 
 1. **管理员 (Admin)**
@@ -187,8 +211,6 @@ src/
 - ✅ 家长与学生关联管理
 - ✅ 微信绑定/解绑功能
 
-### 数据迁移
-
 如果你的数据库中已有 `userType: "parent"` 的用户数据，运行迁移脚本：
 
 ```bash
@@ -214,7 +236,7 @@ npm run migrate:parents
 - 使用 ESLint 和 Prettier 保持代码风格一致
 - 遵循 TypeScript 最佳实践
 - 组件使用 "use client" 指令（客户端组件）
-- API 路由使用 withDBConnect HOC
+- 数据库连接通过中间件自动管理（无需在 API 路由中手动连接）
 
 ## 安全注意事项
 
@@ -252,10 +274,17 @@ npm run migrate:parents
 - 确认 MongoDB 服务正在运行
 - 检查 `.env` 中的 `MONGODB_URI` 是否正确
 - 验证数据库权限设置
+- 访问 `http://localhost:3000/api/health` 查看连接状态
 
 **问题**: 找不到用户数据
 - 运行 `npm run init-db` 创建测试用户
 - 检查数据库连接是否正常
+- 使用健康检查 API: `curl http://localhost:3000/api/health`
+
+**问题**: API 返回 503 错误
+- 检查数据库是否正常运行
+- 查看服务器日志中的数据库连接错误
+- 数据库会自动重连，稍等片刻后重试
 
 ### 家长系统问题
 

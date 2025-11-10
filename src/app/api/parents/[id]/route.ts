@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { withDBConnect } from "@/lib/mongoose";
 import Parent from "@/models/parent";
 import { UpdateParentRequest } from "@/types/parent";
 
 // GET /api/parents/[id] - 获取单个家长详情
-export const GET = withDBConnect(async function GET(
+export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -34,10 +33,10 @@ export const GET = withDBConnect(async function GET(
       error instanceof Error ? error.message : "Failed to fetch parent";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}
 
 // PATCH /api/parents/[id] - 更新家长信息
-export const PATCH = withDBConnect(async function PATCH(
+export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -97,10 +96,10 @@ export const PATCH = withDBConnect(async function PATCH(
       error instanceof Error ? error.message : "Failed to update parent";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}
 
 // DELETE /api/parents/[id] - 删除家长
-export const DELETE = withDBConnect(async function DELETE(
+export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -131,4 +130,4 @@ export const DELETE = withDBConnect(async function DELETE(
       error instanceof Error ? error.message : "Failed to delete parent";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}

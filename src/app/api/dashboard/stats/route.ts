@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { withDBConnect } from "@/lib/mongoose";
 import Child from "@/models/child";
 import Class from "@/models/class";
 import User from "@/models/user";
 import CheckIn from "@/models/checkin";
 
 // GET /api/dashboard/stats - 获取Dashboard统计数据
-export const GET = withDBConnect(async function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     // 获取基本统计数据
     const [totalClasses, totalStudents, totalTeachers, activeStudents] = await Promise.all([
@@ -155,4 +154,4 @@ export const GET = withDBConnect(async function GET(request: NextRequest) {
     const message = error instanceof Error ? error.message : "An unexpected error occurred";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}

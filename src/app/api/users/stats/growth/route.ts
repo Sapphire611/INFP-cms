@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { withDBConnect } from "@/lib/mongoose";
 import User from "@/models/user";
 
 // GET /api/users/stats/growth - 获取过去30天用户增长数据
-export const GET = withDBConnect(async function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     // 获取过去30天的日期范围
     const today = new Date();
@@ -72,4 +71,4 @@ export const GET = withDBConnect(async function GET(request: NextRequest) {
     console.error("Error fetching user growth data:", error);
     return NextResponse.json({ error: "Failed to fetch user growth data" }, { status: 500 });
   }
-});
+}

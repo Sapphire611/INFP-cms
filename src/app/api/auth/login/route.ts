@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { compare } from "bcryptjs";
 import { sign } from "jsonwebtoken";
 
-import { withDBConnect } from "@/lib/mongoose";
 import User from "@/models/user";
 
 interface LoginRequest {
@@ -11,7 +10,7 @@ interface LoginRequest {
   password: string;
 }
 
-export const POST = withDBConnect(async function POST(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     console.log("Database connection established for login request");
 
@@ -63,4 +62,4 @@ export const POST = withDBConnect(async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : "An unexpected error occurred";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}

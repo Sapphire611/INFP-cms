@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 
 import bcrypt from "bcryptjs";
 
-import { withDBConnect } from "@/lib/mongoose";
 import User from "@/models/user";
 import { UpdateUserRequest } from "@/types/user";
 
 // GET /api/users/[id] - 获取单个用户
-export const GET = withDBConnect(async function GET(
+export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -32,10 +31,10 @@ export const GET = withDBConnect(async function GET(
     console.error("Error fetching user:", error);
     return NextResponse.json({ error: "Failed to fetch user" }, { status: 500 });
   }
-});
+}
 
 // PATCH /api/users/[id] - 更新用户
-export const PATCH = withDBConnect(async function PATCH(
+export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -147,10 +146,10 @@ export const PATCH = withDBConnect(async function PATCH(
     console.error("Error updating user:", error);
     return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
   }
-});
+}
 
 // DELETE /api/users/[id] - 删除用户
-export const DELETE = withDBConnect(async function DELETE(
+export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
@@ -168,4 +167,4 @@ export const DELETE = withDBConnect(async function DELETE(
     console.error("Error deleting user:", error);
     return NextResponse.json({ error: "Failed to delete user" }, { status: 500 });
   }
-});
+}

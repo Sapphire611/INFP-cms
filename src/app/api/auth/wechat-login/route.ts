@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { sign } from "jsonwebtoken";
 
-import { withDBConnect } from "@/lib/mongoose";
 import Parent from "@/models/parent";
 
 interface WechatLoginRequest {
@@ -26,7 +25,7 @@ interface WechatLoginRequest {
  * - 家长不能登录CMS，只能通过微信小程序访问
  * - 需要配置微信小程序的 APPID 和 APPSECRET
  */
-export const POST = withDBConnect(async function POST(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     const body: WechatLoginRequest = await request.json();
     const { code, nickname, avatarUrl } = body;
@@ -120,4 +119,4 @@ export const POST = withDBConnect(async function POST(request: NextRequest) {
     const message = error instanceof Error ? error.message : "An unexpected error occurred";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}

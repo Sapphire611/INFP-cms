@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { withDBConnect } from "@/lib/mongoose";
 import User from "@/models/user";
 
 // GET /api/users/stats - 获取用户统计数据
-export const GET = withDBConnect(async function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     // 获取当前日期
     const now = new Date();
@@ -36,4 +35,4 @@ export const GET = withDBConnect(async function GET(request: NextRequest) {
     console.error("Error fetching user stats:", error);
     return NextResponse.json({ error: "Failed to fetch user stats" }, { status: 500 });
   }
-});
+}

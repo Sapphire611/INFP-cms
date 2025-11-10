@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { withDBConnect } from "@/lib/mongoose";
 import Parent from "@/models/parent";
 import { CreateParentRequest } from "@/types/parent";
 
@@ -35,7 +34,7 @@ function buildQueryConditions(url: URL) {
 }
 
 // GET /api/parents - 获取家长列表
-export const GET = withDBConnect(async function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
 
@@ -70,10 +69,10 @@ export const GET = withDBConnect(async function GET(request: NextRequest) {
       error instanceof Error ? error.message : "An unexpected error occurred";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}
 
 // POST /api/parents - 创建新家长
-export const POST = withDBConnect(async function POST(request: NextRequest) {
+export async function POST(request: NextRequest) {
   try {
     const body: CreateParentRequest = await request.json();
     const { profile, children, openid, wechatInfo } = body;
@@ -124,4 +123,4 @@ export const POST = withDBConnect(async function POST(request: NextRequest) {
       error instanceof Error ? error.message : "Failed to create parent";
     return NextResponse.json({ error: message }, { status: 500 });
   }
-});
+}
