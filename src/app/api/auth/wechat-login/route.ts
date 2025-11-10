@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { sign } from "jsonwebtoken";
 
+import { connectDB } from "@/lib/mongoose";
 import Parent from "@/models/parent";
 
 interface WechatLoginRequest {
@@ -27,26 +28,54 @@ interface WechatLoginRequest {
  */
 export async function POST(request: NextRequest) {
   try {
+    // Ensure database connection is established
+    await connectDB();
+
     const body: WechatLoginRequest = await request.json();
     const { code, nickname, avatarUrl } = body;
 
     if (!code) {
-      return NextResponse.json({ error: "Missing code parameter" }, { status: 400 });
+      return NextResponse.json(
+        { code: 400, msg: "缺少登录凭证", data: null },
+        { status: 400 }
+      );
     }
 
-    // TODO: 调用微信接口获取 openid
-    // 这里需要配置微信小程序的 APPID 和 APPSECRET
-    // const wxResponse = await fetch(
-    //   `https://api.weixin.qq.com/sns/jscode2session?appid=${APPID}&secret=${APPSECRET}&js_code=${code}&grant_type=authorization_code`
-    // );
-    // const wxData = await wxResponse.json();
-    // const { openid, session_key, unionid } = wxData;
+    // 调用微信接口获取 openid
+    const WECHAT_APPID = process.env.WECHAT_APPID;
+    const WECHAT_SECRET = process.env.WECHAT_SECRET;
 
-    // 临时处理：使用 code 作为 openid（实际应该调用微信接口）
-    const openid = `wx_${code}`;
+    if (!WECHAT_APPID || !WECHAT_SECRET) {
+      console.error("Missing WECHAT_APPID or WECHAT_SECRET in environment variables");
+      return NextResponse.json(
+        { code: 500, msg: "微信配置错误", data: null },
+        { status: 500 }
+      );
+    }
+
+    const wxResponse = await fetch(
+      `https://api.weixin.qq.com/sns/jscode2session?appid=${WECHAT_APPID}&secret=${WECHAT_SECRET}&js_code=${code}&grant_type=authorization_code`
+    );
+
+    const wxData = await wxResponse.json();
+
+    if (wxData.errcode) {
+      console.error("WeChat API error:", wxData);
+      return NextResponse.json(
+        { code: 500, msg: `微信登录失败: ${wxData.errmsg}`, data: null },
+        { status: 500 }
+      );
+    }
+
+    const { openid } = wxData;
+    // session_key 和 unionid 可用于后续的会话管理和多平台账号关联
+    // const { session_key, unionid } = wxData;
 
     if (!openid) {
-      return NextResponse.json({ error: "Failed to get openid from WeChat" }, { status: 500 });
+      return NextResponse.json(
+        { code: 500, msg: "获取微信用户信息失败", data: null },
+        { status: 500 }
+      );
     }
 
     // 查找现有家长或创建新家长
@@ -82,7 +111,7 @@ export async function POST(request: NextRequest) {
     // 检查账户是否激活
     if (!parent.isActive) {
       return NextResponse.json(
-        { error: "Account is disabled. Please contact administrator." },
+        { code: 403, msg: "账户已被禁用，请联系管理员", data: null },
         { status: 403 }
       );
     }
@@ -102,21 +131,26 @@ export async function POST(request: NextRequest) {
 
     // 返回 token 和家长信息
     return NextResponse.json({
-      ok: true,
-      success: true,
-      token,
-      parent: {
-        id: parent._id,
-        name: parent.profile?.name,
-        phone: parent.profile?.phone,
-        avatar: parent.profile?.avatar || parent.wechatInfo?.avatarUrl,
-        children: parent.children,
-        isActive: parent.isActive,
+      code: 10000,
+      msg: "登录成功",
+      data: {
+        token,
+        parent: {
+          id: parent._id,
+          name: parent.profile?.name,
+          phone: parent.profile?.phone,
+          avatar: parent.profile?.avatar || parent.wechatInfo?.avatarUrl,
+          children: parent.children,
+          isActive: parent.isActive,
+        },
       },
     });
   } catch (error: unknown) {
     console.error("WeChat login error:", error);
-    const message = error instanceof Error ? error.message : "An unexpected error occurred";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const message = error instanceof Error ? error.message : "登录失败，请稍后重试";
+    return NextResponse.json(
+      { code: 500, msg: message, data: null },
+      { status: 500 }
+    );
   }
 }

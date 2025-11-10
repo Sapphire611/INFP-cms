@@ -20,6 +20,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { ParentResponse } from "@/types/parent";
+import { ManageChildrenSection } from "./manage-children-section";
 
 const parentFormSchema = z.object({
   name: z.string().min(1, "姓名为必填项"),
@@ -160,6 +161,7 @@ export function EditParentDialog({ parent, open, onOpenChange, onParentUpdated }
               )}
             />
 
+            {/* 账户信息摘要 */}
             <div className="rounded-lg bg-muted p-4">
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
@@ -182,6 +184,13 @@ export function EditParentDialog({ parent, open, onOpenChange, onParentUpdated }
                 )}
               </div>
             </div>
+
+            {/* 管理关联学生 */}
+            <ManageChildrenSection
+              parentId={parent._id}
+              children={parent.children}
+              onChildrenUpdated={onParentUpdated}
+            />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

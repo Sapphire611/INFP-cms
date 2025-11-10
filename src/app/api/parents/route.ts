@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-
+import { connectDB } from "@/lib/mongoose";
 import Parent from "@/models/parent";
+import Child from "@/models/child";
 import { CreateParentRequest } from "@/types/parent";
 
 // Helper function to extract and validate pagination parameters
@@ -36,6 +37,7 @@ function buildQueryConditions(url: URL) {
 // GET /api/parents - 获取家长列表
 export async function GET(request: NextRequest) {
   try {
+    await connectDB();
     const url = new URL(request.url);
 
     // Extract and validate parameters
@@ -74,6 +76,7 @@ export async function GET(request: NextRequest) {
 // POST /api/parents - 创建新家长
 export async function POST(request: NextRequest) {
   try {
+    await connectDB();
     const body: CreateParentRequest = await request.json();
     const { profile, children, openid, wechatInfo } = body;
 

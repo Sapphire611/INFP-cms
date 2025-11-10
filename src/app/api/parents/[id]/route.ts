@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-
+import { connectDB } from "@/lib/mongoose";
 import Parent from "@/models/parent";
+import Child from "@/models/child";
 import { UpdateParentRequest } from "@/types/parent";
 
 // GET /api/parents/[id] - 获取单个家长详情
@@ -9,6 +10,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await connectDB();
     const { id } = await params;
 
     const parent = await Parent.findById(id)
@@ -41,6 +43,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await connectDB();
     const { id } = await params;
     const body: UpdateParentRequest = await request.json();
 
@@ -104,6 +107,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    await connectDB();
     const { id } = await params;
 
     // 查找家长
