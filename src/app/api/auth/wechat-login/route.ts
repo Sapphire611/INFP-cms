@@ -129,6 +129,18 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    // 重新查询家长信息，填充 children 完整数据
+    const populatedParent = await Parent.findById(parent._id)
+      .populate({
+        path: "children",
+        select: "name studentId class gender avatar learningProgress",
+        populate: {
+          path: "class",
+          select: "name grade classCode",
+        },
+      })
+      .lean();
+
     // 返回 token 和家长信息
     return NextResponse.json({
       code: 10000,
@@ -136,12 +148,12 @@ export async function POST(request: NextRequest) {
       data: {
         token,
         parent: {
-          id: parent._id,
-          name: parent.profile?.name,
-          phone: parent.profile?.phone,
-          avatar: parent.profile?.avatar || parent.wechatInfo?.avatarUrl,
-          children: parent.children,
-          isActive: parent.isActive,
+          id: populatedParent?._id,
+          name: populatedParent?.profile?.name,
+          phone: populatedParent?.profile?.phone,
+          avatar: populatedParent?.profile?.avatar || populatedParent?.wechatInfo?.avatarUrl,
+          children: populatedParent?.children || [],
+          isActive: populatedParent?.isActive,
         },
       },
     });

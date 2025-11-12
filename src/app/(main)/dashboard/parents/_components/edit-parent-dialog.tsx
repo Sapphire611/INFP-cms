@@ -16,6 +16,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
@@ -93,13 +99,14 @@ export function EditParentDialog({ parent, open, onOpenChange, onParentUpdated }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>编辑家长</DialogTitle>
-          <DialogDescription>更新家长信息</DialogDescription>
-        </DialogHeader>
-        <Form {...form}>
+    <TooltipProvider>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>编辑家长</DialogTitle>
+            <DialogDescription>更新家长信息</DialogDescription>
+          </DialogHeader>
+          <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
@@ -166,7 +173,28 @@ export function EditParentDialog({ parent, open, onOpenChange, onParentUpdated }
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">关联学生数：</span>
-                  <span className="font-medium">{parent.children.length}人</span>
+                  {parent.children.length > 0 ? (
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help font-medium underline decoration-dotted">
+                          {parent.children.length}人
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <div className="space-y-1">
+                          <div className="font-semibold">关联学生：</div>
+                          {parent.children.map((child: any) => (
+                            <div key={child._id} className="text-sm">
+                              • {child.name} ({child.studentId})
+                              {child.class && ` - ${child.class.name}`}
+                            </div>
+                          ))}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  ) : (
+                    <span className="font-medium">0人</span>
+                  )}
                 </div>
                 {parent.openid && (
                   <div className="flex justify-between">
@@ -190,6 +218,7 @@ export function EditParentDialog({ parent, open, onOpenChange, onParentUpdated }
               parentId={parent._id}
               children={parent.children}
               onChildrenUpdated={onParentUpdated}
+              onCloseParentDialog={() => onOpenChange(false)}
             />
 
             <DialogFooter>
@@ -202,5 +231,6 @@ export function EditParentDialog({ parent, open, onOpenChange, onParentUpdated }
         </Form>
       </DialogContent>
     </Dialog>
+    </TooltipProvider>
   );
 }

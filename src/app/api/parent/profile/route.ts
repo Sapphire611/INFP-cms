@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { verify } from "jsonwebtoken";
 import { connectDB } from "@/lib/mongoose";
 import Parent from "@/models/parent";
+import "@/models/child"; // 确保 Child 模型被注册
+import "@/models/class"; // 确保 Class 模型被注册
 
 interface UpdateProfileRequest {
   name?: string;
@@ -113,18 +115,30 @@ export async function PATCH(request: NextRequest) {
     // 保存更新
     await parent.save();
 
+    // 重新查询并填充 children 完整数据
+    const populatedParent = await Parent.findById(parent._id)
+      .populate({
+        path: "children",
+        select: "name studentId class gender avatar learningProgress",
+        populate: {
+          path: "class",
+          select: "name grade classCode",
+        },
+      })
+      .lean();
+
     // 返回更新后的用户信息
     return NextResponse.json({
       code: 10000,
       msg: "更新成功",
       data: {
         parent: {
-          id: parent._id,
-          name: parent.profile?.name,
-          phone: parent.profile?.phone,
-          avatar: parent.profile?.avatar || parent.wechatInfo?.avatarUrl,
-          children: parent.children,
-          isActive: parent.isActive,
+          id: populatedParent?._id,
+          name: populatedParent?.profile?.name,
+          phone: populatedParent?.profile?.phone,
+          avatar: populatedParent?.profile?.avatar || populatedParent?.wechatInfo?.avatarUrl,
+          children: populatedParent?.children || [],
+          isActive: populatedParent?.isActive,
         },
       },
     });
@@ -176,8 +190,18 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // 查找家长
-    const parent = await Parent.findById(decoded.id).populate("children");
+    // 查找家长并填充 children 完整数据
+    const parent = await Parent.findById(decoded.id)
+      .populate({
+        path: "children",
+        select: "name studentId class gender avatar learningProgress",
+        populate: {
+          path: "class",
+          select: "name grade classCode",
+        },
+      })
+      .lean();
+
     if (!parent) {
       return NextResponse.json(
         { code: 404, msg: "用户不存在", data: null },
@@ -195,7 +219,7 @@ export async function GET(request: NextRequest) {
           name: parent.profile?.name,
           phone: parent.profile?.phone,
           avatar: parent.profile?.avatar || parent.wechatInfo?.avatarUrl,
-          children: parent.children,
+          children: parent.children || [],
           isActive: parent.isActive,
         },
       },

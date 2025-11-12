@@ -9,6 +9,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -132,17 +138,18 @@ export default function ParentsPage() {
   }
 
   return (
-    <div className="@container/main flex flex-col gap-4 md:gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">家长管理</h1>
-          <p className="text-muted-foreground">管理家长账户（不能登录CMS，仅通过微信小程序访问）</p>
+    <TooltipProvider>
+      <div className="@container/main flex flex-col gap-4 md:gap-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">家长管理</h1>
+            <p className="text-muted-foreground">管理家长账户（不能登录CMS，仅通过微信小程序访问）</p>
+          </div>
+          <Button onClick={() => setIsAddOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            新增家长
+          </Button>
         </div>
-        <Button onClick={() => setIsAddOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          新增家长
-        </Button>
-      </div>
 
       <div className="flex items-center justify-between gap-4">
         <div className="flex flex-1 items-center gap-4">
@@ -192,7 +199,28 @@ export default function ParentsPage() {
                       {parent.profile.phone || "-"}
                     </td>
                     <td className="px-4 py-3">
-                      <Badge variant="outline">{parent.children.length}人</Badge>
+                      {parent.children.length > 0 ? (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge variant="outline" className="cursor-help">
+                              {parent.children.length}人
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent className="max-w-xs">
+                            <div className="space-y-1">
+                              <div className="font-semibold">关联学生：</div>
+                              {parent.children.map((child: any) => (
+                                <div key={child._id} className="text-sm">
+                                  • {child.name} ({child.studentId})
+                                  {child.class && ` - ${child.class.name}`}
+                                </div>
+                              ))}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      ) : (
+                        <Badge variant="outline">0人</Badge>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       {parent.openid ? (
@@ -306,6 +334,7 @@ export default function ParentsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+      </div>
+    </TooltipProvider>
   );
 }

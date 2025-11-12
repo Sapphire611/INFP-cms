@@ -41,12 +41,14 @@ interface ManageChildrenSectionProps {
   parentId: string;
   children: Child[];
   onChildrenUpdated: () => void;
+  onCloseParentDialog?: () => void;
 }
 
 export function ManageChildrenSection({
   parentId,
   children,
   onChildrenUpdated,
+  onCloseParentDialog,
 }: ManageChildrenSectionProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false);
   const [allStudents, setAllStudents] = React.useState<Child[]>([]);
@@ -61,7 +63,7 @@ export function ManageChildrenSection({
       const response = await fetch("/api/students?limit=1000");
       if (response.ok) {
         const data = await response.json();
-        setAllStudents(data.students || []);
+        setAllStudents(data.data || []);
       }
     } catch (error) {
       console.error("Error fetching students:", error);
@@ -111,6 +113,8 @@ export function ManageChildrenSection({
         setSelectedStudent("");
         setSearchTerm("");
         onChildrenUpdated();
+        // 关闭父级编辑家长对话框
+        onCloseParentDialog?.();
       } else {
         const error = await response.json();
         toast.error(error.error || "添加关联失败");

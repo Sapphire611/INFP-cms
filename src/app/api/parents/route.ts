@@ -4,6 +4,9 @@ import Parent from "@/models/parent";
 import Child from "@/models/child";
 import { CreateParentRequest } from "@/types/parent";
 
+// Ensure Child model is registered before Parent uses it in populate
+Child;
+
 // Helper function to extract and validate pagination parameters
 function extractPaginationParams(url: URL) {
   const pageParam = url.searchParams.get("page");
@@ -47,7 +50,14 @@ export async function GET(request: NextRequest) {
     // Database operations
     const total = await Parent.countDocuments(query);
     const parents = await Parent.find(query)
-      .populate("children", "name studentId class") // 填充子女信息
+      .populate({
+        path: "children",
+        select: "name studentId class gender avatar",
+        populate: {
+          path: "class",
+          select: "name grade classCode",
+        },
+      })
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -116,7 +126,14 @@ export async function POST(request: NextRequest) {
 
     // 返回创建的家长
     const populatedParent = await Parent.findById(newParent._id)
-      .populate("children", "name studentId class")
+      .populate({
+        path: "children",
+        select: "name studentId class gender avatar",
+        populate: {
+          path: "class",
+          select: "name grade classCode",
+        },
+      })
       .lean();
 
     return NextResponse.json(populatedParent, { status: 201 });

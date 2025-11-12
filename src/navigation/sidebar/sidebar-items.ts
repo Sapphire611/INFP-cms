@@ -21,6 +21,7 @@ import {
   UserCog,
   TrendingUp,
   UsersRound,
+  BookOpen,
   type LucideIcon,
 } from "lucide-react";
 
@@ -73,6 +74,11 @@ export const sidebarItems: NavGroup[] = [
         title: "家长管理",
         url: "/dashboard/parents",
         icon: UsersRound,
+      },
+      {
+        title: "课程管理",
+        url: "/dashboard/courses",
+        icon: BookOpen,
       },
       {
         title: "用户管理",
