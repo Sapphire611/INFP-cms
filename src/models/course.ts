@@ -163,6 +163,7 @@ export interface ICourse extends Document {
   tags: string[];
   prerequisites: mongoose.Types.ObjectId[];
   isActive: boolean;
+  isPublished: boolean;
   createdBy: mongoose.Types.ObjectId;
   status: CourseStatus;
   progress: number;
@@ -388,6 +389,12 @@ const CourseSchema: Schema = new Schema({
   isActive: {
     type: Boolean,
     default: true,
+  },
+
+  // 发布状态
+  isPublished: {
+    type: Boolean,
+    default: false,
   },
 
   // 创建者

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, Search, BookOpen } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, BookOpen, Send, XCircle } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -38,12 +38,16 @@ interface Course {
     order: number;
   };
   metadata: {
-    theme: string;
-    code: string;
+    theme?: string;
+    code?: string;
   };
   difficulty: number;
   estimatedDuration: number;
   isActive: boolean;
+  isPublished: boolean;
+  content?: {
+    objectives: string[];
+  };
   createdAt: string;
 }
 
@@ -92,9 +96,11 @@ export default function CoursesPage() {
 
         const response = await fetch(`/api/courses?${queryParams.toString()}`);
         if (response.ok) {
-          const { data, pagination: newPagination } = await response.json();
-          setCourses(data);
-          setPagination(newPagination);
+          const result = await response.json();
+          setCourses(Array.isArray(result.data?.data) ? result.data.data : []);
+          if (result.data?.pagination) {
+            setPagination(result.data.pagination);
+          }
         } else {
           console.error("Failed to fetch courses");
           toast.error("获取课程列表失败");
@@ -110,8 +116,8 @@ export default function CoursesPage() {
   );
 
   useEffect(() => {
-    fetchCourses(1, pagination.limit);
-  }, [fetchCourses, pagination.limit]);
+    fetchCourses(1, pagination?.limit ?? 20);
+  }, [fetchCourses]);
 
   // 删除课程
   const handleDelete = async () => {
@@ -124,7 +130,7 @@ export default function CoursesPage() {
 
       if (response.ok) {
         toast.success("删除课程成功");
-        fetchCourses(pagination.page, pagination.limit);
+        fetchCourses(pagination?.page ?? 1, pagination?.limit ?? 20);
       } else {
         const error = await response.json();
         toast.error(error.error ?? "删除课程失败");
@@ -134,6 +140,46 @@ export default function CoursesPage() {
       toast.error("删除课程失败");
     } finally {
       setDeletingCourse(null);
+    }
+  };
+
+  // 发布课程
+  const handlePublish = async (courseId: string) => {
+    try {
+      const response = await fetch(`/api/courses/${courseId}/publish`, {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        toast.success("发布课程成功");
+        fetchCourses(pagination?.page ?? 1, pagination?.limit ?? 20);
+      } else {
+        const data = await response.json();
+        toast.error(data.error ?? "发布课程失败");
+      }
+    } catch (error) {
+      console.error("Error publishing course:", error);
+      toast.error("发布课程失败");
+    }
+  };
+
+  // 取消发布课程
+  const handleUnpublish = async (courseId: string) => {
+    try {
+      const response = await fetch(`/api/courses/${courseId}/publish`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        toast.success("取消发布成功");
+        fetchCourses(pagination?.page ?? 1, pagination?.limit ?? 20);
+      } else {
+        const error = await response.json();
+        toast.error(error.error ?? "取消发布失败");
+      }
+    } catch (error) {
+      console.error("Error unpublishing course:", error);
+      toast.error("取消发布失败");
     }
   };
 
@@ -163,7 +209,7 @@ export default function CoursesPage() {
 
   // 表单成功后刷新列表
   const handleFormSuccess = () => {
-    fetchCourses(pagination.page, pagination.limit);
+    fetchCourses(pagination?.page ?? 1, pagination?.limit ?? 20);
   };
 
   // 获取等级徽章颜色
@@ -248,7 +294,7 @@ export default function CoursesPage() {
             </SelectContent>
           </Select>
 
-          <Badge variant="secondary">{pagination.total} 个课程</Badge>
+          <Badge variant="secondary">{pagination?.total ?? 0} 个课程</Badge>
         </div>
       </div>
 
@@ -264,14 +310,15 @@ export default function CoursesPage() {
                 <th className="px-4 py-3 text-left text-sm font-medium">难度</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">时长</th>
                 <th className="px-4 py-3 text-left text-sm font-medium">状态</th>
+                <th className="px-4 py-3 text-left text-sm font-medium">发布状态</th>
                 <th className="px-4 py-3 text-right text-sm font-medium">操作</th>
               </tr>
             </thead>
             <tbody className="divide-y">
-              {courses.length === 0 ? (
+              {!Array.isArray(courses) || courses.length === 0 ? (
                 <tr>
                   <td
-                    colSpan={8}
+                    colSpan={9}
                     className="px-4 py-8 text-center text-sm text-muted-foreground"
                   >
                     暂无课程数据
@@ -329,7 +376,31 @@ export default function CoursesPage() {
                       </Badge>
                     </td>
                     <td className="px-4 py-3">
+                      <Badge variant={course.isPublished ? "default" : "outline"}>
+                        {course.isPublished ? "已发布" : "未发布"}
+                      </Badge>
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="flex justify-end gap-2">
+                        {course.isPublished ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleUnpublish(course._id)}
+                            title="取消发布"
+                          >
+                            <XCircle className="h-4 w-4 text-orange-500" />
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handlePublish(course._id)}
+                            title="发布课程"
+                          >
+                            <Send className="h-4 w-4 text-green-500" />
+                          </Button>
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -354,25 +425,25 @@ export default function CoursesPage() {
         </div>
       </div>
 
-      {pagination.totalPages > 1 && (
+      {(pagination?.totalPages ?? 1) > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            共 {pagination.total} 条记录，第 {pagination.page} / {pagination.totalPages} 页
+            共 {pagination?.total ?? 0} 条记录，第 {pagination?.page ?? 1} / {pagination?.totalPages ?? 1} 页
           </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
-              disabled={pagination.page === 1}
-              onClick={() => fetchCourses(pagination.page - 1, pagination.limit)}
+              disabled={(pagination?.page ?? 1) === 1}
+              onClick={() => fetchCourses((pagination?.page ?? 1) - 1, pagination?.limit ?? 20)}
             >
               上一页
             </Button>
             <Button
               variant="outline"
               size="sm"
-              disabled={pagination.page === pagination.totalPages}
-              onClick={() => fetchCourses(pagination.page + 1, pagination.limit)}
+              disabled={(pagination?.page ?? 1) === (pagination?.totalPages ?? 1)}
+              onClick={() => fetchCourses((pagination?.page ?? 1) + 1, pagination?.limit ?? 20)}
             >
               下一页
             </Button>
@@ -385,7 +456,7 @@ export default function CoursesPage() {
         open={formOpen}
         onOpenChange={setFormOpen}
         onSuccess={handleFormSuccess}
-        course={editingCourse}
+        course={editingCourse as any}
       />
 
       {/* 删除确认对话框 */}

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { verify } from "jsonwebtoken";
 import { connectDB } from "@/lib/mongoose";
 import Course from "@/models/course";
+import Parent from "@/models/parent";
+import "@/models/child";
+import "@/models/class";
 
 // Helper function to extract and validate pagination parameters
 function extractPaginationParams(url: URL) {
@@ -50,6 +54,8 @@ function buildQueryConditions(url: URL) {
 
 /**
  * GET /api/courses - 获取课程列表
+ * 如果是家长访问（小程序），只返回已发布的课程，并根据孩子的年级筛选
+ * 如果是管理员访问（CMS），返回所有课程
  */
 export async function GET(request: NextRequest) {
   try {
@@ -57,18 +63,85 @@ export async function GET(request: NextRequest) {
 
     const url = new URL(request.url);
     const { page, limit, skip } = extractPaginationParams(url);
-    const query = buildQueryConditions(url);
+    let query = buildQueryConditions(url);
+
+    // 检查是否有 Authorization header（家长用户）
+    const authHeader = request.headers.get("Authorization");
+    let isParentAccess = false;
+    let parentGrades: string[] = [];
+
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const token = authHeader.substring(7);
+
+      try {
+        const decoded = verify(token, process.env.JWT_SECRET ?? "") as { id: string; type: string };
+
+        // 如果是家长访问
+        if (decoded.type === "parent") {
+          isParentAccess = true;
+
+          // 查找家长的孩子信息，获取年级
+          const parent = await Parent.findById(decoded.id)
+            .populate({
+              path: "children",
+              select: "class",
+              populate: {
+                path: "class",
+                select: "grade",
+              },
+            })
+            .lean();
+
+          if (parent && parent.children && parent.children.length > 0) {
+            // 获取所有孩子的年级（去重）
+            const grades = new Set<string>();
+            for (const child of parent.children as any[]) {
+              if (child.class && child.class.grade) {
+                grades.add(child.class.grade);
+              }
+            }
+
+            // 将班级年级映射到课程年级格式
+            const gradeMapping: Record<string, string> = {
+              "小班": "小班 Ivy K1",
+              "中班": "中班 Ivy K2",
+              "大班": "大班 Ivy K3",
+              "学前班": "学前班",
+            };
+
+            parentGrades = Array.from(grades).map(grade => gradeMapping[grade] || grade);
+          }
+
+          // 家长只能看到已发布的课程
+          query.isPublished = true;
+          query.isActive = true;
+
+          // 如果有年级信息，筛选对应年级的课程
+          if (parentGrades.length > 0) {
+            query.targetGrades = { $in: parentGrades };
+          }
+        }
+      } catch (error) {
+        // Token 验证失败，继续作为普通请求处理
+        console.log("Token verification failed:", error);
+      }
+    }
 
     // 获取总数
     const total = await Course.countDocuments(query);
 
     // 获取课程列表
-    const courses = await Course.find(query)
-      .populate("createdBy", "profile.name email")
+    const coursesQuery = Course.find(query)
       .sort({ "sequence.unit": 1, "sequence.lesson": 1, createdAt: -1 })
       .skip(skip)
-      .limit(limit)
-      .lean();
+      .limit(limit);
+
+    // 如果不是家长访问，填充创建者信息
+    if (!isParentAccess) {
+      coursesQuery.populate("createdBy", "profile.name email");
+    }
+
+    const courses = await coursesQuery.lean();
 
     const totalPages = Math.ceil(total / limit);
 
@@ -150,6 +223,7 @@ export async function POST(request: NextRequest) {
       tags: body.tags || [],
       prerequisites: body.prerequisites || [],
       isActive: body.isActive !== undefined ? body.isActive : true,
+      isPublished: body.isPublished !== undefined ? body.isPublished : false,
       createdBy: body.createdBy,
     });
 
