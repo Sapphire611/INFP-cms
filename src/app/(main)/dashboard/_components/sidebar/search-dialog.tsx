@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 
-import { LayoutDashboard, Users, UsersRound, School, GraduationCap, ClipboardList, Search } from "lucide-react";
+import { LayoutDashboard, Users, UsersRound, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -17,10 +17,7 @@ import {
 const searchItems = [
   { group: "仪表盘", icon: LayoutDashboard, label: "数据概览", href: "/dashboard/default" },
   { group: "用户管理", icon: Users, label: "用户列表", href: "/dashboard/users" },
-  { group: "家长管理", icon: UsersRound, label: "家长列表", href: "/dashboard/parents" },
-  { group: "班级管理", icon: School, label: "班级列表", href: "/dashboard/classes" },
-  { group: "学生管理", icon: GraduationCap, label: "学生列表", href: "/dashboard/students" },
-  { group: "学习管理", icon: ClipboardList, label: "学习表现", href: "/dashboard/performance" },
+  { group: "微信用户", icon: UsersRound, label: "微信用户列表", href: "/dashboard/wechat-users" },
 ];
 
 export function SearchDialog() {
@@ -55,7 +52,7 @@ export function SearchDialog() {
         </kbd>
       </Button>
       <CommandDialog open={open} onOpenChange={setOpen}>
-        <CommandInput placeholder="搜索功能模块、用户、班级等..." />
+        <CommandInput placeholder="搜索功能模块..." />
         <CommandList>
           <CommandEmpty>未找到相关结果</CommandEmpty>
           {[...new Set(searchItems.map((item) => item.group))].map((group, i) => (

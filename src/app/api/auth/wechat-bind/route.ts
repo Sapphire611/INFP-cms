@@ -2,49 +2,49 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { verify } from "jsonwebtoken";
 
-import Parent from "@/models/parent";
+import WechatUser from "@/models/wechatUser";
 
 interface WechatBindRequest {
-  parentId: string; // 家长ID
+  wechatUserId: string; // 微信用户ID
   code: string; // 微信登录临时code
   nickname?: string;
   avatarUrl?: string;
 }
 
 /**
- * 家长微信绑定API
+ * 微信用户绑定API
  *
  * POST /api/auth/wechat-bind
  *
- * 用于将现有家长账户与微信openid绑定
+ * 用于将现有微信用户账户与微信openid绑定
  *
  * 使用场景：
- * 1. 管理员先在CMS中创建家长账户
- * 2. 家长首次使用微信小程序时，通过手机号或其他方式验证身份
+ * 1. 管理员先在CMS中创建微信用户账户
+ * 2. 微信用户首次使用微信小程序时，通过手机号或其他方式验证身份
  * 3. 验证通过后，调用此API绑定微信openid
  */
 export async function POST(request: NextRequest) {
   try {
     const body: WechatBindRequest = await request.json();
-    const { parentId, code, nickname, avatarUrl } = body;
+    const { wechatUserId, code, nickname, avatarUrl } = body;
 
-    if (!parentId || !code) {
+    if (!wechatUserId || !code) {
       return NextResponse.json(
-        { error: "Missing parentId or code parameter" },
+        { error: "Missing wechatUserId or code parameter" },
         { status: 400 }
       );
     }
 
-    // 查找家长
-    const parent = await Parent.findById(parentId);
-    if (!parent) {
-      return NextResponse.json({ error: "Parent not found" }, { status: 404 });
+    // 查找微信用户
+    const wechatUser = await WechatUser.findById(wechatUserId);
+    if (!wechatUser) {
+      return NextResponse.json({ error: "Wechat user not found" }, { status: 404 });
     }
 
     // 检查是否已绑定微信
-    if (parent.openid) {
+    if (wechatUser.openid) {
       return NextResponse.json(
-        { error: "Parent already bound to WeChat" },
+        { error: "Wechat user already bound to WeChat" },
         { status: 409 }
       );
     }
@@ -66,36 +66,36 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 检查 openid 是否已被其他家长使用
-    const existingParent = await Parent.findOne({ openid });
-    if (existingParent) {
+    // 检查 openid 是否已被其他微信用户使用
+    const existingWechatUser = await WechatUser.findOne({ openid });
+    if (existingWechatUser) {
       return NextResponse.json(
-        { error: "This WeChat account is already bound to another parent" },
+        { error: "This WeChat account is already bound to another wechat user" },
         { status: 409 }
       );
     }
 
     // 绑定微信
-    parent.openid = openid;
+    wechatUser.openid = openid;
     if (nickname || avatarUrl) {
-      parent.wechatInfo = {
+      wechatUser.wechatInfo = {
         nickname,
         avatarUrl,
       };
     }
-    parent.lastLoginAt = new Date();
-    await parent.save();
+    wechatUser.lastLoginAt = new Date();
+    await wechatUser.save();
 
     return NextResponse.json({
       ok: true,
       success: true,
       message: "WeChat bound successfully",
-      parent: {
-        id: parent._id,
-        name: parent.profile?.name,
-        phone: parent.profile?.phone,
-        openid: parent.openid,
-        wechatInfo: parent.wechatInfo,
+      wechatUser: {
+        id: wechatUser._id,
+        name: wechatUser.profile?.name,
+        phone: wechatUser.profile?.phone,
+        openid: wechatUser.openid,
+        wechatInfo: wechatUser.wechatInfo,
       },
     });
   } catch (error: unknown) {
@@ -113,22 +113,22 @@ export async function POST(request: NextRequest) {
 export async function DELETE(request: NextRequest) {
   try {
     const url = new URL(request.url);
-    const parentId = url.searchParams.get("parentId");
+    const wechatUserId = url.searchParams.get("wechatUserId");
 
-    if (!parentId) {
-      return NextResponse.json({ error: "Missing parentId parameter" }, { status: 400 });
+    if (!wechatUserId) {
+      return NextResponse.json({ error: "Missing wechatUserId parameter" }, { status: 400 });
     }
 
-    // 查找家长
-    const parent = await Parent.findById(parentId);
-    if (!parent) {
-      return NextResponse.json({ error: "Parent not found" }, { status: 404 });
+    // 查找微信用户
+    const wechatUser = await WechatUser.findById(wechatUserId);
+    if (!wechatUser) {
+      return NextResponse.json({ error: "Wechat user not found" }, { status: 404 });
     }
 
     // 解绑微信
-    parent.openid = undefined;
-    parent.wechatInfo = undefined;
-    await parent.save();
+    wechatUser.openid = undefined;
+    wechatUser.wechatInfo = undefined;
+    await wechatUser.save();
 
     return NextResponse.json({
       ok: true,

@@ -1,13 +1,12 @@
-import { IParent } from "../models/parent";
+import { IWechatUser } from "../models/wechatUser";
 
-// 创建家长请求
-export interface CreateParentRequest {
+// 创建微信用户请求
+export interface CreateWechatUserRequest {
   profile: {
     name: string;
     phone?: string;
     idNumber?: string;
   };
-  children?: string[]; // 子女ID数组
   openid?: string;
   wechatInfo?: {
     nickname?: string;
@@ -15,14 +14,13 @@ export interface CreateParentRequest {
   };
 }
 
-// 更新家长请求
-export interface UpdateParentRequest {
+// 更新微信用户请求
+export interface UpdateWechatUserRequest {
   profile?: {
     name?: string;
     phone?: string;
     idNumber?: string;
   };
-  children?: string[];
   isActive?: boolean;
   wechatInfo?: {
     nickname?: string;
@@ -30,8 +28,8 @@ export interface UpdateParentRequest {
   };
 }
 
-// 家长响应
-export interface ParentResponse {
+// 微信用户响应
+export interface WechatUserResponse {
   _id: string;
   profile: {
     name: string;
@@ -39,7 +37,6 @@ export interface ParentResponse {
     avatar?: string;
     idNumber?: string;
   };
-  children: string[];
   openid?: string;
   wechatInfo?: {
     nickname?: string;

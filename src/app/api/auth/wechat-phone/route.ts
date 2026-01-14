@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       const token = authHeader.substring(7);
       try {
         const decoded = verify(token, process.env.JWT_SECRET ?? "") as JWTPayload;
-        if (decoded.type !== "parent") {
+        if (decoded.type !== "wechatUser") {
           return NextResponse.json(
             { code: 403, msg: "无权访问此接口", data: null },
             { status: 403 }

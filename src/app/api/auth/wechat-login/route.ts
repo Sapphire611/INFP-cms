@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sign } from "jsonwebtoken";
 
 import { connectDB } from "@/lib/mongoose";
-import Parent from "@/models/parent";
+import WechatUser from "@/models/wechatUser";
 
 interface WechatLoginRequest {
   code: string; // 微信登录临时code
@@ -12,18 +12,18 @@ interface WechatLoginRequest {
 }
 
 /**
- * 家长微信小程序登录API
+ * 微信用户小程序登录API
  *
  * POST /api/auth/wechat-login
  *
  * 流程：
  * 1. 接收微信小程序的 code
  * 2. 使用 code 调用微信接口获取 openid
- * 3. 根据 openid 查找或创建家长账户
+ * 3. 根据 openid 查找或创建微信用户账户
  * 4. 返回 JWT token
  *
  * 注意：
- * - 家长不能登录CMS，只能通过微信小程序访问
+ * - 微信用户不能登录CMS，只能通过微信小程序访问
  * - 需要配置微信小程序的 APPID 和 APPSECRET
  */
 export async function POST(request: NextRequest) {
@@ -78,12 +78,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 查找现有家长或创建新家长
-    let parent = await Parent.findOne({ openid });
+    // 查找现有微信用户或创建新微信用户
+    let wechatUser = await WechatUser.findOne({ openid });
 
-    if (!parent) {
-      // 首次登录，创建家长账户
-      parent = new Parent({
+    if (!wechatUser) {
+      // 首次登录，创建微信用户账户
+      wechatUser = new WechatUser({
         profile: {
           name: nickname || "微信用户",
         },
@@ -95,21 +95,21 @@ export async function POST(request: NextRequest) {
         children: [],
         isActive: true,
       });
-      await parent.save();
+      await wechatUser.save();
     } else {
       // 更新微信信息和最后登录时间
       if (nickname || avatarUrl) {
-        parent.wechatInfo = {
-          nickname: nickname || parent.wechatInfo?.nickname,
-          avatarUrl: avatarUrl || parent.wechatInfo?.avatarUrl,
+        wechatUser.wechatInfo = {
+          nickname: nickname || wechatUser.wechatInfo?.nickname,
+          avatarUrl: avatarUrl || wechatUser.wechatInfo?.avatarUrl,
         };
       }
-      parent.lastLoginAt = new Date();
-      await parent.save();
+      wechatUser.lastLoginAt = new Date();
+      await wechatUser.save();
     }
 
     // 检查账户是否激活
-    if (!parent.isActive) {
+    if (!wechatUser.isActive) {
       return NextResponse.json(
         { code: 403, msg: "账户已被禁用，请联系管理员", data: null },
         { status: 403 }
@@ -119,41 +119,28 @@ export async function POST(request: NextRequest) {
     // 创建 JWT token
     const token = sign(
       {
-        id: parent._id,
-        type: "parent",
-        openid: parent.openid,
+        id: wechatUser._id,
+        type: "wechatUser",
+        openid: wechatUser.openid,
       },
       process.env.JWT_SECRET ?? "",
       {
-        expiresIn: "7d", // 家长token有效期7天
+        expiresIn: "7d", // 微信用户token有效期7天
       }
     );
 
-    // 重新查询家长信息，填充 children 完整数据
-    const populatedParent = await Parent.findById(parent._id)
-      .populate({
-        path: "children",
-        select: "name studentId class gender avatar learningProgress",
-        populate: {
-          path: "class",
-          select: "name grade classCode",
-        },
-      })
-      .lean();
-
-    // 返回 token 和家长信息
+    // 返回 token 和微信用户信息
     return NextResponse.json({
       code: 10000,
       msg: "登录成功",
       data: {
         token,
-        parent: {
-          id: populatedParent?._id,
-          name: populatedParent?.profile?.name,
-          phone: populatedParent?.profile?.phone,
-          avatar: populatedParent?.profile?.avatar || populatedParent?.wechatInfo?.avatarUrl,
-          children: populatedParent?.children || [],
-          isActive: populatedParent?.isActive,
+        wechatUser: {
+          id: wechatUser._id,
+          name: wechatUser.profile?.name,
+          phone: wechatUser.profile?.phone,
+          avatar: wechatUser.profile?.avatar || wechatUser.wechatInfo?.avatarUrl,
+          isActive: wechatUser.isActive,
         },
       },
     });

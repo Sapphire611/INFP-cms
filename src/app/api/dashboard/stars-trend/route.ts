@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import Child from "@/models/child";
 
 interface StarsDataPoint {
   date: string;
@@ -25,16 +24,11 @@ export async function GET(request: NextRequest) {
       dateArray.push(new Date(d));
     }
 
-    // 模拟星星趋势数据（因为实际需要从CheckIn模型获取，但目前可能没有数据）
-    // 实际应用中，这里应该从CheckIn模型的evaluation.stars字段聚合数据
-    const chartData: StarsDataPoint[] = dateArray.map((date, index) => {
-      // 生成模拟数据，实际应该从数据库查询
-      const baseStars = 50 + Math.floor(Math.random() * 30);
-      const trend = index * 2; // 轻微上升趋势
-
+    // 返回空数据（原为学生星星趋势，已移除相关功能）
+    const chartData: StarsDataPoint[] = dateArray.map((date) => {
       return {
         date: date.toISOString().split("T")[0],
-        stars: baseStars + trend,
+        stars: 0,
       };
     });
 

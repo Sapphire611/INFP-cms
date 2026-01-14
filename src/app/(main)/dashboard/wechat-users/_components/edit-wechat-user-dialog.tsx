@@ -16,56 +16,49 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { ParentResponse } from "@/types/parent";
-import { ManageChildrenSection } from "./manage-children-section";
+import { WechatUserResponse } from "@/types/wechatUser";
 
-const parentFormSchema = z.object({
+const wechatUserFormSchema = z.object({
   name: z.string().min(1, "姓名为必填项"),
   phone: z.string().optional(),
   idNumber: z.string().optional(),
   isActive: z.boolean(),
 });
 
-type ParentFormData = z.infer<typeof parentFormSchema>;
+type WechatUserFormData = z.infer<typeof wechatUserFormSchema>;
 
-interface EditParentDialogProps {
-  parent: ParentResponse;
+interface EditWechatUserDialogProps {
+  wechatUser: WechatUserResponse;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onParentUpdated?: () => void;
+  onWechatUserUpdated?: () => void;
 }
 
-export function EditParentDialog({ parent, open, onOpenChange, onParentUpdated }: EditParentDialogProps) {
-  const form = useForm<ParentFormData>({
-    resolver: zodResolver(parentFormSchema),
+export function EditWechatUserDialog({ wechatUser, open, onOpenChange, onWechatUserUpdated }: EditWechatUserDialogProps) {
+  const form = useForm<WechatUserFormData>({
+    resolver: zodResolver(wechatUserFormSchema),
     defaultValues: {
-      name: parent.profile?.name || "",
-      phone: parent.profile?.phone || "",
-      idNumber: parent.profile?.idNumber || "",
-      isActive: parent.isActive,
+      name: wechatUser.profile?.name || "",
+      phone: wechatUser.profile?.phone || "",
+      idNumber: wechatUser.profile?.idNumber || "",
+      isActive: wechatUser.isActive,
     },
   });
 
-  // 当 parent 改变时重置表单
+  // 当 wechatUser 改变时重置表单
   React.useEffect(() => {
     form.reset({
-      name: parent.profile?.name || "",
-      phone: parent.profile?.phone || "",
-      idNumber: parent.profile?.idNumber || "",
-      isActive: parent.isActive,
+      name: wechatUser.profile?.name || "",
+      phone: wechatUser.profile?.phone || "",
+      idNumber: wechatUser.profile?.idNumber || "",
+      isActive: wechatUser.isActive,
     });
-  }, [parent, form]);
+  }, [wechatUser, form]);
 
-  const onSubmit = async (data: ParentFormData) => {
+  const onSubmit = async (data: WechatUserFormData) => {
     try {
       const requestData = {
         profile: {
@@ -76,7 +69,7 @@ export function EditParentDialog({ parent, open, onOpenChange, onParentUpdated }
         isActive: data.isActive,
       };
 
-      const response = await fetch(`/api/parents/${parent._id}`, {
+      const response = await fetch(`/api/wechat-users/${wechatUser._id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -85,26 +78,25 @@ export function EditParentDialog({ parent, open, onOpenChange, onParentUpdated }
       });
 
       if (response.ok) {
-        toast.success("更新家长成功");
-        onParentUpdated?.();
+        toast.success("更新微信用户成功");
+        onWechatUserUpdated?.();
         onOpenChange(false);
       } else {
         const error = await response.json();
-        toast.error(error.error ?? "更新家长失败");
+        toast.error(error.error ?? "更新微信用户失败");
       }
     } catch (error) {
-      console.error("Error updating parent:", error);
-      toast.error("更新家长失败");
+      console.error("Error updating wechat user:", error);
+      toast.error("更新微信用户失败");
     }
   };
 
   return (
-    <TooltipProvider>
-      <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>编辑家长</DialogTitle>
-            <DialogDescription>更新家长信息</DialogDescription>
+            <DialogTitle>编辑微信用户</DialogTitle>
+            <DialogDescription>更新微信用户信息</DialogDescription>
           </DialogHeader>
           <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -115,7 +107,7 @@ export function EditParentDialog({ parent, open, onOpenChange, onParentUpdated }
                 <FormItem>
                   <FormLabel>姓名 *</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="请输入家长姓名" />
+                    <Input {...field} placeholder="请输入微信用户姓名" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -155,7 +147,7 @@ export function EditParentDialog({ parent, open, onOpenChange, onParentUpdated }
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">账户状态</FormLabel>
                     <DialogDescription>
-                      禁用后家长将无法通过微信小程序登录
+                      禁用后微信用户将无法通过微信小程序登录
                     </DialogDescription>
                   </div>
                   <FormControl>
@@ -171,55 +163,22 @@ export function EditParentDialog({ parent, open, onOpenChange, onParentUpdated }
             {/* 账户信息摘要 */}
             <div className="rounded-lg bg-muted p-4">
               <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">关联学生数：</span>
-                  {parent.children.length > 0 ? (
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="cursor-help font-medium underline decoration-dotted">
-                          {parent.children.length}人
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent className="max-w-xs">
-                        <div className="space-y-1">
-                          <div className="font-semibold">关联学生：</div>
-                          {parent.children.map((child: any) => (
-                            <div key={child._id} className="text-sm">
-                              • {child.name} ({child.studentId})
-                              {child.class && ` - ${child.class.name}`}
-                            </div>
-                          ))}
-                        </div>
-                      </TooltipContent>
-                    </Tooltip>
-                  ) : (
-                    <span className="font-medium">0人</span>
-                  )}
-                </div>
-                {parent.openid && (
+                {wechatUser.openid && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">微信状态：</span>
                     <span className="font-medium text-green-600">已绑定</span>
                   </div>
                 )}
-                {parent.lastLoginAt && (
+                {wechatUser.lastLoginAt && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">最后登录：</span>
                     <span className="font-medium">
-                      {new Date(parent.lastLoginAt).toLocaleString("zh-CN")}
+                      {new Date(wechatUser.lastLoginAt).toLocaleString("zh-CN")}
                     </span>
                   </div>
                 )}
               </div>
             </div>
-
-            {/* 管理关联学生 */}
-            <ManageChildrenSection
-              parentId={parent._id}
-              children={parent.children}
-              onChildrenUpdated={onParentUpdated}
-              onCloseParentDialog={() => onOpenChange(false)}
-            />
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
@@ -231,6 +190,5 @@ export function EditParentDialog({ parent, open, onOpenChange, onParentUpdated }
         </Form>
       </DialogContent>
     </Dialog>
-    </TooltipProvider>
   );
 }

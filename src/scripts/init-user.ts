@@ -5,7 +5,7 @@ import User from "@/models/user";
 
 const userData = {
   username: "Admin",
-  email: "admin@jxrays.com",
+  email: "admin@test.com",
   password: "$2b$12$88q8HQEqsv33mXvhGmWLt.fEQivLNg5innUvWlRUj.RYOqek.LFQ.",
   userType: "admin" as const,
   profile: {

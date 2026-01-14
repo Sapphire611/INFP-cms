@@ -17,14 +17,14 @@ export default function Login() {
           <div className="max-w-xl space-y-6">
             <div className="space-y-2">
               <h1 className="text-4xl font-bold tracking-tight">
-                雷式幼儿园管理系统
+                INFP的小窝
               </h1>
               <p className="text-lg text-white/80">
-                专业的教育管理平台
+                内容管理平台
               </p>
             </div>
             <p className="text-white/70 leading-relaxed">
-              为教育工作者和管理者提供全方位的学生管理、班级管理、家长沟通等功能，让教育管理更轻松高效。
+              简洁高效的内容管理系统，为您提供用户管理、数据统计等核心功能。
             </p>
 
             {/* Feature highlights */}
@@ -36,8 +36,8 @@ export default function Login() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-semibold">智能班级管理</h3>
-                  <p className="text-sm text-white/70">轻松管理班级信息、学生档案和日常考勤</p>
+                  <h3 className="font-semibold">用户管理</h3>
+                  <p className="text-sm text-white/70">轻松管理后台用户和微信用户信息</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -47,8 +47,8 @@ export default function Login() {
                   </svg>
                 </div>
                 <div>
-                  <h3 className="font-semibold">家校互通</h3>
-                  <p className="text-sm text-white/70">通过微信小程序实现家长与教师的高效沟通</p>
+                  <h3 className="font-semibold">微信集成</h3>
+                  <p className="text-sm text-white/70">支持微信小程序用户登录和管理</p>
                 </div>
               </div>
               <div className="flex items-start gap-3">
@@ -59,7 +59,7 @@ export default function Login() {
                 </div>
                 <div>
                   <h3 className="font-semibold">数据安全</h3>
-                  <p className="text-sm text-white/70">企业级安全保障，保护每一位学生的隐私</p>
+                  <p className="text-sm text-white/70">企业级安全保障，保护用户隐私</p>
                 </div>
               </div>
             </div>
@@ -72,8 +72,8 @@ export default function Login() {
         <div className="w-full max-w-md space-y-8">
           {/* Logo and title for mobile */}
           <div className="space-y-2 text-center lg:hidden mb-8">
-            <h2 className="text-2xl font-bold tracking-tight">雷式幼儿园管理系统</h2>
-            <p className="text-sm text-muted-foreground">专业的教育管理平台</p>
+            <h2 className="text-2xl font-bold tracking-tight">INFP的小窝</h2>
+            <p className="text-sm text-muted-foreground">内容管理平台</p>
           </div>
 
           <div className="space-y-6">
@@ -89,8 +89,8 @@ export default function Login() {
             </div>
 
             <div className="text-center text-sm text-muted-foreground">
-              <p>仅限管理员和教师登录</p>
-              <p className="mt-1">家长请使用微信小程序访问</p>
+              <p>后台管理系统</p>
+              <p className="mt-1">微信用户请使用微信小程序访问</p>
             </div>
           </div>
         </div>

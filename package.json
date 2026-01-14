@@ -1,6 +1,7 @@
 {
-  "name": "studio-admin",
+  "name": "infp-cms",
   "version": "2.0.0",
+  "description": "INFP的小窝 - 内容管理系统",
   "private": true,
   "scripts": {
     "dev": "next dev",

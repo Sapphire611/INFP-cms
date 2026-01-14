@@ -1,9 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verify } from "jsonwebtoken";
 import { connectDB } from "@/lib/mongoose";
-import Parent from "@/models/parent";
-import "@/models/child"; // 确保 Child 模型被注册
-import "@/models/class"; // 确保 Class 模型被注册
+import WechatUser from "@/models/wechatUser";
 
 interface UpdateProfileRequest {
   name?: string;
@@ -18,7 +16,7 @@ interface JWTPayload {
 }
 
 /**
- * PATCH /api/parent/profile - 家长更新自己的个人资料
+ * PATCH /api/wechat-user/profile - 微信用户更新自己的个人资料
  */
 export async function PATCH(request: NextRequest) {
   try {
@@ -48,7 +46,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     // 检查用户类型
-    if (decoded.type !== "parent") {
+    if (decoded.type !== "wechatUser") {
       return NextResponse.json(
         { code: 403, msg: "无权访问此接口", data: null },
         { status: 403 }
@@ -92,9 +90,9 @@ export async function PATCH(request: NextRequest) {
       }
     }
 
-    // 查找家长
-    const parent = await Parent.findById(decoded.id);
-    if (!parent) {
+    // 查找微信用户
+    const wechatUser = await WechatUser.findById(decoded.id);
+    if (!wechatUser) {
       return NextResponse.json(
         { code: 404, msg: "用户不存在", data: null },
         { status: 404 }
@@ -103,42 +101,29 @@ export async function PATCH(request: NextRequest) {
 
     // 更新信息
     if (body.name) {
-      parent.profile.name = body.name.trim();
+      wechatUser.profile.name = body.name.trim();
     }
     if (body.phone !== undefined) {
-      parent.profile.phone = body.phone;
+      wechatUser.profile.phone = body.phone;
     }
     if (body.avatar !== undefined) {
-      parent.profile.avatar = body.avatar;
+      wechatUser.profile.avatar = body.avatar;
     }
 
     // 保存更新
-    await parent.save();
-
-    // 重新查询并填充 children 完整数据
-    const populatedParent = await Parent.findById(parent._id)
-      .populate({
-        path: "children",
-        select: "name studentId class gender avatar learningProgress",
-        populate: {
-          path: "class",
-          select: "name grade classCode",
-        },
-      })
-      .lean();
+    await wechatUser.save();
 
     // 返回更新后的用户信息
     return NextResponse.json({
       code: 10000,
       msg: "更新成功",
       data: {
-        parent: {
-          id: populatedParent?._id,
-          name: populatedParent?.profile?.name,
-          phone: populatedParent?.profile?.phone,
-          avatar: populatedParent?.profile?.avatar || populatedParent?.wechatInfo?.avatarUrl,
-          children: populatedParent?.children || [],
-          isActive: populatedParent?.isActive,
+        wechatUser: {
+          id: wechatUser._id,
+          name: wechatUser.profile.name,
+          phone: wechatUser.profile.phone,
+          avatar: wechatUser.profile.avatar || wechatUser.wechatInfo?.avatarUrl,
+          isActive: wechatUser.isActive,
         },
       },
     });
@@ -153,7 +138,7 @@ export async function PATCH(request: NextRequest) {
 }
 
 /**
- * GET /api/parent/profile - 获取当前登录家长的个人资料
+ * GET /api/wechat-user/profile - 获取当前登录微信用户的个人资料
  */
 export async function GET(request: NextRequest) {
   try {
@@ -183,26 +168,17 @@ export async function GET(request: NextRequest) {
     }
 
     // 检查用户类型
-    if (decoded.type !== "parent") {
+    if (decoded.type !== "wechatUser") {
       return NextResponse.json(
         { code: 403, msg: "无权访问此接口", data: null },
         { status: 403 }
       );
     }
 
-    // 查找家长并填充 children 完整数据
-    const parent = await Parent.findById(decoded.id)
-      .populate({
-        path: "children",
-        select: "name studentId class gender avatar learningProgress",
-        populate: {
-          path: "class",
-          select: "name grade classCode",
-        },
-      })
-      .lean();
+    // 查找微信用户
+    const wechatUser = await WechatUser.findById(decoded.id).lean();
 
-    if (!parent) {
+    if (!wechatUser) {
       return NextResponse.json(
         { code: 404, msg: "用户不存在", data: null },
         { status: 404 }
@@ -214,13 +190,12 @@ export async function GET(request: NextRequest) {
       code: 10000,
       msg: "获取成功",
       data: {
-        parent: {
-          id: parent._id,
-          name: parent.profile?.name,
-          phone: parent.profile?.phone,
-          avatar: parent.profile?.avatar || parent.wechatInfo?.avatarUrl,
-          children: parent.children || [],
-          isActive: parent.isActive,
+        wechatUser: {
+          id: wechatUser._id,
+          name: wechatUser.profile?.name,
+          phone: wechatUser.profile?.phone,
+          avatar: wechatUser.profile?.avatar || wechatUser.wechatInfo?.avatarUrl,
+          isActive: wechatUser.isActive,
         },
       },
     });

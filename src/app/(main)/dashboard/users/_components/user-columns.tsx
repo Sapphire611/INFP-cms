@@ -71,26 +71,6 @@ export const userColumns: ColumnDef<UserWithCallback>[] = [
     ),
   },
   {
-    id: "typeSpecific",
-    header: "角色信息",
-    cell: ({ row }) => {
-      const user = row.original;
-
-      if (user.userType === "teacher" && user.teacherInfo) {
-        const classCount = user.teacherInfo.classTeacherInfo?.totalClasses || 0;
-        const studentCount = user.teacherInfo.classTeacherInfo?.totalStudents || 0;
-        return (
-          <div className="text-sm">
-            <div>管理班级: {classCount}个</div>
-            <div className="text-muted-foreground">学生: {studentCount}人</div>
-          </div>
-        );
-      }
-
-      return <span className="text-muted-foreground">-</span>;
-    },
-  },
-  {
     accessorKey: "isActive",
     header: "状态",
     cell: ({ row }) => (

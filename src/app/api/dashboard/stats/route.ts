@@ -1,80 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-
-import Child from "@/models/child";
-import Class from "@/models/class";
+import { connectDB } from "@/lib/mongoose";
 import User from "@/models/user";
-import CheckIn from "@/models/checkin";
+import WechatUser from "@/models/wechatUser";
 
 // GET /api/dashboard/stats - 获取Dashboard统计数据
 export async function GET(request: NextRequest) {
   try {
+    await connectDB();
+
     // 获取基本统计数据
-    const [totalClasses, totalStudents, totalTeachers, activeStudents] = await Promise.all([
-      Class.countDocuments({ isActive: true }),
-      Child.countDocuments(),
-      User.countDocuments({ userType: "teacher", isActive: true }),
-      Child.countDocuments({ "enrollment.status": "在读" }),
+    const [totalUsers, totalWechatUsers, activeWechatUsers] = await Promise.all([
+      User.countDocuments(),
+      WechatUser.countDocuments(),
+      WechatUser.countDocuments({ isActive: true }),
     ]);
 
-    // 获取所有学生的学习进度数据
-    const students = await Child.find({}, "learningProgress").lean();
+    // 计算本周新增微信用户数
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // 本周周日
+    weekStart.setHours(0, 0, 0, 0);
 
-    // 计算平均学习进度
-    let totalProgress = 0;
-    let validStudentCount = 0;
-    students.forEach((student) => {
-      if (student.learningProgress.totalLessons > 0) {
-        const progress = (student.learningProgress.completedLessons / student.learningProgress.totalLessons) * 100;
-        totalProgress += progress;
-        validStudentCount++;
-      }
+    const weeklyNewWechatUsers = await WechatUser.countDocuments({
+      createdAt: { $gte: weekStart },
     });
-    const averageProgress = validStudentCount > 0 ? Math.round(totalProgress / validStudentCount) : 0;
 
-    // 计算总获得星星数
-    const totalStarsResult = await Child.aggregate([
-      {
-        $group: {
-          _id: null,
-          totalStars: { $sum: "$learningProgress.totalStars" },
-        },
-      },
-    ]);
-    const totalStars = totalStarsResult.length > 0 ? totalStarsResult[0].totalStars : 0;
-
-    // 获取按年级分组的学生数
-    const studentsByGrade = await Class.aggregate([
-      {
-        $match: { isActive: true },
-      },
-      {
-        $group: {
-          _id: "$grade",
-          count: { $sum: { $size: "$students" } },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          grade: "$_id",
-          count: 1,
-        },
-      },
-      {
-        $sort: { grade: 1 },
-      },
-    ]);
-
-    // 获取最近7天的星星趋势
+    // 获取最近7天的用户注册趋势
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     sevenDaysAgo.setHours(0, 0, 0, 0);
 
-    const starsOverTime = await CheckIn.aggregate([
+    const usersOverTime = await WechatUser.aggregate([
       {
         $match: {
-          status: "graded",
-          "evaluation.gradedAt": { $gte: sevenDaysAgo },
+          createdAt: { $gte: sevenDaysAgo },
         },
       },
       {
@@ -82,17 +40,17 @@ export async function GET(request: NextRequest) {
           _id: {
             $dateToString: {
               format: "%Y-%m-%d",
-              date: "$evaluation.gradedAt",
+              date: "$createdAt",
             },
           },
-          stars: { $sum: "$evaluation.stars" },
+          count: { $sum: 1 },
         },
       },
       {
         $project: {
           _id: 0,
           date: "$_id",
-          stars: 1,
+          count: 1,
         },
       },
       {
@@ -101,53 +59,37 @@ export async function GET(request: NextRequest) {
     ]);
 
     // 补充缺失的日期（确保有7天的数据）
-    const filledStarsData = [];
+    const filledUsersData = [];
     for (let i = 6; i >= 0; i--) {
       const date = new Date();
       date.setDate(date.getDate() - i);
       date.setHours(0, 0, 0, 0);
       const dateString = date.toISOString().split("T")[0];
 
-      const existingData = starsOverTime.find((item) => item.date === dateString);
-      filledStarsData.push({
+      const existingData = usersOverTime.find((item) => item.date === dateString);
+      filledUsersData.push({
         date: dateString,
-        stars: existingData ? existingData.stars : 0,
+        count: existingData ? existingData.count : 0,
       });
     }
 
-    // 计算今日打卡数
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    const todayCheckIns = await CheckIn.countDocuments({
-      "timestamps.submittedAt": {
-        $gte: todayStart,
-        $lte: todayEnd,
-      },
-    });
-
-    // 计算本周新增学生数
-    const weekStart = new Date();
-    weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // 本周周日
-    weekStart.setHours(0, 0, 0, 0);
-
-    const weeklyNewStudents = await Child.countDocuments({
-      createdAt: { $gte: weekStart },
-    });
-
     return NextResponse.json({
-      totalClasses,
-      totalStudents,
-      totalTeachers,
-      activeStudents,
-      avgProgress: averageProgress, // 使用前端期望的字段名
-      totalStars,
-      todayCheckIns,
-      weeklyNewStudents,
-      studentsByGrade,
-      starsOverTime: filledStarsData,
+      totalUsers,
+      totalWechatUsers,
+      activeWechatUsers,
+      weeklyNewWechatUsers,
+      usersOverTime: filledUsersData,
+      // 保留前端可能期望的字段，返回默认值
+      totalClasses: 0,
+      totalStudents: 0,
+      totalTeachers: totalUsers,
+      activeStudents: 0,
+      avgProgress: 0,
+      totalStars: 0,
+      todayCheckIns: 0,
+      weeklyNewStudents: 0,
+      studentsByGrade: [],
+      starsOverTime: [],
     });
   } catch (error: unknown) {
     console.error("Error fetching dashboard stats:", error);

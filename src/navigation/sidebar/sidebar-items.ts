@@ -53,7 +53,7 @@ export interface NavGroup {
 export const sidebarItems: NavGroup[] = [
   {
     id: 1,
-    label: "幼儿园管理",
+    label: "INFP的小窝",
     items: [
       {
         title: "仪表盘",
@@ -61,34 +61,14 @@ export const sidebarItems: NavGroup[] = [
         icon: LayoutDashboard,
       },
       {
-        title: "班级列表",
-        url: "/dashboard/classes",
-        icon: School,
-      },
-      {
-        title: "学生列表",
-        url: "/dashboard/students",
-        icon: Baby,
-      },
-      {
-        title: "家长管理",
-        url: "/dashboard/parents",
+        title: "微信用户",
+        url: "/dashboard/wechat-users",
         icon: UsersRound,
-      },
-      {
-        title: "课程管理",
-        url: "/dashboard/courses",
-        icon: BookOpen,
       },
       {
         title: "用户管理",
         url: "/dashboard/users",
         icon: Users,
-      },
-      {
-        title: "学习表现",
-        url: "/dashboard/performance",
-        icon: TrendingUp,
       },
       // {
       //   title: "Finance",

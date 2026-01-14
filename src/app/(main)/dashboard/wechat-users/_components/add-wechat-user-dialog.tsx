@@ -19,23 +19,23 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-const parentFormSchema = z.object({
+const wechatUserFormSchema = z.object({
   name: z.string().min(1, "姓名为必填项"),
   phone: z.string().optional(),
   idNumber: z.string().optional(),
 });
 
-type ParentFormData = z.infer<typeof parentFormSchema>;
+type WechatUserFormData = z.infer<typeof wechatUserFormSchema>;
 
-interface AddParentDialogProps {
+interface AddWechatUserDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  onParentAdded?: () => void;
+  onWechatUserAdded?: () => void;
 }
 
-export function AddParentDialog({ open, onOpenChange, onParentAdded }: AddParentDialogProps) {
-  const form = useForm<ParentFormData>({
-    resolver: zodResolver(parentFormSchema),
+export function AddWechatUserDialog({ open, onOpenChange, onWechatUserAdded }: AddWechatUserDialogProps) {
+  const form = useForm<WechatUserFormData>({
+    resolver: zodResolver(wechatUserFormSchema),
     defaultValues: {
       name: "",
       phone: "",
@@ -43,7 +43,7 @@ export function AddParentDialog({ open, onOpenChange, onParentAdded }: AddParent
     },
   });
 
-  const onSubmit = async (data: ParentFormData) => {
+  const onSubmit = async (data: WechatUserFormData) => {
     try {
       const requestData = {
         profile: {
@@ -54,7 +54,7 @@ export function AddParentDialog({ open, onOpenChange, onParentAdded }: AddParent
         children: [],
       };
 
-      const response = await fetch("/api/parents", {
+      const response = await fetch("/api/wechat-users", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -63,17 +63,17 @@ export function AddParentDialog({ open, onOpenChange, onParentAdded }: AddParent
       });
 
       if (response.ok) {
-        toast.success("创建家长成功");
-        onParentAdded?.();
+        toast.success("创建微信用户成功");
+        onWechatUserAdded?.();
         onOpenChange?.(false);
         form.reset();
       } else {
         const error = await response.json();
-        toast.error(error.error ?? "创建家长失败");
+        toast.error(error.error ?? "创建微信用户失败");
       }
     } catch (error) {
-      console.error("Error creating parent:", error);
-      toast.error("创建家长失败");
+      console.error("Error creating wechat user:", error);
+      toast.error("创建微信用户失败");
     }
   };
 
@@ -81,9 +81,9 @@ export function AddParentDialog({ open, onOpenChange, onParentAdded }: AddParent
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>新增家长</DialogTitle>
+          <DialogTitle>新增微信用户</DialogTitle>
           <DialogDescription>
-            创建新的家长账户。家长不能登录CMS，仅通过微信小程序访问。
+            创建新的微信用户账户。微信用户不能登录CMS，仅通过微信小程序访问。
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -95,7 +95,7 @@ export function AddParentDialog({ open, onOpenChange, onParentAdded }: AddParent
                 <FormItem>
                   <FormLabel>姓名 *</FormLabel>
                   <FormControl>
-                    <Input {...field} placeholder="请输入家长姓名" />
+                    <Input {...field} placeholder="请输入微信用户姓名" />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

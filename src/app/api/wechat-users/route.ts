@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongoose";
-import Parent from "@/models/parent";
-import Child from "@/models/child";
-import { CreateParentRequest } from "@/types/parent";
-
-// Ensure Child model is registered before Parent uses it in populate
-Child;
+import WechatUser from "@/models/wechatUser";
+import { CreateWechatUserRequest } from "@/types/wechatUser";
 
 // Helper function to extract and validate pagination parameters
 function extractPaginationParams(url: URL) {
@@ -37,7 +33,7 @@ function buildQueryConditions(url: URL) {
   return query;
 }
 
-// GET /api/parents - 获取家长列表
+// GET /api/wechat-users - 获取微信用户列表
 export async function GET(request: NextRequest) {
   try {
     await connectDB();
@@ -48,16 +44,8 @@ export async function GET(request: NextRequest) {
     const query = buildQueryConditions(url);
 
     // Database operations
-    const total = await Parent.countDocuments(query);
-    const parents = await Parent.find(query)
-      .populate({
-        path: "children",
-        select: "name studentId class gender avatar",
-        populate: {
-          path: "class",
-          select: "name grade classCode",
-        },
-      })
+    const total = await WechatUser.countDocuments(query);
+    const wechatUsers = await WechatUser.find(query)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
@@ -67,7 +55,7 @@ export async function GET(request: NextRequest) {
     const totalPages = Math.ceil(total / limit);
 
     return NextResponse.json({
-      data: parents,
+      data: wechatUsers,
       pagination: {
         total,
         page,
@@ -76,71 +64,58 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error: unknown) {
-    console.error("Error fetching parents:", error);
+    console.error("Error fetching wechat users:", error);
     const message =
       error instanceof Error ? error.message : "An unexpected error occurred";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
-// POST /api/parents - 创建新家长
+// POST /api/wechat-users - 创建新微信用户
 export async function POST(request: NextRequest) {
   try {
     await connectDB();
-    const body: CreateParentRequest = await request.json();
-    const { profile, children, openid, wechatInfo } = body;
+    const body: CreateWechatUserRequest = await request.json();
+    const { profile, openid, wechatInfo } = body;
 
     // 验证必填字段
     if (!profile?.name) {
       return NextResponse.json(
-        { error: "Parent name is required" },
+        { error: "Wechat user name is required" },
         { status: 400 }
       );
     }
 
     // 检查openid是否已存在（如果提供）
     if (openid) {
-      const existingParent = await Parent.findOne({ openid });
-      if (existingParent) {
+      const existingWechatUser = await WechatUser.findOne({ openid });
+      if (existingWechatUser) {
         return NextResponse.json(
-          { error: "Parent with this openid already exists" },
+          { error: "Wechat user with this openid already exists" },
           { status: 409 }
         );
       }
     }
 
-    // 创建新家长
-    const newParent = new Parent({
+    // 创建新微信用户
+    const newWechatUser = new WechatUser({
       profile: {
         name: profile.name,
         phone: profile.phone,
         idNumber: profile.idNumber,
       },
-      children: children || [],
       openid,
       wechatInfo,
       isActive: true,
     });
 
-    await newParent.save();
+    await newWechatUser.save();
 
-    // 返回创建的家长
-    const populatedParent = await Parent.findById(newParent._id)
-      .populate({
-        path: "children",
-        select: "name studentId class gender avatar",
-        populate: {
-          path: "class",
-          select: "name grade classCode",
-        },
-      })
-      .lean();
-
-    return NextResponse.json(populatedParent, { status: 201 });
+    return NextResponse.json(newWechatUser, { status: 201 });
   } catch (error: unknown) {
-    console.error("Error creating parent:", error);
+    console.error("Error creating wechat user:", error);
     const message =
-      error instanceof Error ? error.message : "Failed to create parent";
+      error instanceof Error ? error.message : "Failed to create wechat user";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
