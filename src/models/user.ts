@@ -1,27 +1,8 @@
 import mongoose, { Document, Schema, Model } from "mongoose";
 import bcrypt from "bcryptjs";
 
-// 用户类型定义（CMS后台用户：管理员和教师）
-export type UserType = "admin" | "teacher";
-
-// 教师班级关联接口
-export interface ITeacherClass {
-  class: mongoose.Types.ObjectId;
-  role: "班主任" | "任课老师";
-  isPrimary: boolean;
-  assignedAt: Date;
-}
-
-// 教师信息接口
-export interface ITeacherInfo {
-  teacherId?: string;
-  classes: ITeacherClass[];
-  subjects: string[];
-  classTeacherInfo: {
-    totalClasses: number;
-    totalStudents: number;
-  };
-}
+// 用户类型定义（CMS后台用户：管理员）
+export type UserType = "admin";
 
 // 用户个人信息接口
 export interface IProfile {
@@ -37,23 +18,12 @@ export interface IUser extends Document {
   password: string;
   userType: UserType;
   profile: IProfile;
-  teacherInfo?: ITeacherInfo;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
 
   // 实例方法
   comparePassword(candidatePassword: string): Promise<boolean>;
-  getManagedClasses(): ITeacherClass[];
-  getClassTeacherClasses(): ITeacherClass[];
-  isClassTeacherOf(classId: mongoose.Types.ObjectId | string): boolean;
-  addClassManagement(
-    classId: mongoose.Types.ObjectId | string,
-    role?: "班主任" | "任课老师",
-    isPrimary?: boolean
-  ): void;
-  removeClassManagement(classId: mongoose.Types.ObjectId | string): void;
-  updateClassTeacherStats(): void;
 }
 
 // 用户Schema
@@ -81,11 +51,11 @@ const UserSchema: Schema = new Schema(
       minlength: 6,
     },
 
-    // 用户类型：admin 或 teacher（CMS后台登录用户）
+    // 用户类型：admin（CMS后台用户）
     userType: {
       type: String,
       required: true,
-      enum: ["admin", "teacher"],
+      enum: ["admin"],
     },
 
     // 个人信息
@@ -102,44 +72,6 @@ const UserSchema: Schema = new Schema(
       avatar: {
         type: String,
         default: "",
-      },
-    },
-
-    // 教师专属字段
-    teacherInfo: {
-      teacherId: String,
-      classes: [
-        {
-          class: {
-            type: Schema.Types.ObjectId,
-            ref: "Class",
-          },
-          role: {
-            type: String,
-            enum: ["班主任", "任课老师"],
-            default: "任课老师",
-          },
-          isPrimary: {
-            type: Boolean,
-            default: false,
-          },
-          assignedAt: {
-            type: Date,
-            default: Date.now,
-          },
-        },
-      ],
-      subjects: [String],
-      // 班主任特有信息
-      classTeacherInfo: {
-        totalClasses: {
-          type: Number,
-          default: 0,
-        },
-        totalStudents: {
-          type: Number,
-          default: 0,
-        },
       },
     },
 
@@ -185,100 +117,6 @@ UserSchema.methods.toJSON = function () {
   const userObject = this.toObject();
   delete userObject.password;
   return userObject;
-};
-
-// 实例方法：获取教师管理的班级
-UserSchema.methods.getManagedClasses = function (): ITeacherClass[] {
-  if (this.userType !== "teacher" || !this.teacherInfo) {
-    return [];
-  }
-  return this.teacherInfo.classes;
-};
-
-// 实例方法：获取班主任班级
-UserSchema.methods.getClassTeacherClasses = function (): ITeacherClass[] {
-  if (this.userType !== "teacher" || !this.teacherInfo) {
-    return [];
-  }
-  return this.teacherInfo.classes.filter(
-    (c: ITeacherClass) => c.role === "班主任" && c.isPrimary
-  );
-};
-
-// 实例方法：检查是否为某个班级的班主任
-UserSchema.methods.isClassTeacherOf = function (
-  classId: mongoose.Types.ObjectId | string
-): boolean {
-  if (this.userType !== "teacher" || !this.teacherInfo) {
-    return false;
-  }
-  return this.teacherInfo.classes.some(
-    (c: ITeacherClass) =>
-      c.class.toString() === classId.toString() &&
-      c.role === "班主任" &&
-      c.isPrimary
-  );
-};
-
-// 实例方法：添加班级管理权限
-UserSchema.methods.addClassManagement = function (
-  classId: mongoose.Types.ObjectId | string,
-  role: "班主任" | "任课老师" = "任课老师",
-  isPrimary = false
-) {
-  if (this.userType !== "teacher" || !this.teacherInfo) {
-    throw new Error("只有教师才能管理班级");
-  }
-
-  // 检查是否已存在
-  const existingIndex = this.teacherInfo.classes.findIndex(
-    (c: ITeacherClass) => c.class.toString() === classId.toString()
-  );
-
-  if (existingIndex >= 0) {
-    // 更新现有记录
-    this.teacherInfo.classes[existingIndex].role = role;
-    this.teacherInfo.classes[existingIndex].isPrimary = isPrimary;
-  } else {
-    // 添加新记录
-    this.teacherInfo.classes.push({
-      class: classId as mongoose.Types.ObjectId,
-      role,
-      isPrimary,
-      assignedAt: new Date(),
-    });
-  }
-
-  // 如果是班主任，更新统计信息
-  if (role === "班主任" && isPrimary) {
-    this.updateClassTeacherStats();
-  }
-};
-
-// 实例方法：移除班级管理权限
-UserSchema.methods.removeClassManagement = function (
-  classId: mongoose.Types.ObjectId | string
-) {
-  if (this.userType !== "teacher" || !this.teacherInfo) {
-    return;
-  }
-
-  this.teacherInfo.classes = this.teacherInfo.classes.filter(
-    (c: ITeacherClass) => c.class.toString() !== classId.toString()
-  );
-
-  // 更新统计信息
-  this.updateClassTeacherStats();
-};
-
-// 实例方法：更新班主任统计信息
-UserSchema.methods.updateClassTeacherStats = function () {
-  if (this.userType !== "teacher" || !this.teacherInfo) {
-    return;
-  }
-
-  const classTeacherClasses = this.getClassTeacherClasses();
-  this.teacherInfo.classTeacherInfo.totalClasses = classTeacherClasses.length;
 };
 
 // 导出模型

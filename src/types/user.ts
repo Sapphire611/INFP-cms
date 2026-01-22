@@ -9,10 +9,6 @@ export interface CreateUserRequest {
     name: string;
     phone?: string;
   };
-  teacherInfo?: {
-    teacherId?: string;
-    subjects?: string[];
-  };
 }
 
 export interface UpdateUserRequest {
@@ -23,10 +19,6 @@ export interface UpdateUserRequest {
   profile?: {
     name?: string;
     phone?: string;
-  };
-  teacherInfo?: {
-    teacherId?: string;
-    subjects?: string[];
   };
 }
 
@@ -39,15 +31,6 @@ export interface UserResponse {
     name: string;
     phone?: string;
     avatar?: string;
-  };
-  teacherInfo?: {
-    teacherId?: string;
-    classes: any[];
-    subjects: string[];
-    classTeacherInfo: {
-      totalClasses: number;
-      totalStudents: number;
-    };
   };
   isActive: boolean;
   createdAt: string;

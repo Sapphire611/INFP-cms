@@ -2,15 +2,14 @@ import { NextRequest, NextResponse } from "next/server";
 
 import bcrypt from "bcryptjs";
 
+import { connectDB } from "@/lib/mongoose";
 import User from "@/models/user";
 import { UpdateUserRequest } from "@/types/user";
 
 // GET /api/users/[id] - 获取单个用户
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await connectDB();
     // Await params before accessing id
     const { id } = await params;
     const user = await User.findById(id).select("-password");
@@ -34,15 +33,13 @@ export async function GET(
 }
 
 // PATCH /api/users/[id] - 更新用户
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await connectDB();
     // Await params before accessing id
     const { id } = await params;
     const body: UpdateUserRequest = await request.json();
-    const { username, email, password, userType, profile, teacherInfo } = body;
+    const { username, email, password, userType, profile } = body;
 
     // 查找用户
     const existingUser = await User.findById(id);
@@ -78,53 +75,17 @@ export async function PATCH(
     // 更新用户类型
     if (userType && userType !== existingUser.userType) {
       // 验证用户类型
-      if (userType !== "admin" && userType !== "teacher") {
-        return NextResponse.json(
-          { error: "Invalid user type. Only admin and teacher are allowed." },
-          { status: 400 }
-        );
+      if (userType !== "admin") {
+        return NextResponse.json({ error: "Invalid user type. Only admin is allowed." }, { status: 400 });
       }
 
-      const oldUserType = existingUser.userType;
       existingUser.userType = userType;
-
-      // 如果从非教师变为教师，初始化 teacherInfo
-      if (userType === "teacher" && oldUserType !== "teacher") {
-        existingUser.teacherInfo = {
-          classes: [],
-          subjects: [],
-          classTeacherInfo: {
-            totalClasses: 0,
-            totalStudents: 0,
-          },
-        };
-      }
     }
 
     // 更新 profile
     if (profile) {
       if (profile.name) existingUser.profile.name = profile.name;
       if (profile.phone !== undefined) existingUser.profile.phone = profile.phone;
-    }
-
-    // 如果是教师，更新教师信息
-    if (existingUser.userType === "teacher" && teacherInfo) {
-      if (!existingUser.teacherInfo) {
-        existingUser.teacherInfo = {
-          classes: [],
-          subjects: [],
-          classTeacherInfo: {
-            totalClasses: 0,
-            totalStudents: 0,
-          },
-        };
-      }
-      if (teacherInfo.teacherId !== undefined) {
-        existingUser.teacherInfo.teacherId = teacherInfo.teacherId;
-      }
-      if (teacherInfo.subjects !== undefined) {
-        existingUser.teacherInfo.subjects = teacherInfo.subjects;
-      }
     }
 
     existingUser.updatedAt = new Date();
@@ -149,11 +110,9 @@ export async function PATCH(
 }
 
 // DELETE /api/users/[id] - 删除用户
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await connectDB();
     // Await params before accessing id
     const { id } = await params;
     const user = await User.findByIdAndDelete(id);

@@ -35,10 +35,7 @@ export async function POST(request: NextRequest) {
     const { code, nickname, avatarUrl } = body;
 
     if (!code) {
-      return NextResponse.json(
-        { code: 400, msg: "缺少登录凭证", data: null },
-        { status: 400 }
-      );
+      return NextResponse.json({ code: 400, msg: "缺少登录凭证", data: null }, { status: 400 });
     }
 
     // 调用微信接口获取 openid
@@ -47,24 +44,18 @@ export async function POST(request: NextRequest) {
 
     if (!WECHAT_APPID || !WECHAT_SECRET) {
       console.error("Missing WECHAT_APPID or WECHAT_SECRET in environment variables");
-      return NextResponse.json(
-        { code: 500, msg: "微信配置错误", data: null },
-        { status: 500 }
-      );
+      return NextResponse.json({ code: 500, msg: "微信配置错误", data: null }, { status: 500 });
     }
 
     const wxResponse = await fetch(
-      `https://api.weixin.qq.com/sns/jscode2session?appid=${WECHAT_APPID}&secret=${WECHAT_SECRET}&js_code=${code}&grant_type=authorization_code`
+      `https://api.weixin.qq.com/sns/jscode2session?appid=${WECHAT_APPID}&secret=${WECHAT_SECRET}&js_code=${code}&grant_type=authorization_code`,
     );
 
     const wxData = await wxResponse.json();
 
     if (wxData.errcode) {
       console.error("WeChat API error:", wxData);
-      return NextResponse.json(
-        { code: 500, msg: `微信登录失败: ${wxData.errmsg}`, data: null },
-        { status: 500 }
-      );
+      return NextResponse.json({ code: 500, msg: `微信登录失败: ${wxData.errmsg}`, data: null }, { status: 500 });
     }
 
     const { openid } = wxData;
@@ -72,10 +63,7 @@ export async function POST(request: NextRequest) {
     // const { session_key, unionid } = wxData;
 
     if (!openid) {
-      return NextResponse.json(
-        { code: 500, msg: "获取微信用户信息失败", data: null },
-        { status: 500 }
-      );
+      return NextResponse.json({ code: 500, msg: "获取微信用户信息失败", data: null }, { status: 500 });
     }
 
     // 查找现有微信用户或创建新微信用户
@@ -110,10 +98,7 @@ export async function POST(request: NextRequest) {
 
     // 检查账户是否激活
     if (!wechatUser.isActive) {
-      return NextResponse.json(
-        { code: 403, msg: "账户已被禁用，请联系管理员", data: null },
-        { status: 403 }
-      );
+      return NextResponse.json({ code: 403, msg: "账户已被禁用，请联系管理员", data: null }, { status: 403 });
     }
 
     // 创建 JWT token
@@ -126,7 +111,7 @@ export async function POST(request: NextRequest) {
       process.env.JWT_SECRET ?? "",
       {
         expiresIn: "7d", // 微信用户token有效期7天
-      }
+      },
     );
 
     // 返回 token 和微信用户信息
@@ -147,9 +132,6 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error("WeChat login error:", error);
     const message = error instanceof Error ? error.message : "登录失败，请稍后重试";
-    return NextResponse.json(
-      { code: 500, msg: message, data: null },
-      { status: 500 }
-    );
+    return NextResponse.json({ code: 500, msg: message, data: null }, { status: 500 });
   }
 }

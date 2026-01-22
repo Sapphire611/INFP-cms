@@ -84,7 +84,9 @@ export function UserActions({ user, onUserUpdated }: UserActionsProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>删除用户</DialogTitle>
-            <DialogDescription>确定要删除用户"{user.profile?.name || user.username}"吗？此操作无法撤销。</DialogDescription>
+            <DialogDescription>
+              确定要删除用户"{user.profile?.name || user.username}"吗？此操作无法撤销。
+            </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsDeleteOpen(false)}>

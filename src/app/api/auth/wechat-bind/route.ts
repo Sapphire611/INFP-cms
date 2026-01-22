@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { verify } from "jsonwebtoken";
 
+import { connectDB } from "@/lib/mongoose";
 import WechatUser from "@/models/wechatUser";
 
 interface WechatBindRequest {
@@ -25,14 +26,12 @@ interface WechatBindRequest {
  */
 export async function POST(request: NextRequest) {
   try {
+    await connectDB();
     const body: WechatBindRequest = await request.json();
     const { wechatUserId, code, nickname, avatarUrl } = body;
 
     if (!wechatUserId || !code) {
-      return NextResponse.json(
-        { error: "Missing wechatUserId or code parameter" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing wechatUserId or code parameter" }, { status: 400 });
     }
 
     // 查找微信用户
@@ -43,10 +42,7 @@ export async function POST(request: NextRequest) {
 
     // 检查是否已绑定微信
     if (wechatUser.openid) {
-      return NextResponse.json(
-        { error: "Wechat user already bound to WeChat" },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: "Wechat user already bound to WeChat" }, { status: 409 });
     }
 
     // TODO: 调用微信接口获取 openid
@@ -60,10 +56,7 @@ export async function POST(request: NextRequest) {
     const openid = `wx_${code}`;
 
     if (!openid) {
-      return NextResponse.json(
-        { error: "Failed to get openid from WeChat" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "Failed to get openid from WeChat" }, { status: 500 });
     }
 
     // 检查 openid 是否已被其他微信用户使用
@@ -71,7 +64,7 @@ export async function POST(request: NextRequest) {
     if (existingWechatUser) {
       return NextResponse.json(
         { error: "This WeChat account is already bound to another wechat user" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -112,6 +105,7 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
+    await connectDB();
     const url = new URL(request.url);
     const wechatUserId = url.searchParams.get("wechatUserId");
 

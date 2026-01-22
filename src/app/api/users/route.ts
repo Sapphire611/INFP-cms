@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { getToken } from "next-auth/jwt";
 
+import { connectDB } from "@/lib/mongoose";
 import User from "@/models/user";
 import { CreateUserRequest, UpdateUserRequest } from "@/types/user";
 
@@ -35,7 +36,7 @@ function buildQueryConditions(url: URL) {
     query.$or = [
       { "profile.name": { $regex: search, $options: "i" } },
       { username: { $regex: search, $options: "i" } },
-      { email: { $regex: search, $options: "i" } }
+      { email: { $regex: search, $options: "i" } },
     ];
   }
   if (userType) {
@@ -48,6 +49,7 @@ function buildQueryConditions(url: URL) {
 // GET /api/users - 获取用户列表（支持分页、筛选和排序）
 export async function GET(request: NextRequest) {
   try {
+    await connectDB();
     const url = new URL(request.url);
 
     // Extract and validate parameters
@@ -80,8 +82,9 @@ export async function GET(request: NextRequest) {
 // POST /api/users - 创建新用户
 export async function POST(request: NextRequest) {
   try {
+    await connectDB();
     const body: CreateUserRequest = await request.json();
-    const { username, email, password, userType, profile, teacherInfo } = body;
+    const { username, email, password, userType, profile } = body;
 
     // 检查用户是否已存在
     const existingUserByEmail = await User.findOne({ email });
@@ -95,11 +98,8 @@ export async function POST(request: NextRequest) {
     }
 
     // 验证用户类型
-    if (userType !== "admin" && userType !== "teacher") {
-      return NextResponse.json(
-        { error: "Invalid user type. Only admin and teacher are allowed." },
-        { status: 400 }
-      );
+    if (userType !== "admin") {
+      return NextResponse.json({ error: "Invalid user type. Only admin is allowed." }, { status: 400 });
     }
 
     // 创建新用户
@@ -114,19 +114,6 @@ export async function POST(request: NextRequest) {
       },
       isActive: true,
     });
-
-    // 如果是教师，添加教师信息
-    if (userType === "teacher" && teacherInfo) {
-      user.teacherInfo = {
-        teacherId: teacherInfo.teacherId,
-        classes: [],
-        subjects: teacherInfo.subjects || [],
-        classTeacherInfo: {
-          totalClasses: 0,
-          totalStudents: 0,
-        },
-      };
-    }
 
     await user.save();
 
@@ -144,6 +131,7 @@ export async function POST(request: NextRequest) {
 // PUT /api/users/:id - 更新用户信息 (deprecated - use PATCH /api/users/[id] instead)
 export async function PUT(request: NextRequest) {
   try {
+    await connectDB();
     const token = await getToken({ req: request });
     if (!token || token.userType !== "admin") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -158,7 +146,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const body: UpdateUserRequest = await request.json();
-    const { username, email, password, profile, teacherInfo } = body;
+    const { username, email, password, profile } = body;
 
     // 查找用户
     const user = await User.findById(userId);
@@ -178,26 +166,6 @@ export async function PUT(request: NextRequest) {
     if (profile) {
       if (profile.name) user.profile.name = profile.name;
       if (profile.phone !== undefined) user.profile.phone = profile.phone;
-    }
-
-    // 如果是教师，更新教师信息
-    if (user.userType === "teacher" && teacherInfo) {
-      if (!user.teacherInfo) {
-        user.teacherInfo = {
-          classes: [],
-          subjects: [],
-          classTeacherInfo: {
-            totalClasses: 0,
-            totalStudents: 0,
-          },
-        };
-      }
-      if (teacherInfo.teacherId !== undefined) {
-        user.teacherInfo.teacherId = teacherInfo.teacherId;
-      }
-      if (teacherInfo.subjects !== undefined) {
-        user.teacherInfo.subjects = teacherInfo.subjects;
-      }
     }
 
     user.updatedAt = new Date();

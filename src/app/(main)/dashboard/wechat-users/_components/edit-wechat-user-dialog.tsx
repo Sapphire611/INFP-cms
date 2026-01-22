@@ -37,7 +37,12 @@ interface EditWechatUserDialogProps {
   onWechatUserUpdated?: () => void;
 }
 
-export function EditWechatUserDialog({ wechatUser, open, onOpenChange, onWechatUserUpdated }: EditWechatUserDialogProps) {
+export function EditWechatUserDialog({
+  wechatUser,
+  open,
+  onOpenChange,
+  onWechatUserUpdated,
+}: EditWechatUserDialogProps) {
   const form = useForm<WechatUserFormData>({
     resolver: zodResolver(wechatUserFormSchema),
     defaultValues: {
@@ -93,12 +98,12 @@ export function EditWechatUserDialog({ wechatUser, open, onOpenChange, onWechatU
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>编辑微信用户</DialogTitle>
-            <DialogDescription>更新微信用户信息</DialogDescription>
-          </DialogHeader>
-          <Form {...form}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>编辑微信用户</DialogTitle>
+          <DialogDescription>更新微信用户信息</DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
@@ -146,22 +151,17 @@ export function EditWechatUserDialog({ wechatUser, open, onOpenChange, onWechatU
                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                   <div className="space-y-0.5">
                     <FormLabel className="text-base">账户状态</FormLabel>
-                    <DialogDescription>
-                      禁用后微信用户将无法通过微信小程序登录
-                    </DialogDescription>
+                    <DialogDescription>禁用后微信用户将无法通过微信小程序登录</DialogDescription>
                   </div>
                   <FormControl>
-                    <Switch
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
+                    <Switch checked={field.value} onCheckedChange={field.onChange} />
                   </FormControl>
                 </FormItem>
               )}
             />
 
             {/* 账户信息摘要 */}
-            <div className="rounded-lg bg-muted p-4">
+            <div className="bg-muted rounded-lg p-4">
               <div className="space-y-2 text-sm">
                 {wechatUser.openid && (
                   <div className="flex justify-between">
@@ -172,9 +172,7 @@ export function EditWechatUserDialog({ wechatUser, open, onOpenChange, onWechatU
                 {wechatUser.lastLoginAt && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">最后登录：</span>
-                    <span className="font-medium">
-                      {new Date(wechatUser.lastLoginAt).toLocaleString("zh-CN")}
-                    </span>
+                    <span className="font-medium">{new Date(wechatUser.lastLoginAt).toLocaleString("zh-CN")}</span>
                   </div>
                 )}
               </div>

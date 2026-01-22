@@ -53,9 +53,7 @@ export const userColumns: ColumnDef<UserWithCallback>[] = [
     accessorKey: "userType",
     header: "用户类型",
     cell: ({ row }) => (
-      <Badge variant={userTypeColors[row.original.userType]}>
-        {userTypeLabels[row.original.userType]}
-      </Badge>
+      <Badge variant={userTypeColors[row.original.userType]}>{userTypeLabels[row.original.userType]}</Badge>
     ),
   },
   {
@@ -66,9 +64,7 @@ export const userColumns: ColumnDef<UserWithCallback>[] = [
   {
     accessorKey: "profile.phone",
     header: "联系电话",
-    cell: ({ row }) => (
-      <span className="text-muted-foreground">{row.original.profile?.phone || "-"}</span>
-    ),
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.profile?.phone || "-"}</span>,
   },
   {
     accessorKey: "isActive",
@@ -82,9 +78,14 @@ export const userColumns: ColumnDef<UserWithCallback>[] = [
   {
     accessorKey: "createdAt",
     header: "创建时间",
-    cell: ({ row }) => (
-      <span className="text-muted-foreground text-sm">{format(new Date(row.original.createdAt), "yyyy年MM月dd日")}</span>
-    ),
+    cell: ({ row }) => {
+      const date = new Date(row.original.createdAt);
+      return (
+        <span className="text-muted-foreground text-sm">
+          {!isNaN(date.getTime()) ? format(date, "yyyy年MM月dd日") : "-"}
+        </span>
+      );
+    },
   },
   {
     id: "actions",

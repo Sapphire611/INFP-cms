@@ -45,11 +45,7 @@ export async function GET(request: NextRequest) {
 
     // Database operations
     const total = await WechatUser.countDocuments(query);
-    const wechatUsers = await WechatUser.find(query)
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit)
-      .lean();
+    const wechatUsers = await WechatUser.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean();
 
     // Format and return data
     const totalPages = Math.ceil(total / limit);
@@ -65,8 +61,7 @@ export async function GET(request: NextRequest) {
     });
   } catch (error: unknown) {
     console.error("Error fetching wechat users:", error);
-    const message =
-      error instanceof Error ? error.message : "An unexpected error occurred";
+    const message = error instanceof Error ? error.message : "An unexpected error occurred";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
@@ -80,20 +75,14 @@ export async function POST(request: NextRequest) {
 
     // 验证必填字段
     if (!profile?.name) {
-      return NextResponse.json(
-        { error: "Wechat user name is required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Wechat user name is required" }, { status: 400 });
     }
 
     // 检查openid是否已存在（如果提供）
     if (openid) {
       const existingWechatUser = await WechatUser.findOne({ openid });
       if (existingWechatUser) {
-        return NextResponse.json(
-          { error: "Wechat user with this openid already exists" },
-          { status: 409 }
-        );
+        return NextResponse.json({ error: "Wechat user with this openid already exists" }, { status: 409 });
       }
     }
 
@@ -114,8 +103,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(newWechatUser, { status: 201 });
   } catch (error: unknown) {
     console.error("Error creating wechat user:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to create wechat user";
+    const message = error instanceof Error ? error.message : "Failed to create wechat user";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

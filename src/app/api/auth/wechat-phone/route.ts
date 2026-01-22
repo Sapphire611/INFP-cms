@@ -44,7 +44,7 @@ async function getAccessToken(): Promise<string> {
   }
 
   const response = await fetch(
-    `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${WECHAT_APPID}&secret=${WECHAT_SECRET}`
+    `https://api.weixin.qq.com/cgi-bin/token?grant_type=client_credential&appid=${WECHAT_APPID}&secret=${WECHAT_SECRET}`,
   );
 
   const data: AccessTokenResponse = await response.json();
@@ -83,10 +83,7 @@ export async function POST(request: NextRequest) {
       try {
         const decoded = verify(token, process.env.JWT_SECRET ?? "") as JWTPayload;
         if (decoded.type !== "wechatUser") {
-          return NextResponse.json(
-            { code: 403, msg: "无权访问此接口", data: null },
-            { status: 403 }
-          );
+          return NextResponse.json({ code: 403, msg: "无权访问此接口", data: null }, { status: 403 });
         }
       } catch (error) {
         // Token 无效，继续执行（某些场景下可能不需要登录）
@@ -99,10 +96,7 @@ export async function POST(request: NextRequest) {
     const { code } = body;
 
     if (!code) {
-      return NextResponse.json(
-        { code: 400, msg: "缺少授权码", data: null },
-        { status: 400 }
-      );
+      return NextResponse.json({ code: 400, msg: "缺少授权码", data: null }, { status: 400 });
     }
 
     // 获取 Access Token
@@ -117,24 +111,18 @@ export async function POST(request: NextRequest) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ code }),
-      }
+      },
     );
 
     const data: PhoneNumberResponse = await response.json();
 
     if (data.errcode && data.errcode !== 0) {
       console.error("WeChat phone API error:", data);
-      return NextResponse.json(
-        { code: 500, msg: `获取手机号失败: ${data.errmsg}`, data: null },
-        { status: 500 }
-      );
+      return NextResponse.json({ code: 500, msg: `获取手机号失败: ${data.errmsg}`, data: null }, { status: 500 });
     }
 
     if (!data.phone_info?.phoneNumber) {
-      return NextResponse.json(
-        { code: 500, msg: "获取手机号失败", data: null },
-        { status: 500 }
-      );
+      return NextResponse.json({ code: 500, msg: "获取手机号失败", data: null }, { status: 500 });
     }
 
     // 返回手机号信息
@@ -149,11 +137,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: unknown) {
     console.error("WeChat phone error:", error);
-    const message =
-      error instanceof Error ? error.message : "获取手机号失败，请稍后重试";
-    return NextResponse.json(
-      { code: 500, msg: message, data: null },
-      { status: 500 }
-    );
+    const message = error instanceof Error ? error.message : "获取手机号失败，请稍后重试";
+    return NextResponse.json({ code: 500, msg: message, data: null }, { status: 500 });
   }
 }

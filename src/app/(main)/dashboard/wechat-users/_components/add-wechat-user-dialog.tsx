@@ -82,9 +82,7 @@ export function AddWechatUserDialog({ open, onOpenChange, onWechatUserAdded }: A
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>新增微信用户</DialogTitle>
-          <DialogDescription>
-            创建新的微信用户账户。微信用户不能登录CMS，仅通过微信小程序访问。
-          </DialogDescription>
+          <DialogDescription>创建新的微信用户账户。微信用户不能登录CMS，仅通过微信小程序访问。</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">

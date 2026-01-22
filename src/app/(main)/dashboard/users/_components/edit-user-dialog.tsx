@@ -86,7 +86,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
       if (data.userType === "teacher") {
         submitData.teacherInfo = {
           teacherId: data.teacherId,
-          subjects: data.subjects ? data.subjects.split(",").map(s => s.trim()) : [],
+          subjects: data.subjects ? data.subjects.split(",").map((s) => s.trim()) : [],
         };
       }
 

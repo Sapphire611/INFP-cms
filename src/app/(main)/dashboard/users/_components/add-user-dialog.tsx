@@ -74,7 +74,7 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
       if (data.userType === "teacher") {
         requestData.teacherInfo = {
           teacherId: data.teacherId,
-          subjects: data.subjects ? data.subjects.split(",").map(s => s.trim()) : [],
+          subjects: data.subjects ? data.subjects.split(",").map((s) => s.trim()) : [],
         };
       }
 

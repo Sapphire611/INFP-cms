@@ -4,10 +4,7 @@ import WechatUser from "@/models/wechatUser";
 import { UpdateWechatUserRequest } from "@/types/wechatUser";
 
 // GET /api/wechat-users/[id] - 获取单个微信用户详情
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const { id } = await params;
@@ -21,17 +18,13 @@ export async function GET(
     return NextResponse.json(wechatUser);
   } catch (error: unknown) {
     console.error("Error fetching wechat user:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to fetch wechat user";
+    const message = error instanceof Error ? error.message : "Failed to fetch wechat user";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
 // PATCH /api/wechat-users/[id] - 更新微信用户信息
-export async function PATCH(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const { id } = await params;
@@ -81,17 +74,13 @@ export async function PATCH(
     return NextResponse.json(updatedWechatUser);
   } catch (error: unknown) {
     console.error("Error updating wechat user:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to update wechat user";
+    const message = error instanceof Error ? error.message : "Failed to update wechat user";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
 
 // DELETE /api/wechat-users/[id] - 删除微信用户
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await connectDB();
     const { id } = await params;
@@ -107,8 +96,7 @@ export async function DELETE(
     return NextResponse.json({ message: "Wechat user deleted successfully" });
   } catch (error: unknown) {
     console.error("Error deleting wechat user:", error);
-    const message =
-      error instanceof Error ? error.message : "Failed to delete wechat user";
+    const message = error instanceof Error ? error.message : "Failed to delete wechat user";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
