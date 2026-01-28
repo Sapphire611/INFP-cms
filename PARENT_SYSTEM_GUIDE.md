@@ -1,15 +1,14 @@
-# 家长系统功能指南
+# 微信用户系统功能指南
 
-本文档说明家长系统的完整实现和使用方法。
+本文档说明微信用户系统的完整实现和使用方法。
 
 ## 📋 目录
 
 1. [系统架构](#系统架构)
-2. [数据迁移](#数据迁移)
-3. [家长管理功能](#家长管理功能)
-4. [微信登录集成](#微信登录集成)
-5. [API 文档](#api-文档)
-6. [常见问题](#常见问题)
+2. [微信用户管理功能](#微信用户管理功能)
+3. [微信登录集成](#微信登录集成)
+4. [API 文档](#api-文档)
+5. [常见问题](#常见问题)
 
 ---
 
@@ -17,91 +16,56 @@
 
 ### 用户类型说明
 
-系统现在有三种独立的用户类型：
+系统现在有两种独立的用户类型：
 
 | 用户类型 | 模型 | 登录方式 | 权限 |
 |---------|------|---------|------|
-| **管理员** | User (admin) | CMS登录 | 完整系统管理权限 |
-| **教师** | User (teacher) | CMS登录（需启用） | 管理分配的班级和学生 |
-| **家长** | Parent | 微信小程序登录 | 只能查看自己子女信息 |
+| **管理员/普通用户** | User (admin/user) | CMS登录 | CMS后台管理权限 |
+| **微信用户** | WechatUser | 微信小程序登录 | 通过微信访问系统功能 |
 
-### 关键改动
+### 关键特性
 
-1. **家长独立拆分**
-   - 从 User 模型中分离出 Parent 模型
-   - 家长不能登录 CMS 后台
+1. **微信用户独立管理**
+   - WechatUser 模型独立于 User 模型
+   - 微信用户不能登录 CMS 后台
    - 通过微信 openid 进行身份认证
 
-2. **Child 模型更新**
-   - `parents` 字段引用从 `User` 改为 `Parent`
-   - 支持一个学生关联多个家长
-
-3. **登录限制**
-   - CMS登录只允许 admin 和 teacher
+2. **用户隔离**
+   - CMS 登录只允许 admin 和 user 类型
    - 必须 `isActive: true` 才能登录
-   - 家长通过独立的微信登录API
+   - 微信用户通过独立的微信登录 API
 
 ---
 
-## 数据迁移
-
-如果你的数据库中已有 `userType: "parent"` 的用户数据，需要执行迁移。
-
-### 执行迁移
-
-```bash
-npm run migrate:parents
-```
-
-### 迁移脚本功能
-
-- ✅ 查找所有 parent 类型的 User 记录
-- ✅ 创建对应的 Parent 记录
-- ✅ 更新 Child 模型中的 parents 引用
-- ✅ 保留原 User 记录（手动检查后删除）
-- ✅ 跳过已迁移的记录
-
-### 迁移后清理
-
-迁移完成后，检查数据无误，可手动删除旧的 parent 用户：
-
-```javascript
-// MongoDB Shell
-db.users.deleteMany({ userType: "parent" })
-```
-
----
-
-## 家长管理功能
+## 微信用户管理功能
 
 ### 访问路径
 
-CMS后台 → 侧边栏 → **家长管理** (`/dashboard/parents`)
+CMS后台 → 侧边栏 → **微信用户** (`/dashboard/wechat-users`)
 
 ### 功能列表
 
-#### 1. 家长列表
-- 📋 显示所有家长信息
-- 🔍 查看关联学生数
-- 🔗 微信绑定状态
+#### 1. 微信用户列表
+- 📋 显示所有微信用户信息
+- 🔍 微信绑定状态（openid/unionid）
 - ⚡ 账户启用/禁用状态
 - 📅 最后登录时间
 
-#### 2. 添加家长
-点击"新增家长"按钮，填写：
+#### 2. 添加微信用户
+点击"新增微信用户"按钮，填写：
 - 姓名 *（必填）
 - 联系电话
 - 身份证号（可选）
 
-#### 3. 编辑家长
+#### 3. 编辑微信用户
 - 更新基本信息
 - 启用/禁用账户
-- 查看关联学生
 - 查看微信绑定状态
+- 查看微信昵称和头像
 
-#### 4. 删除家长
-- 只能删除未关联学生的家长
-- 需先解除学生关联才能删除
+#### 4. 删除微信用户
+- 可以删除未关联的微信用户
+- 需先解除关联才能删除
 
 ---
 
@@ -126,12 +90,16 @@ Content-Type: application/json
 {
   "ok": true,
   "token": "JWT_TOKEN",
-  "parent": {
-    "id": "家长ID",
-    "name": "姓名",
-    "phone": "电话",
-    "avatar": "头像",
-    "children": [],
+  "wechatUser": {
+    "id": "微信用户ID",
+    "profile": {
+      "name": "姓名",
+      "phone": "电话"
+    },
+    "wechatInfo": {
+      "nickname": "昵称",
+      "avatarUrl": "头像URL"
+    },
     "isActive": true
   }
 }
@@ -143,7 +111,7 @@ POST /api/auth/wechat-bind
 Content-Type: application/json
 
 {
-  "parentId": "家长ID",
+  "wechatUserId": "微信用户ID",
   "code": "微信登录code",
   "nickname": "用户昵称",
   "avatarUrl": "头像URL"
@@ -152,7 +120,7 @@ Content-Type: application/json
 
 #### 3. 解绑微信
 ```http
-DELETE /api/auth/wechat-bind?parentId=家长ID
+DELETE /api/auth/wechat-bind?wechatUserId=微信用户ID
 ```
 
 ### 微信小程序集成步骤
@@ -196,7 +164,7 @@ wx.login({
       success: result => {
         // 保存 token
         wx.setStorageSync('token', result.data.token);
-        wx.setStorageSync('parent', result.data.parent);
+        wx.setStorageSync('wechatUser', result.data.wechatUser);
       }
     });
   }
@@ -207,16 +175,16 @@ wx.login({
 
 ## API 文档
 
-### 家长管理 API
+### 微信用户管理 API
 
-#### 获取家长列表
+#### 获取微信用户列表
 ```http
-GET /api/parents?page=1&limit=20&search=关键词&isActive=true
+GET /api/wechat-users?page=1&limit=20&search=关键词&isActive=true
 ```
 
-#### 创建家长
+#### 创建微信用户
 ```http
-POST /api/parents
+POST /api/wechat-users
 Content-Type: application/json
 
 {
@@ -224,19 +192,18 @@ Content-Type: application/json
     "name": "张三",
     "phone": "13800138000",
     "idNumber": "身份证号"
-  },
-  "children": []
+  }
 }
 ```
 
-#### 获取家长详情
+#### 获取微信用户详情
 ```http
-GET /api/parents/:id
+GET /api/wechat-users/:id
 ```
 
-#### 更新家长
+#### 更新微信用户
 ```http
-PATCH /api/parents/:id
+PATCH /api/wechat-users/:id
 Content-Type: application/json
 
 {
@@ -244,38 +211,29 @@ Content-Type: application/json
     "name": "新姓名",
     "phone": "新电话"
   },
-  "isActive": true,
-  "children": ["学生ID1", "学生ID2"]
+  "isActive": true
 }
 ```
 
-#### 删除家长
+#### 删除微信用户
 ```http
-DELETE /api/parents/:id
+DELETE /api/wechat-users/:id
 ```
-
-注意：只能删除未关联学生的家长。
 
 ---
 
 ## 常见问题
 
-### Q1: 家长能登录CMS吗？
-**A:** 不能。家长只能通过微信小程序登录，无法访问CMS后台。
+### Q1: 微信用户能登录CMS吗？
+**A:** 不能。微信用户只能通过微信小程序登录，无法访问CMS后台。
 
-### Q2: 如何将家长与学生关联？
-**A:** 在学生管理页面，编辑学生信息时选择家长。或者在家长编辑页面添加关联学生。
+### Q2: 微信账户被禁用后会怎样？
+**A:** 被禁用的微信用户无法通过微信小程序登录，会收到"账户已禁用"的错误提示。
 
-### Q3: 家长账户被禁用后会怎样？
-**A:** 被禁用的家长无法通过微信小程序登录，会收到"账户已禁用"的错误提示。
+### Q3: 微信解绑后会怎样？
+**A:** 微信用户账户依然存在，但无法通过微信登录。需要重新绑定微信才能使用。
 
-### Q4: 一个学生可以关联多个家长吗？
-**A:** 可以。Child 模型的 parents 字段是数组，支持关联多个家长（如父亲、母亲、爷爷等）。
-
-### Q5: 微信解绑后会怎样？
-**A:** 家长账户依然存在，但无法通过微信登录。需要重新绑定微信才能使用。
-
-### Q6: 如何配置微信小程序？
+### Q4: 如何配置微信小程序？
 **A:**
 1. 在微信公众平台注册小程序
 2. 获取 APPID 和 SECRET
@@ -283,12 +241,12 @@ DELETE /api/parents/:id
 4. 取消注释 wechat-login API 中的微信接口调用代码
 5. 配置服务器域名白名单
 
-### Q7: 数据迁移失败怎么办？
+### Q5: 如何确保微信登录安全？
 **A:**
-1. 检查 MongoDB 连接
-2. 确保有足够的权限
-3. 查看迁移脚本输出的错误日志
-4. 联系技术支持
+1. 前端使用 https 协议
+2. 在微信小程序后台配置服务器域名白名单
+3. 后端验证 openid 的有效性
+4. 使用 JWT Token 进行会话管理
 
 ---
 
@@ -299,9 +257,7 @@ DELETE /api/parents/:id
 ## 更新日志
 
 ### v2.0.0 (2025-01-XX)
-- ✨ 家长系统独立拆分
+- ✨ 微信用户系统独立管理
 - ✨ 微信登录集成
-- ✨ 完整的家长管理功能
-- ✨ 数据迁移工具
+- ✨ 完整的微信用户管理功能
 - 🐛 修复用户类型验证
-- 🐛 修复学生-家长关联

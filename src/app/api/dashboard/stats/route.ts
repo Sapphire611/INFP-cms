@@ -79,17 +79,6 @@ export async function GET(request: NextRequest) {
       activeWechatUsers,
       weeklyNewWechatUsers,
       usersOverTime: filledUsersData,
-      // 保留前端可能期望的字段，返回默认值
-      totalClasses: 0,
-      totalStudents: 0,
-      totalTeachers: totalUsers,
-      activeStudents: 0,
-      avgProgress: 0,
-      totalStars: 0,
-      todayCheckIns: 0,
-      weeklyNewStudents: 0,
-      studentsByGrade: [],
-      starsOverTime: [],
     });
   } catch (error: unknown) {
     console.error("Error fetching dashboard stats:", error);

@@ -60,16 +60,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // 更新微信用户信息
     const updatedWechatUser = await WechatUser.findByIdAndUpdate(id, updateData, {
       new: true,
-    })
-      .populate({
-        path: "children",
-        select: "name studentId class gender birthDate",
-        populate: {
-          path: "class",
-          select: "name grade classCode",
-        },
-      })
-      .lean();
+    }).lean();
 
     return NextResponse.json(updatedWechatUser);
   } catch (error: unknown) {

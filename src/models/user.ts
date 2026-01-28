@@ -1,8 +1,8 @@
 import mongoose, { Document, Schema, Model } from "mongoose";
 import bcrypt from "bcryptjs";
 
-// 用户类型定义（CMS后台用户：管理员）
-export type UserType = "admin";
+// 用户类型定义
+export type UserType = "admin" | "user";
 
 // 用户个人信息接口
 export interface IProfile {
@@ -51,11 +51,11 @@ const UserSchema: Schema = new Schema(
       minlength: 6,
     },
 
-    // 用户类型：admin（CMS后台用户）
+    // 用户类型
     userType: {
       type: String,
       required: true,
-      enum: ["admin"],
+      enum: ["admin", "user"],
     },
 
     // 个人信息

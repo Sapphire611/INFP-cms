@@ -25,15 +25,13 @@ const userFormSchema = z.object({
   name: z.string().min(1, "姓名为必填项"),
   email: z.string().email("邮箱格式不正确"),
   phone: z.string().optional(),
-  userType: z.enum(["admin", "teacher"]),
+  userType: z.enum(["admin", "user"]),
   password: z
     .string()
     .optional()
     .refine((val) => !val || val.length >= 6, {
       message: "如需修改密码，至少 6 位",
     }),
-  teacherId: z.string().optional(),
-  subjects: z.string().optional(),
 });
 
 type UserFormData = z.infer<typeof userFormSchema>;
@@ -57,12 +55,8 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
       phone: user.profile?.phone || "",
       userType: user.userType,
       password: undefined,
-      teacherId: user.teacherInfo?.teacherId || "",
-      subjects: user.teacherInfo?.subjects?.join(", ") || "",
     },
   });
-
-  const selectedUserType = form.watch("userType");
 
   const onSubmit = async (data: UserFormData) => {
     try {
@@ -80,14 +74,6 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
       // 只有当密码不为空时才包含密码字段
       if (data.password && data.password.trim() !== "") {
         submitData.password = data.password;
-      }
-
-      // 如果是教师，添加教师信息
-      if (data.userType === "teacher") {
-        submitData.teacherInfo = {
-          teacherId: data.teacherId,
-          subjects: data.subjects ? data.subjects.split(",").map((s) => s.trim()) : [],
-        };
       }
 
       const response = await fetch(`/api/users/${user._id}`, {
@@ -148,7 +134,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="admin">管理员</SelectItem>
-                      <SelectItem value="teacher">教师</SelectItem>
+                      <SelectItem value="user">普通用户</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -207,38 +193,6 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
                 </FormItem>
               )}
             />
-
-            {/* 教师专属字段 */}
-            {selectedUserType === "teacher" && (
-              <>
-                <FormField
-                  control={form.control}
-                  name="teacherId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>教师工号</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="subjects"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>教授科目</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="用逗号分隔，如：语文,数学,英语" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </>
-            )}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

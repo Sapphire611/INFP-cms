@@ -27,7 +27,7 @@ export async function getUserList({ page = 1, limit = 10 }: GetUsersParams = {})
         _id: String((page - 1) * limit + index + 1),
         username: `user${(page - 1) * limit + index + 1}`,
         email: `user${(page - 1) * limit + index + 1}@example.com`,
-        userType: "teacher" as const, // 修改为 teacher，因为已将 parent 类型迁移到 WechatUser 模型
+        userType: "user" as const,
         profile: {
           name: `User ${(page - 1) * limit + index + 1}`,
           phone: "",

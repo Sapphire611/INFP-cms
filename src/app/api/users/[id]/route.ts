@@ -75,8 +75,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     // 更新用户类型
     if (userType && userType !== existingUser.userType) {
       // 验证用户类型
-      if (userType !== "admin") {
-        return NextResponse.json({ error: "Invalid user type. Only admin is allowed." }, { status: 400 });
+      if (!["admin", "user"].includes(userType)) {
+        return NextResponse.json({ error: "Invalid user type" }, { status: 400 });
       }
 
       existingUser.userType = userType;

@@ -26,9 +26,7 @@ const userFormSchema = z.object({
   email: z.string().email("邮箱格式不正确"),
   password: z.string().min(6, "密码至少 6 位"),
   phone: z.string().optional(),
-  userType: z.enum(["admin", "teacher"]),
-  teacherId: z.string().optional(),
-  subjects: z.string().optional(),
+  userType: z.enum(["admin", "user"]),
 });
 
 type UserFormData = z.infer<typeof userFormSchema>;
@@ -48,13 +46,9 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
       email: "",
       password: "",
       phone: "",
-      userType: "teacher",
-      teacherId: "",
-      subjects: "",
+      userType: "user",
     },
   });
-
-  const selectedUserType = form.watch("userType");
 
   const onSubmit = async (data: UserFormData) => {
     try {
@@ -69,14 +63,6 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
           phone: data.phone,
         },
       };
-
-      // 如果是教师，添加教师信息
-      if (data.userType === "teacher") {
-        requestData.teacherInfo = {
-          teacherId: data.teacherId,
-          subjects: data.subjects ? data.subjects.split(",").map((s) => s.trim()) : [],
-        };
-      }
 
       const response = await fetch("/api/users", {
         method: "POST",
@@ -125,7 +111,7 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="admin">管理员</SelectItem>
-                      <SelectItem value="teacher">教师</SelectItem>
+                      <SelectItem value="user">普通用户</SelectItem>
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -197,38 +183,6 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
                 </FormItem>
               )}
             />
-
-            {/* 教师专属字段 */}
-            {selectedUserType === "teacher" && (
-              <>
-                <FormField
-                  control={form.control}
-                  name="teacherId"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>教师工号（可选）</FormLabel>
-                      <FormControl>
-                        <Input {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="subjects"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>教授科目（可选）</FormLabel>
-                      <FormControl>
-                        <Input {...field} placeholder="用逗号分隔，如：语文,数学,英语" />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </>
-            )}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange?.(false)}>

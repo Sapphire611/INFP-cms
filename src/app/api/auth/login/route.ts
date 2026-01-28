@@ -20,7 +20,7 @@ async function validateUserExists(email: string) {
 }
 
 async function validateUserType(userType: string) {
-  if (!["admin", "teacher"].includes(userType)) {
+  if (!["admin", "user"].includes(userType)) {
     return { error: NextResponse.json({ error: "Unauthorized user type" }, { status: 403 }) };
   }
   return { valid: true };

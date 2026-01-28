@@ -10,13 +10,13 @@ import { UserActions } from "./user-actions";
 // 用户类型标签颜色映射
 const userTypeColors = {
   admin: "default",
-  teacher: "secondary",
+  user: "secondary",
 } as const;
 
 // 用户类型中文映射
 const userTypeLabels = {
   admin: "管理员",
-  teacher: "教师",
+  user: "普通用户",
 } as const;
 
 // 用户列定义

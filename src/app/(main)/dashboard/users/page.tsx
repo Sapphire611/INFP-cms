@@ -189,7 +189,7 @@ export default function UsersPage() {
               <SelectContent>
                 <SelectItem value="all">全部用户</SelectItem>
                 <SelectItem value="admin">管理员</SelectItem>
-                <SelectItem value="teacher">教师</SelectItem>
+                <SelectItem value="user">普通用户</SelectItem>
               </SelectContent>
             </Select>
           </div>
