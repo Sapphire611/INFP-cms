@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verify } from "jsonwebtoken";
-import { connectDB } from "@/lib/mongoose";
-import WechatUser from "@/models/wechatUser";
+import { findWechatUserById, updateWechatUser } from "@/services/wechatUserService";
 
 interface UpdateProfileRequest {
   name?: string;
@@ -20,9 +19,6 @@ interface JWTPayload {
  */
 export async function PATCH(request: NextRequest) {
   try {
-    // 确保数据库连接
-    await connectDB();
-
     // 从 Authorization header 获取 token
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -70,24 +66,25 @@ export async function PATCH(request: NextRequest) {
     }
 
     // 查找微信用户
-    const wechatUser = await WechatUser.findById(decoded.id);
+    const wechatUser = await findWechatUserById(decoded.id);
     if (!wechatUser) {
       return NextResponse.json({ code: 404, msg: "用户不存在", data: null }, { status: 404 });
     }
 
-    // 更新信息
-    if (body.name) {
-      wechatUser.profile.name = body.name.trim();
+    // 构建更新数据
+    const updateData: any = {};
+    if (body.name !== undefined) {
+      updateData.profileName = body.name.trim();
     }
     if (body.phone !== undefined) {
-      wechatUser.profile.phone = body.phone;
+      updateData.profilePhone = body.phone;
     }
     if (body.avatar !== undefined) {
-      wechatUser.profile.avatar = body.avatar;
+      updateData.profileAvatar = body.avatar;
     }
 
-    // 保存更新
-    await wechatUser.save();
+    // 更新信息
+    const updatedWechatUser = await updateWechatUser(decoded.id, updateData);
 
     // 返回更新后的用户信息
     return NextResponse.json({
@@ -95,11 +92,11 @@ export async function PATCH(request: NextRequest) {
       msg: "更新成功",
       data: {
         wechatUser: {
-          id: wechatUser._id,
-          name: wechatUser.profile.name,
-          phone: wechatUser.profile.phone,
-          avatar: wechatUser.profile.avatar || wechatUser.wechatInfo?.avatarUrl,
-          isActive: wechatUser.isActive,
+          id: updatedWechatUser.id,
+          name: updatedWechatUser.profileName,
+          phone: updatedWechatUser.profilePhone,
+          avatar: updatedWechatUser.profileAvatar || updatedWechatUser.wechatAvatarUrl,
+          isActive: updatedWechatUser.isActive,
         },
       },
     });
@@ -115,9 +112,6 @@ export async function PATCH(request: NextRequest) {
  */
 export async function GET(request: NextRequest) {
   try {
-    // 确保数据库连接
-    await connectDB();
-
     // 从 Authorization header 获取 token
     const authHeader = request.headers.get("Authorization");
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -140,7 +134,7 @@ export async function GET(request: NextRequest) {
     }
 
     // 查找微信用户
-    const wechatUser = await WechatUser.findById(decoded.id).lean();
+    const wechatUser = await findWechatUserById(decoded.id);
 
     if (!wechatUser) {
       return NextResponse.json({ code: 404, msg: "用户不存在", data: null }, { status: 404 });
@@ -152,10 +146,10 @@ export async function GET(request: NextRequest) {
       msg: "获取成功",
       data: {
         wechatUser: {
-          id: wechatUser._id,
-          name: wechatUser.profile?.name,
-          phone: wechatUser.profile?.phone,
-          avatar: wechatUser.profile?.avatar || wechatUser.wechatInfo?.avatarUrl,
+          id: wechatUser.id,
+          name: wechatUser.profileName,
+          phone: wechatUser.profilePhone,
+          avatar: wechatUser.profileAvatar || wechatUser.wechatAvatarUrl,
           isActive: wechatUser.isActive,
         },
       },

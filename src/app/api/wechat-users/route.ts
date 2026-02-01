@@ -1,7 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongoose";
-import WechatUser from "@/models/wechatUser";
-import { CreateWechatUserRequest } from "@/types/wechatUser";
+import { findWechatUsers, createWechatUser, findByOpenid } from "@/services/wechatUserService";
+
+interface CreateWechatUserRequest {
+  profile: {
+    name: string;
+    phone?: string;
+    idNumber?: string;
+  };
+  openid?: string;
+  wechatInfo?: {
+    nickname?: string;
+    avatarUrl?: string;
+  };
+}
 
 // Helper function to extract and validate pagination parameters
 function extractPaginationParams(url: URL) {
@@ -9,54 +20,33 @@ function extractPaginationParams(url: URL) {
   const limitParam = url.searchParams.get("limit");
   const page = pageParam ? parseInt(pageParam) : 1;
   const limit = limitParam ? parseInt(limitParam) : 20;
-  const skip = (page - 1) * limit;
-  return { page, limit, skip };
-}
-
-// Helper function to build query conditions
-function buildQueryConditions(url: URL) {
-  const query: Record<string, any> = {};
-  const search = url.searchParams.get("search") ?? "";
-  const isActive = url.searchParams.get("isActive");
-
-  if (search) {
-    query.$or = [
-      { "profile.name": { $regex: search, $options: "i" } },
-      { "profile.phone": { $regex: search, $options: "i" } },
-    ];
-  }
-
-  if (isActive !== null && isActive !== undefined && isActive !== "") {
-    query.isActive = isActive === "true";
-  }
-
-  return query;
+  return { page, limit };
 }
 
 // GET /api/wechat-users - 获取微信用户列表
 export async function GET(request: NextRequest) {
   try {
-    await connectDB();
     const url = new URL(request.url);
 
     // Extract and validate parameters
-    const { page, limit, skip } = extractPaginationParams(url);
-    const query = buildQueryConditions(url);
+    const { page, limit } = extractPaginationParams(url);
+    const search = url.searchParams.get("search") ?? undefined;
+    const isActiveParam = url.searchParams.get("isActive");
+    const isActive = isActiveParam ? isActiveParam === "true" : undefined;
 
-    // Database operations
-    const total = await WechatUser.countDocuments(query);
-    const wechatUsers = await WechatUser.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean();
-
-    // Format and return data
-    const totalPages = Math.ceil(total / limit);
+    // Use service to fetch wechat users
+    const result = await findWechatUsers(
+      { search, isActive },
+      { page, pageSize: limit }
+    );
 
     return NextResponse.json({
-      data: wechatUsers,
+      data: result.wechatUsers,
       pagination: {
-        total,
-        page,
-        limit,
-        totalPages,
+        total: result.pagination.total,
+        page: result.pagination.page,
+        limit: result.pagination.pageSize,
+        totalPages: result.pagination.totalPages,
       },
     });
   } catch (error: unknown) {
@@ -69,7 +59,6 @@ export async function GET(request: NextRequest) {
 // POST /api/wechat-users - 创建新微信用户
 export async function POST(request: NextRequest) {
   try {
-    await connectDB();
     const body: CreateWechatUserRequest = await request.json();
     const { profile, openid, wechatInfo } = body;
 
@@ -80,25 +69,22 @@ export async function POST(request: NextRequest) {
 
     // 检查openid是否已存在（如果提供）
     if (openid) {
-      const existingWechatUser = await WechatUser.findOne({ openid });
+      const existingWechatUser = await findByOpenid(openid);
       if (existingWechatUser) {
         return NextResponse.json({ error: "Wechat user with this openid already exists" }, { status: 409 });
       }
     }
 
     // 创建新微信用户
-    const newWechatUser = new WechatUser({
-      profile: {
-        name: profile.name,
-        phone: profile.phone,
-        idNumber: profile.idNumber,
-      },
+    const newWechatUser = await createWechatUser({
+      profileName: profile.name,
+      profilePhone: profile.phone,
+      profileIdNumber: profile.idNumber,
       openid,
-      wechatInfo,
+      wechatNickname: wechatInfo?.nickname,
+      wechatAvatarUrl: wechatInfo?.avatarUrl,
       isActive: true,
     });
-
-    await newWechatUser.save();
 
     return NextResponse.json(newWechatUser, { status: 201 });
   } catch (error: unknown) {

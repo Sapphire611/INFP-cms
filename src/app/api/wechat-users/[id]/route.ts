@@ -1,15 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongoose";
-import WechatUser from "@/models/wechatUser";
-import { UpdateWechatUserRequest } from "@/types/wechatUser";
+import {
+  findWechatUserById,
+  updateWechatUser,
+  deleteWechatUser,
+} from "@/services/wechatUserService";
+
+interface UpdateWechatUserRequest {
+  profile?: {
+    name?: string;
+    phone?: string;
+    idNumber?: string;
+  };
+  isActive?: boolean;
+  wechatInfo?: {
+    nickname?: string;
+    avatarUrl?: string;
+  };
+}
 
 // GET /api/wechat-users/[id] - 获取单个微信用户详情
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await connectDB();
     const { id } = await params;
 
-    const wechatUser = await WechatUser.findById(id).lean();
+    const wechatUser = await findWechatUserById(id);
 
     if (!wechatUser) {
       return NextResponse.json({ error: "Wechat user not found" }, { status: 404 });
@@ -26,24 +40,20 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 // PATCH /api/wechat-users/[id] - 更新微信用户信息
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await connectDB();
     const { id } = await params;
     const body: UpdateWechatUserRequest = await request.json();
 
-    // 查找微信用户
-    const existingWechatUser = await WechatUser.findById(id);
-    if (!existingWechatUser) {
-      return NextResponse.json({ error: "Wechat user not found" }, { status: 404 });
-    }
-
-    // 构建更新数据
+    // Build update data
     const updateData: any = {};
 
-    if (body.profile) {
-      updateData.profile = {
-        ...existingWechatUser.profile,
-        ...body.profile,
-      };
+    if (body.profile?.name !== undefined) {
+      updateData.profileName = body.profile.name;
+    }
+    if (body.profile?.phone !== undefined) {
+      updateData.profilePhone = body.profile.phone;
+    }
+    if (body.profile?.idNumber !== undefined) {
+      updateData.profileIdNumber = body.profile.idNumber;
     }
 
     if (body.isActive !== undefined) {
@@ -51,16 +61,16 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
 
     if (body.wechatInfo) {
-      updateData.wechatInfo = {
-        ...existingWechatUser.wechatInfo,
-        ...body.wechatInfo,
-      };
+      if (body.wechatInfo.nickname !== undefined) {
+        updateData.wechatNickname = body.wechatInfo.nickname;
+      }
+      if (body.wechatInfo.avatarUrl !== undefined) {
+        updateData.wechatAvatarUrl = body.wechatInfo.avatarUrl;
+      }
     }
 
-    // 更新微信用户信息
-    const updatedWechatUser = await WechatUser.findByIdAndUpdate(id, updateData, {
-      new: true,
-    }).lean();
+    // Update wechat user information
+    const updatedWechatUser = await updateWechatUser(id, updateData);
 
     return NextResponse.json(updatedWechatUser);
   } catch (error: unknown) {
@@ -73,16 +83,15 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 // DELETE /api/wechat-users/[id] - 删除微信用户
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await connectDB();
     const { id } = await params;
 
-    // 查找并删除微信用户
-    const wechatUser = await WechatUser.findById(id);
+    // Check if wechat user exists
+    const wechatUser = await findWechatUserById(id);
     if (!wechatUser) {
       return NextResponse.json({ error: "Wechat user not found" }, { status: 404 });
     }
 
-    await WechatUser.findByIdAndDelete(id);
+    await deleteWechatUser(id);
 
     return NextResponse.json({ message: "Wechat user deleted successfully" });
   } catch (error: unknown) {

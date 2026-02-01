@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-
 import { verify } from "jsonwebtoken";
-
-import { connectDB } from "@/lib/mongoose";
-import WechatUser from "@/models/wechatUser";
+import { findWechatUserById, updateWechatUser, findByOpenid } from "@/services/wechatUserService";
 
 interface WechatBindRequest {
   wechatUserId: string; // 微信用户ID
@@ -26,7 +23,6 @@ interface WechatBindRequest {
  */
 export async function POST(request: NextRequest) {
   try {
-    await connectDB();
     const body: WechatBindRequest = await request.json();
     const { wechatUserId, code, nickname, avatarUrl } = body;
 
@@ -35,7 +31,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 查找微信用户
-    const wechatUser = await WechatUser.findById(wechatUserId);
+    const wechatUser = await findWechatUserById(wechatUserId);
     if (!wechatUser) {
       return NextResponse.json({ error: "Wechat user not found" }, { status: 404 });
     }
@@ -60,7 +56,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 检查 openid 是否已被其他微信用户使用
-    const existingWechatUser = await WechatUser.findOne({ openid });
+    const existingWechatUser = await findByOpenid(openid);
     if (existingWechatUser) {
       return NextResponse.json(
         { error: "This WeChat account is already bound to another wechat user" },
@@ -69,26 +65,24 @@ export async function POST(request: NextRequest) {
     }
 
     // 绑定微信
-    wechatUser.openid = openid;
-    if (nickname || avatarUrl) {
-      wechatUser.wechatInfo = {
-        nickname,
-        avatarUrl,
-      };
-    }
-    wechatUser.lastLoginAt = new Date();
-    await wechatUser.save();
+    const updatedWechatUser = await updateWechatUser(wechatUserId, {
+      openid,
+      wechatNickname: nickname,
+      wechatAvatarUrl: avatarUrl,
+      lastLoginAt: new Date(),
+    });
 
     return NextResponse.json({
       ok: true,
       success: true,
       message: "WeChat bound successfully",
       wechatUser: {
-        id: wechatUser._id,
-        name: wechatUser.profile?.name,
-        phone: wechatUser.profile?.phone,
-        openid: wechatUser.openid,
-        wechatInfo: wechatUser.wechatInfo,
+        id: updatedWechatUser.id,
+        name: updatedWechatUser.profileName,
+        phone: updatedWechatUser.profilePhone,
+        openid: updatedWechatUser.openid,
+        wechatNickname: updatedWechatUser.wechatNickname,
+        wechatAvatarUrl: updatedWechatUser.wechatAvatarUrl,
       },
     });
   } catch (error: unknown) {
@@ -105,7 +99,6 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    await connectDB();
     const url = new URL(request.url);
     const wechatUserId = url.searchParams.get("wechatUserId");
 
@@ -114,15 +107,17 @@ export async function DELETE(request: NextRequest) {
     }
 
     // 查找微信用户
-    const wechatUser = await WechatUser.findById(wechatUserId);
+    const wechatUser = await findWechatUserById(wechatUserId);
     if (!wechatUser) {
       return NextResponse.json({ error: "Wechat user not found" }, { status: 404 });
     }
 
     // 解绑微信
-    wechatUser.openid = undefined;
-    wechatUser.wechatInfo = undefined;
-    await wechatUser.save();
+    await updateWechatUser(wechatUserId, {
+      openid: undefined as any, // TypeScript workaround for undefined in update
+      wechatNickname: undefined as any,
+      wechatAvatarUrl: undefined as any,
+    });
 
     return NextResponse.json({
       ok: true,

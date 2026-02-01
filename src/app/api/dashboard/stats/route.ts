@@ -1,18 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { connectDB } from "@/lib/mongoose";
-import User from "@/models/user";
-import WechatUser from "@/models/wechatUser";
+import { prisma } from "@/lib/prisma";
 
 // GET /api/dashboard/stats - 获取Dashboard统计数据
 export async function GET(request: NextRequest) {
   try {
-    await connectDB();
-
     // 获取基本统计数据
     const [totalUsers, totalWechatUsers, activeWechatUsers] = await Promise.all([
-      User.countDocuments(),
-      WechatUser.countDocuments(),
-      WechatUser.countDocuments({ isActive: true }),
+      prisma.user.count(),
+      prisma.wechatUser.count(),
+      prisma.wechatUser.count({ where: { isActive: true } }),
     ]);
 
     // 计算本周新增微信用户数
@@ -20,8 +16,10 @@ export async function GET(request: NextRequest) {
     weekStart.setDate(weekStart.getDate() - weekStart.getDay()); // 本周周日
     weekStart.setHours(0, 0, 0, 0);
 
-    const weeklyNewWechatUsers = await WechatUser.countDocuments({
-      createdAt: { $gte: weekStart },
+    const weeklyNewWechatUsers = await prisma.wechatUser.count({
+      where: {
+        createdAt: { gte: weekStart },
+      },
     });
 
     // 获取最近7天的用户注册趋势
@@ -29,34 +27,17 @@ export async function GET(request: NextRequest) {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     sevenDaysAgo.setHours(0, 0, 0, 0);
 
-    const usersOverTime = await WechatUser.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: sevenDaysAgo },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            $dateToString: {
-              format: "%Y-%m-%d",
-              date: "$createdAt",
-            },
-          },
-          count: { $sum: 1 },
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          date: "$_id",
-          count: 1,
-        },
-      },
-      {
-        $sort: { date: 1 },
-      },
-    ]);
+    const usersOverTime = await prisma.$queryRaw<
+      Array<{ date: string; count: bigint }>
+    >`
+      SELECT
+        DATE(createdAt) as date,
+        COUNT(*) as count
+      FROM wechat_users
+      WHERE createdAt >= ${sevenDaysAgo}
+      GROUP BY DATE(createdAt)
+      ORDER BY DATE(createdAt) ASC
+    `;
 
     // 补充缺失的日期（确保有7天的数据）
     const filledUsersData = [];
@@ -66,10 +47,12 @@ export async function GET(request: NextRequest) {
       date.setHours(0, 0, 0, 0);
       const dateString = date.toISOString().split("T")[0];
 
-      const existingData = usersOverTime.find((item) => item.date === dateString);
+      const existingData = usersOverTime.find(
+        (item) => (item.date as string).split("T")[0] === dateString
+      );
       filledUsersData.push({
         date: dateString,
-        count: existingData ? existingData.count : 0,
+        count: existingData ? Number(existingData.count) : 0,
       });
     }
 

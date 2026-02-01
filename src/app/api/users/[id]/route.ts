@@ -1,31 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
+import { findUserById, updateUser, deleteUser, findByEmail, findByUsername } from "@/services/userService";
+import { UserType } from "@prisma/client";
 
-import bcrypt from "bcryptjs";
-
-import { connectDB } from "@/lib/mongoose";
-import User from "@/models/user";
-import { UpdateUserRequest } from "@/types/user";
+interface UpdateUserRequest {
+  username?: string;
+  email?: string;
+  password?: string;
+  userType?: UserType;
+  profile?: {
+    name?: string;
+    phone?: string;
+  };
+}
 
 // GET /api/users/[id] - 获取单个用户
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await connectDB();
-    // Await params before accessing id
     const { id } = await params;
-    const user = await User.findById(id).select("-password");
+    const user = await findUserById(id);
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // 确保日期字段是字符串格式
-    const userWithStringDates = {
-      ...user.toObject(),
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString(),
-    };
-
-    return NextResponse.json(userWithStringDates);
+    return NextResponse.json(user);
   } catch (error) {
     console.error("Error fetching user:", error);
     return NextResponse.json({ error: "Failed to fetch user" }, { status: 500 });
@@ -35,22 +33,19 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 // PATCH /api/users/[id] - 更新用户
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await connectDB();
-    // Await params before accessing id
     const { id } = await params;
     const body: UpdateUserRequest = await request.json();
     const { username, email, password, userType, profile } = body;
 
     // 查找用户
-    const existingUser = await User.findById(id);
-
+    const existingUser = await findUserById(id);
     if (!existingUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // 检查邮箱是否已被其他用户使用
     if (email && email !== existingUser.email) {
-      const emailExists = await User.findOne({ email });
+      const emailExists = await findByEmail(email);
       if (emailExists) {
         return NextResponse.json({ error: "Email already in use" }, { status: 409 });
       }
@@ -58,51 +53,26 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     // 检查用户名是否已被其他用户使用
     if (username && username !== existingUser.username) {
-      const usernameExists = await User.findOne({ username });
+      const usernameExists = await findByUsername(username);
       if (usernameExists) {
         return NextResponse.json({ error: "Username already in use" }, { status: 409 });
       }
     }
 
-    // 更新用户信息
-    if (username) existingUser.username = username;
-    if (email) existingUser.email = email;
-    if (password) {
-      // Password will be hashed by the pre-save middleware
-      existingUser.password = password;
-    }
-
-    // 更新用户类型
-    if (userType && userType !== existingUser.userType) {
-      // 验证用户类型
-      if (!["admin", "user"].includes(userType)) {
-        return NextResponse.json({ error: "Invalid user type" }, { status: 400 });
-      }
-
-      existingUser.userType = userType;
-    }
-
-    // 更新 profile
+    // Build update data
+    const updateData: any = {};
+    if (username) updateData.username = username;
+    if (email) updateData.email = email;
+    if (password) updateData.password = password;
+    if (userType) updateData.userType = userType;
     if (profile) {
-      if (profile.name) existingUser.profile.name = profile.name;
-      if (profile.phone !== undefined) existingUser.profile.phone = profile.phone;
+      if (profile.name) updateData.profileName = profile.name;
+      if (profile.phone !== undefined) updateData.profilePhone = profile.phone;
     }
 
-    existingUser.updatedAt = new Date();
-    await existingUser.save();
+    const user = await updateUser(id, updateData);
 
-    // 返回更新后的用户（不含密码）
-    const userObj = existingUser.toObject() as any;
-    delete userObj.password;
-
-    // 确保日期字段是字符串格式
-    const userWithStringDates = {
-      ...userObj,
-      createdAt: existingUser.createdAt.toISOString(),
-      updatedAt: existingUser.updatedAt.toISOString(),
-    };
-
-    return NextResponse.json(userWithStringDates);
+    return NextResponse.json(user);
   } catch (error) {
     console.error("Error updating user:", error);
     return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
@@ -112,10 +82,8 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 // DELETE /api/users/[id] - 删除用户
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    await connectDB();
-    // Await params before accessing id
     const { id } = await params;
-    const user = await User.findByIdAndDelete(id);
+    const user = await deleteUser(id);
 
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });

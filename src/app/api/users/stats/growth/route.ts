@@ -1,55 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
 
-import User from "@/models/user";
-
-// GET /api/users/stats/growth - 获取过去30天用户增长数据
+// GET /api/users/stats/growth - 获取过去90天用户增长数据
 export async function GET(request: NextRequest) {
   try {
-    // 获取过去30天的日期范围
+    // Get past 90 days date range
     const today = new Date();
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(today.getDate() - 90);
+    const ninetyDaysAgo = new Date(today);
+    ninetyDaysAgo.setDate(today.getDate() - 90);
 
-    // 设置时间为当天开始，避免时间精度问题
+    // Set time to start of day to avoid precision issues
     today.setHours(0, 0, 0, 0);
-    thirtyDaysAgo.setHours(0, 0, 0, 0);
+    ninetyDaysAgo.setHours(0, 0, 0, 0);
 
-    // 聚合查询，按天分组统计用户增长
-    const growthData = await User.aggregate([
-      {
-        $match: {
-          createdAt: {
-            $gte: thirtyDaysAgo,
-            $lte: today,
-          },
-        },
-      },
-      {
-        $group: {
-          _id: {
-            $dateToString: {
-              format: "%Y-%m-%d",
-              date: "$createdAt",
-            },
-          },
-          count: { $sum: 1 },
-        },
-      },
-      {
-        $sort: {
-          _id: 1,
-        },
-      },
-      {
-        $project: {
-          _id: 0,
-          date: "$_id",
-          count: 1,
-        },
-      },
-    ]);
+    // Use raw SQL query to group users by date
+    // PostgreSQL date_trunc function to truncate to day
+    const growthData = await prisma.$queryRaw<
+      Array<{ date: string; count: bigint }>
+    >`
+      SELECT
+        DATE(createdAt) as date,
+        COUNT(*) as count
+      FROM users
+      WHERE createdAt >= ${ninetyDaysAgo} AND createdAt <= ${today}
+      GROUP BY DATE(createdAt)
+      ORDER BY DATE(createdAt) ASC
+    `;
 
-    // 创建一个包含过去90天所有日期的数组
+    // Create array of all dates in the past 90 days
     const dates = [];
     for (let i = 90; i >= 0; i--) {
       const date = new Date(today);
@@ -57,12 +35,14 @@ export async function GET(request: NextRequest) {
       dates.push(date.toISOString().split("T")[0]);
     }
 
-    // 将聚合结果映射到完整的日期数组中
+    // Map aggregation results to complete date array
     const result = dates.map((date) => {
-      const found = growthData.find((item) => item.date === date);
+      const found = growthData.find(
+        (item) => (item.date as string).split("T")[0] === date
+      );
       return {
         date,
-        user: found ? found.count : 0,
+        user: found ? Number(found.count) : 0,
       };
     });
 

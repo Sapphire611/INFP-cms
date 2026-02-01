@@ -1,32 +1,24 @@
 import { NextResponse } from "next/server";
-
-import mongoose from "@/lib/mongoose";
+import { prisma } from "@/lib/prisma";
 
 /**
- * 健康检查 API
+ * Health check API
  *
  * GET /api/health
  *
- * 用于监控服务和数据库连接状态
+ * Used to monitor service and database connection status
  */
 export async function GET() {
   try {
-    const dbState = mongoose.connection.readyState;
-    const dbStateText = ["disconnected", "connected", "connecting", "disconnecting"][dbState];
-
-    // 尝试执行一个简单的数据库操作来确认连接
-    if (dbState === 1) {
-      await mongoose.connection.db?.admin().ping();
-    }
+    // Test database connection with a simple query
+    await prisma.$queryRaw`SELECT 1`;
 
     return NextResponse.json({
-      status: dbState === 1 ? "healthy" : "unhealthy",
+      status: "healthy",
       timestamp: new Date().toISOString(),
       database: {
-        state: dbStateText,
-        stateCode: dbState,
-        host: mongoose.connection.host || "N/A",
-        name: mongoose.connection.name || "N/A",
+        provider: "postgresql",
+        connected: true,
       },
       uptime: process.uptime(),
     });

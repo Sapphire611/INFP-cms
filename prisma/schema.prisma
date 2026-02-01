@@ -1,12 +1,8 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+// MongoDB to PostgreSQL Migration Schema
+// This schema replaces the MongoDB models with PostgreSQL equivalents
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -14,14 +10,67 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// User model - replaces src/models/user.ts
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("user")
+  id        String   @id @default(uuid())
+  username  String   @unique @db.VarChar(20)
+  email     String   @unique @db.VarChar(255)
+  password  String   @db.VarChar(255)
+  userType  UserType
+
+  profileName   String?
+  profilePhone  String?
+  profileAvatar String?
+
+  isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@index([email])
+  @@index([username])
   @@map("users")
+}
+
+enum UserType {
+  admin
+  user
+}
+
+// WechatUser model - replaces src/models/wechatUser.ts
+model WechatUser {
+  id              String   @id @default(uuid())
+
+  profileName     String?
+  profilePhone    String?
+  profileAvatar   String?
+  profileIdNumber String?
+
+  openid          String?  @unique @db.VarChar(255)
+  unionid         String?  @unique @db.VarChar(255)
+
+  wechatNickname  String?
+  wechatAvatarUrl String?
+
+  isActive        Boolean  @default(true)
+  lastLoginAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([openid])
+  @@index([unionid])
+  @@map("wechat_users")
+}
+
+// Session model - replaces src/models/session.ts
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  jwt       String   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([jwt])
+  @@map("sessions")
 }

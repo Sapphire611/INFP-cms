@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-import User from "@/models/user";
+import { prisma } from "@/lib/prisma";
 
 // GET /api/users/stats - 获取用户统计数据
 export async function GET(request: NextRequest) {
@@ -14,21 +13,33 @@ export async function GET(request: NextRequest) {
     const stats = { total: 0, monthly: 0, weekly: 0, daily: 0 };
 
     // 计算总用户数
-    stats.total = await User.countDocuments();
+    stats.total = await prisma.user.count();
 
     // 计算本月新增用户
     const startOfMonth = new Date(currentYear, currentMonth, 1);
-    stats.monthly = await User.countDocuments({ createdAt: { $gte: startOfMonth } });
+    stats.monthly = await prisma.user.count({
+      where: {
+        createdAt: { gte: startOfMonth },
+      },
+    });
 
     // 计算本周新增用户
     const startOfWeek = new Date(now);
     startOfWeek.setDate(now.getDate() - now.getDay());
     startOfWeek.setHours(0, 0, 0, 0);
-    stats.weekly = await User.countDocuments({ createdAt: { $gte: startOfWeek } });
+    stats.weekly = await prisma.user.count({
+      where: {
+        createdAt: { gte: startOfWeek },
+      },
+    });
 
     // 计算今日新增用户
     const startOfDay = new Date(currentYear, currentMonth, now.getDate());
-    stats.daily = await User.countDocuments({ createdAt: { $gte: startOfDay } });
+    stats.daily = await prisma.user.count({
+      where: {
+        createdAt: { gte: startOfDay },
+      },
+    });
 
     return NextResponse.json(stats);
   } catch (error) {

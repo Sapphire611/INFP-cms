@@ -1,9 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-
 import { sign } from "jsonwebtoken";
-
-import { connectDB } from "@/lib/mongoose";
-import WechatUser from "@/models/wechatUser";
+import { findByOpenid, createWechatUser, updateWechatUser, updateLastLogin } from "@/services/wechatUserService";
 
 interface WechatLoginRequest {
   code: string; // 微信登录临时code
@@ -28,9 +25,6 @@ interface WechatLoginRequest {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Ensure database connection is established
-    await connectDB();
-
     const body: WechatLoginRequest = await request.json();
     const { code, nickname, avatarUrl } = body;
 
@@ -67,33 +61,29 @@ export async function POST(request: NextRequest) {
     }
 
     // 查找现有微信用户或创建新微信用户
-    let wechatUser = await WechatUser.findOne({ openid });
+    let wechatUser = await findByOpenid(openid);
 
     if (!wechatUser) {
       // 首次登录，创建微信用户账户
-      wechatUser = new WechatUser({
-        profile: {
-          name: nickname || "微信用户",
-        },
+      wechatUser = await createWechatUser({
+        profileName: nickname || "微信用户",
         openid,
-        wechatInfo: {
-          nickname,
-          avatarUrl,
-        },
-        children: [],
+        wechatNickname: nickname,
+        wechatAvatarUrl: avatarUrl,
         isActive: true,
       });
-      await wechatUser.save();
     } else {
       // 更新微信信息和最后登录时间
       if (nickname || avatarUrl) {
-        wechatUser.wechatInfo = {
-          nickname: nickname || wechatUser.wechatInfo?.nickname,
-          avatarUrl: avatarUrl || wechatUser.wechatInfo?.avatarUrl,
-        };
+        wechatUser = await updateWechatUser(wechatUser.id, {
+          wechatNickname: nickname || wechatUser.wechatNickname,
+          wechatAvatarUrl: avatarUrl || wechatUser.wechatAvatarUrl,
+          lastLoginAt: new Date(),
+        });
+      } else {
+        // 只更新最后登录时间
+        await updateLastLogin(wechatUser.id);
       }
-      wechatUser.lastLoginAt = new Date();
-      await wechatUser.save();
     }
 
     // 检查账户是否激活
@@ -104,7 +94,7 @@ export async function POST(request: NextRequest) {
     // 创建 JWT token
     const token = sign(
       {
-        id: wechatUser._id,
+        id: wechatUser.id,
         type: "wechatUser",
         openid: wechatUser.openid,
       },
@@ -121,10 +111,10 @@ export async function POST(request: NextRequest) {
       data: {
         token,
         wechatUser: {
-          id: wechatUser._id,
-          name: wechatUser.profile?.name,
-          phone: wechatUser.profile?.phone,
-          avatar: wechatUser.profile?.avatar || wechatUser.wechatInfo?.avatarUrl,
+          id: wechatUser.id,
+          name: wechatUser.profileName,
+          phone: wechatUser.profilePhone,
+          avatar: wechatUser.profileAvatar || wechatUser.wechatAvatarUrl,
           isActive: wechatUser.isActive,
         },
       },
