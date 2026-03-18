@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sign } from "jsonwebtoken";
 import { validateCredentials } from "@/lib/auth";
+import bcrypt from "bcryptjs";
 
 interface LoginRequest {
   email: string;
@@ -14,6 +15,10 @@ export async function POST(request: NextRequest) {
 
     console.log({ email, password });
 
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    console.log({ hashedPassword });
     // Validate credentials using auth utility
     const user = await validateCredentials(email, password);
 

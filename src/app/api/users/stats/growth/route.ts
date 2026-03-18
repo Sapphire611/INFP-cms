@@ -13,18 +13,17 @@ export async function GET(request: NextRequest) {
     today.setHours(0, 0, 0, 0);
     ninetyDaysAgo.setHours(0, 0, 0, 0);
 
-    // Use raw SQL query to group users by date
-    // PostgreSQL date_trunc function to truncate to day
+    // Use Prisma's query builder for better type safety
     const growthData = await prisma.$queryRaw<
       Array<{ date: string; count: bigint }>
     >`
       SELECT
-        DATE(createdAt) as date,
+        DATE("createdAt") as date,
         COUNT(*) as count
-      FROM users
-      WHERE createdAt >= ${ninetyDaysAgo} AND createdAt <= ${today}
-      GROUP BY DATE(createdAt)
-      ORDER BY DATE(createdAt) ASC
+      FROM "users"
+      WHERE "createdAt" >= ${ninetyDaysAgo} AND "createdAt" <= ${today}
+      GROUP BY DATE("createdAt")
+      ORDER BY DATE("createdAt") ASC
     `;
 
     // Create array of all dates in the past 90 days
@@ -37,9 +36,19 @@ export async function GET(request: NextRequest) {
 
     // Map aggregation results to complete date array
     const result = dates.map((date) => {
-      const found = growthData.find(
-        (item) => (item.date as string).split("T")[0] === date
-      );
+      const found = growthData.find((item) => {
+        // Handle both Date objects and string formats
+        let itemDateStr: string;
+        const dateValue = item.date as unknown; // Cast to unknown first
+        if (dateValue instanceof Date) {
+          // Format: Sun Feb 01 2026 08:00:00 GMT+0800 -> 2026-02-01
+          const d = new Date(dateValue);
+          itemDateStr = d.toISOString().split('T')[0];
+        } else {
+          itemDateStr = String(item.date).split('T')[0];
+        }
+        return itemDateStr === date;
+      });
       return {
         date,
         user: found ? Number(found.count) : 0,
@@ -49,6 +58,9 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result);
   } catch (error) {
     console.error("Error fetching user growth data:", error);
-    return NextResponse.json({ error: "Failed to fetch user growth data" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch user growth data", details: error instanceof Error ? error.message : "Unknown error" },
+      { status: 500 }
+    );
   }
 }

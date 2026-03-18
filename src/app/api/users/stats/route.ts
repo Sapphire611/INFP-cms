@@ -17,15 +17,18 @@ export async function GET(request: NextRequest) {
 
     // 计算本月新增用户
     const startOfMonth = new Date(currentYear, currentMonth, 1);
+    startOfMonth.setHours(0, 0, 0, 0);
     stats.monthly = await prisma.user.count({
       where: {
         createdAt: { gte: startOfMonth },
       },
     });
 
-    // 计算本周新增用户
+    // 计算本周新增用户（以星期一为一周的开始）
     const startOfWeek = new Date(now);
-    startOfWeek.setDate(now.getDate() - now.getDay());
+    const day = startOfWeek.getDay();
+    const diff = startOfWeek.getDate() - day + (day === 0 ? -6 : 1); // 调整到星期一
+    startOfWeek.setDate(diff);
     startOfWeek.setHours(0, 0, 0, 0);
     stats.weekly = await prisma.user.count({
       where: {
@@ -35,6 +38,7 @@ export async function GET(request: NextRequest) {
 
     // 计算今日新增用户
     const startOfDay = new Date(currentYear, currentMonth, now.getDate());
+    startOfDay.setHours(0, 0, 0, 0);
     stats.daily = await prisma.user.count({
       where: {
         createdAt: { gte: startOfDay },

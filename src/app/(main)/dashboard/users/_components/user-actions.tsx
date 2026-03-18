@@ -36,7 +36,7 @@ export function UserActions({ user, onUserUpdated }: UserActionsProps) {
 
   const handleDelete = async () => {
     try {
-      const response = await fetch(`/api/users/${user._id}`, {
+      const response = await fetch(`/api/users/${user.id}`, {
         method: "DELETE",
       });
 
@@ -85,7 +85,7 @@ export function UserActions({ user, onUserUpdated }: UserActionsProps) {
           <DialogHeader>
             <DialogTitle>删除用户</DialogTitle>
             <DialogDescription>
-              确定要删除用户"{user.profile?.name || user.username}"吗？此操作无法撤销。
+              确定要删除用户"{user.profileName || user.username}"吗？此操作无法撤销。
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

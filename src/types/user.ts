@@ -23,16 +23,14 @@ export interface UpdateUserRequest {
 }
 
 export interface UserResponse {
-  _id: string;
+  id: string;
   username: string;
   email: string;
   userType: UserType;
-  profile: {
-    name: string;
-    phone?: string;
-    avatar?: string;
-  };
+  profileName: string | null;
+  profilePhone: string | null;
+  profileAvatar: string | null;
   isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
+  createdAt: Date;
+  updatedAt: Date;
 }

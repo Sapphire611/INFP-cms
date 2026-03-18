@@ -45,9 +45,9 @@ export const userColumns: ColumnDef<UserWithCallback>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "profile.name",
+    accessorKey: "profileName",
     header: "姓名",
-    cell: ({ row }) => <span className="font-medium">{row.original.profile?.name || row.original.username}</span>,
+    cell: ({ row }) => <span className="font-medium">{row.original.profileName || row.original.username}</span>,
   },
   {
     accessorKey: "userType",
@@ -62,9 +62,9 @@ export const userColumns: ColumnDef<UserWithCallback>[] = [
     cell: ({ row }) => <span className="text-muted-foreground">{row.original.email}</span>,
   },
   {
-    accessorKey: "profile.phone",
+    accessorKey: "profilePhone",
     header: "联系电话",
-    cell: ({ row }) => <span className="text-muted-foreground">{row.original.profile?.phone || "-"}</span>,
+    cell: ({ row }) => <span className="text-muted-foreground">{row.original.profilePhone || "-"}</span>,
   },
   {
     accessorKey: "isActive",

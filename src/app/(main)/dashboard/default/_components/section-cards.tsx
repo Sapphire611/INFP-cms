@@ -10,6 +10,7 @@ interface SystemStats {
   totalUsers: number;
   totalWechatUsers: number;
   activeWechatUsers: number;
+  weeklyNewUsers: number;
   weeklyNewWechatUsers: number;
 }
 
@@ -119,7 +120,7 @@ export function SectionCards() {
             本周新增用户
           </CardDescription>
           <CardTitle className="text-2xl font-semibold tabular-nums @[250px]/card:text-3xl">
-            {stats.weeklyNewWechatUsers.toLocaleString()}
+            {(stats.weeklyNewUsers ?? 0).toLocaleString()}
           </CardTitle>
           <CardAction>
             <Badge variant="outline">

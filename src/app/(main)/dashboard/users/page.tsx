@@ -123,7 +123,7 @@ export default function UsersPage() {
   const table = useDataTableInstance({
     data: users,
     columns: userColumns,
-    getRowId: (row) => row._id,
+    getRowId: (row) => row.id,
     meta: {
       pagination: {
         pageIndex: 0, // 始终从第一页开始

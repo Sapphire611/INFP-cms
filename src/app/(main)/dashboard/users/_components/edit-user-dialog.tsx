@@ -50,9 +50,9 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
     resolver: zodResolver(userFormSchema),
     defaultValues: {
       username: user.username,
-      name: user.profile?.name || "",
+      name: user.profileName || "",
       email: user.email,
-      phone: user.profile?.phone || "",
+      phone: user.profilePhone || "",
       userType: user.userType,
       password: undefined,
     },
@@ -76,7 +76,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
         submitData.password = data.password;
       }
 
-      const response = await fetch(`/api/users/${user._id}`, {
+      const response = await fetch(`/api/users/${user.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",

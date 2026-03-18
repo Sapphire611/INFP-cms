@@ -29,7 +29,8 @@ export function ChartUserGrowth() {
       try {
         const response = await fetch("/api/users/stats/growth");
         if (!response.ok) {
-          throw new Error("Failed to fetch data");
+          const errorData = await response.json();
+          throw new Error(errorData.error || "Failed to fetch data");
         }
         const data = await response.json();
         setChartData(data);
