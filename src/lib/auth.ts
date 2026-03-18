@@ -5,7 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 export interface User {
   id: string;
   email: string;
-  userType: 'admin' | 'user';
+  userType: "admin" | "user";
   isActive: boolean;
   profileName?: string;
   username: string;
@@ -35,6 +35,7 @@ export async function validateCredentials(email: string, password: string): Prom
     .eq("email", email)
     .single();
 
+  console.log({ user });
   if (error || !user || !user.is_active) {
     return null;
   }

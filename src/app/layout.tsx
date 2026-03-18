@@ -3,9 +3,6 @@ import { ReactNode } from "react";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 
-// 导入prisma以确保应用启动时自动连接数据库
-import "@/lib/prisma";
-
 import { Toaster } from "@/components/ui/sonner";
 import { APP_CONFIG } from "@/config/app-config";
 import { getPreference } from "@/server/server-actions";
