@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase-server";
 
 export async function POST(request: NextRequest) {
   try {
+    // Sign out from Supabase if there's an active session
+    const supabase = await createClient();
+    await supabase.auth.signOut();
+
     // 创建响应
     const response = NextResponse.json({
       success: true,

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sign } from "jsonwebtoken";
-import { validateCredentials } from "@/lib/auth";
-import bcrypt from "bcryptjs";
+import { validateCredentialsSupabase } from "@/lib/auth";
+import { createClient } from "@/lib/supabase-server";
 
 interface LoginRequest {
   email: string;
@@ -13,20 +13,14 @@ export async function POST(request: NextRequest) {
     const body: LoginRequest = await request.json();
     const { email, password } = body;
 
-    console.log({ email, password });
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    console.log({ hashedPassword });
-    // Validate credentials using auth utility
-    const user = await validateCredentials(email, password);
+    // Validate credentials using Supabase
+    const user = await validateCredentialsSupabase(email, password);
 
     if (!user) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    // Create JWT token
+    // Create JWT token (maintaining existing functionality)
     const token = sign(
       { id: user.id, email: user.email, userType: user.userType },
       process.env.JWT_SECRET ?? "",
@@ -35,10 +29,18 @@ export async function POST(request: NextRequest) {
       }
     );
 
+    // Optional: Create Supabase session for future use
+    const supabase = await createClient();
+    const { data: { session: supabaseSession } } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
+
     return NextResponse.json({
       ok: true,
       success: true,
       token,
+      supabaseSession, // Include Supabase session for potential future use
       user: {
         id: user.id,
         name: user.profileName || user.username,

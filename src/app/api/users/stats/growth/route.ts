@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 // GET /api/users/stats/growth - 获取过去90天用户增长数据
 export async function GET(request: NextRequest) {
@@ -13,18 +13,22 @@ export async function GET(request: NextRequest) {
     today.setHours(0, 0, 0, 0);
     ninetyDaysAgo.setHours(0, 0, 0, 0);
 
-    // Use Prisma's query builder for better type safety
-    const growthData = await prisma.$queryRaw<
-      Array<{ date: string; count: bigint }>
-    >`
-      SELECT
-        DATE("createdAt") as date,
-        COUNT(*) as count
-      FROM "users"
-      WHERE "createdAt" >= ${ninetyDaysAgo} AND "createdAt" <= ${today}
-      GROUP BY DATE("createdAt")
-      ORDER BY DATE("createdAt") ASC
-    `;
+    // Use Supabase to get user data for the past 90 days
+    const { data: usersData, error } = await supabaseAdmin
+      .from('users')
+      .select('created_at')
+      .gte('created_at', ninetyDaysAgo.toISOString())
+      .lte('created_at', today.toISOString())
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    // Group data by date
+    const dateCountMap = new Map<string, number>();
+    usersData?.forEach((user) => {
+      const dateStr = new Date(user.created_at).toISOString().split('T')[0];
+      dateCountMap.set(dateStr, (dateCountMap.get(dateStr) || 0) + 1);
+    });
 
     // Create array of all dates in the past 90 days
     const dates = [];
@@ -36,22 +40,10 @@ export async function GET(request: NextRequest) {
 
     // Map aggregation results to complete date array
     const result = dates.map((date) => {
-      const found = growthData.find((item) => {
-        // Handle both Date objects and string formats
-        let itemDateStr: string;
-        const dateValue = item.date as unknown; // Cast to unknown first
-        if (dateValue instanceof Date) {
-          // Format: Sun Feb 01 2026 08:00:00 GMT+0800 -> 2026-02-01
-          const d = new Date(dateValue);
-          itemDateStr = d.toISOString().split('T')[0];
-        } else {
-          itemDateStr = String(item.date).split('T')[0];
-        }
-        return itemDateStr === date;
-      });
+      const count = dateCountMap.get(date) || 0;
       return {
         date,
-        user: found ? Number(found.count) : 0,
+        user: count,
       };
     });
 
