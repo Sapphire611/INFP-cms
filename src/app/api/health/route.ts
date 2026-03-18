@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { supabaseAdmin } from "@/lib/supabase-admin";
 
 /**
  * Health check API
@@ -11,13 +11,18 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   try {
     // Test database connection with a simple query
-    await prisma.$queryRaw`SELECT 1`;
+    const { error } = await supabaseAdmin
+      .from('users')
+      .select('id')
+      .limit(1);
+
+    if (error) throw error;
 
     return NextResponse.json({
       status: "healthy",
       timestamp: new Date().toISOString(),
       database: {
-        provider: "postgresql",
+        provider: "supabase",
         connected: true,
       },
       uptime: process.uptime(),

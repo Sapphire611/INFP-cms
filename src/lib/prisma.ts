@@ -13,8 +13,4 @@ export const prisma =
 
 if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma;
-  // 添��警告日志
-  if (process.env.NODE_ENV === 'development') {
-    console.warn('⚠️  Prisma 客户端已弃用，请迁移到 Supabase 客户端');
-  }
 }

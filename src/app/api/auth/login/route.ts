@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sign } from "jsonwebtoken";
-import { validateCredentialsSupabase } from "@/lib/auth";
+import { validateCredentials } from "@/lib/auth";
 import { createClient } from "@/lib/supabase-server";
 
 interface LoginRequest {
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     const { email, password } = body;
 
     // Validate credentials using Supabase
-    const user = await validateCredentialsSupabase(email, password);
+    const user = await validateCredentials(email, password);
 
     if (!user) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
