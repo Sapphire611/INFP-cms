@@ -1,4 +1,5 @@
 import {
+  CircleCheck,
   ShoppingBag,
   Forklift,
   Mail,
@@ -56,9 +57,14 @@ export const sidebarItems: NavGroup[] = [
     label: "INFP的小窝",
     items: [
       {
-        title: "仪表盘",
+        title: "仪表盘(TODO: 可视化表盘)",
         url: "/dashboard/default",
         icon: LayoutDashboard,
+      },
+      {
+        title: "用户管理",
+        url: "/dashboard/users",
+        icon: Users,
       },
       {
         title: "微信用户",
@@ -66,9 +72,14 @@ export const sidebarItems: NavGroup[] = [
         icon: UsersRound,
       },
       {
-        title: "用户管理",
-        url: "/dashboard/users",
-        icon: Users,
+        title: "AI对话",
+        url: "/dashboard/default",
+        icon: CircleCheck,
+      },
+      {
+        title: "Three.js Demo",
+        url: "/dashboard/default",
+        icon: CircleCheck,
       },
       // {
       //   title: "Finance",
