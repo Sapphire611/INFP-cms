@@ -81,7 +81,8 @@ async function forceResetAllUsers(tempPassword: string): Promise<void> {
   console.log('\n⚠️  WARNING: This will reset passwords for ALL users!');
   console.log('Users will need to use the temporary password to login.');
 
-  const { confirm } = await import('../lib/prompt'); // You'll need to implement this
+  // TODO: Implement confirmation prompt
+  // const { confirm } = await import('../lib/prompt');
   // For now, we'll just proceed
 
   // Hash the temporary password

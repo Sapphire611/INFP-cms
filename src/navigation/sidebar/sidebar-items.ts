@@ -73,8 +73,8 @@ export const sidebarItems: NavGroup[] = [
       },
       {
         title: "AI对话",
-        url: "/dashboard/default",
-        icon: CircleCheck,
+        url: "/dashboard/chat",
+        icon: MessageSquare,
       },
       {
         title: "Three.js Demo",
