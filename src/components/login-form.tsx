@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { hashPasswordWithSHA256 } from "@/lib/crypto";
 
 const FormSchema = z.object({
   email: z.string().email({ message: "请输入有效的邮箱地址。" }),
@@ -37,6 +38,9 @@ export function LoginForm() {
     setIsLoading(true);
 
     try {
+      // Hash password with SHA-256 before sending
+      const hashedPassword = await hashPasswordWithSHA256(data.password);
+
       const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
@@ -44,7 +48,8 @@ export function LoginForm() {
         },
         body: JSON.stringify({
           email: data.email,
-          password: data.password,
+          password: hashedPassword, // Send hashed password
+          remember: data.remember,
         }),
       });
 
@@ -52,9 +57,10 @@ export function LoginForm() {
 
       if (response.ok && result.success) {
         toast.success("登录成功！");
-        // 设置认证 cookies
-        document.cookie = `auth-token=${result.token}; path=/; max-age=86400; SameSite=Strict`;
-        document.cookie = `user-info=${JSON.stringify(result.user)}; path=/; max-age=86400; SameSite=Strict`;
+        // 根据后端返回的 maxAge 设置认证 cookies
+        const maxAge = result.maxAge ?? 86400; // 默认1天
+        document.cookie = `auth-token=${result.token}; path=/; max-age=${maxAge}; SameSite=Strict`;
+        document.cookie = `user-info=${JSON.stringify(result.user)}; path=/; max-age=${maxAge}; SameSite=Strict`;
         // 跳转到仪表板
         router.push("/dashboard/default");
       } else {

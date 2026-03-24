@@ -21,11 +21,11 @@ export async function comparePassword(candidatePassword: string, hashedPassword:
 }
 
 /**
- * Validates credentials using Supabase.
- * Replaces the old Prisma-based validateCredentials function.
+ * Validates credentials using Supabase with backward compatibility.
+ * Supports both new format (SHA-256 + bcrypt) and old format (bcrypt only).
  *
  * @param email - User email
- * @param password - User password
+ * @param password - User password (should be SHA-256 hashed from client)
  * @returns User object without password if valid, null otherwise
  */
 export async function validateCredentials(email: string, password: string): Promise<Partial<User> | null> {
@@ -40,7 +40,35 @@ export async function validateCredentials(email: string, password: string): Prom
     return null;
   }
 
-  const isValid = await comparePassword(password, user.password);
+  // Try new format first (password is already SHA-256 hashed)
+  let isValid = await comparePassword(password, user.password);
+
+  // If new format fails, try old format for backward compatibility
+  // This allows existing users to login and their password will be auto-upgraded
+  if (!isValid) {
+    // For old format, we need to check if the sent password is actually the original plaintext
+    // We can detect this by checking if it's a valid SHA-256 hash
+    const { isValidSHA256Hash } = await import("@/lib/crypto");
+
+    if (!isValidSHA256Hash(password)) {
+      // The password is not a SHA-256 hash, so it's likely plaintext (old format)
+      // Hash it now and try to validate
+      const { hashPasswordWithSHA256 } = await import("@/lib/crypto");
+      const hashedPassword = await hashPasswordWithSHA256(password);
+      isValid = await comparePassword(hashedPassword, user.password);
+
+      if (isValid) {
+        // Auto-upgrade: Update the password to new format
+        console.log("Auto-upgrading user password to new format:", user.id);
+        const newHashedPassword = await hashPassword(hashedPassword);
+        await supabaseAdmin
+          .from("users")
+          .update({ password: newHashedPassword })
+          .eq("id", user.id);
+      }
+    }
+  }
+
   if (!isValid) {
     return null;
   }

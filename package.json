@@ -13,7 +13,9 @@
     "format:check": "prettier --check .",
     "generate:presets": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/scripts/generate-theme-presets.ts",
     "init-db": "node scripts/init-db.js",
-    "migrate:parents": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/scripts/migrate-parents.ts"
+    "migrate:parents": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/scripts/migrate-parents.ts",
+    "users:list": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/scripts/manage-user-passwords.ts list",
+    "users:reset": "ts-node --compiler-options \"{\\\"module\\\":\\\"CommonJS\\\"}\" src/scripts/manage-user-passwords.ts reset"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

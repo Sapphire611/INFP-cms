@@ -6,12 +6,13 @@ import { createClient } from "@/lib/supabase-server";
 interface LoginRequest {
   email: string;
   password: string;
+  remember?: boolean;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: LoginRequest = await request.json();
-    const { email, password } = body;
+    const { email, password, remember = false } = body;
 
     // Validate credentials using Supabase
     const user = await validateCredentials(email, password);
@@ -20,14 +21,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    // Create JWT token (maintaining existing functionality)
+    // Create JWT token with dynamic expiration based on "remember me"
     const token = sign(
       { id: user.id, email: user.email, userType: user.userType },
       process.env.JWT_SECRET ?? "",
       {
-        expiresIn: "1d",
+        expiresIn: remember ? "30d" : "1d",
       }
     );
+
+    // Calculate max-age for cookies (in seconds)
+    const maxAge = remember ? 30 * 24 * 60 * 60 : 24 * 60 * 60; // 30 days or 1 day
 
     // Optional: Create Supabase session for future use
     const supabase = await createClient();
@@ -40,6 +44,7 @@ export async function POST(request: NextRequest) {
       ok: true,
       success: true,
       token,
+      maxAge, // Send max-age to frontend for cookie configuration
       supabaseSession, // Include Supabase session for potential future use
       user: {
         id: user.id,
