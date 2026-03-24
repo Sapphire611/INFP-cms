@@ -1,4 +1,4 @@
-import { IUser, UserType } from "../models/user";
+export type UserType = 'admin' | 'user';
 
 export interface CreateUserRequest {
   username: string;

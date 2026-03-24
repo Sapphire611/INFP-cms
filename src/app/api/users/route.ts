@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { findUsers, createUser, findByEmail, findByUsername } from "@/services/userService";
-import { UserType } from "@prisma/client";
+
+type UserType = 'admin' | 'user';
 
 interface CreateUserRequest {
   username: string;

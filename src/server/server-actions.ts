@@ -24,17 +24,16 @@ export async function getUserList({ page = 1, limit = 10 }: GetUsersParams = {})
     items: Array(limit)
       .fill(null)
       .map((_, index) => ({
-        _id: String((page - 1) * limit + index + 1),
+        id: String((page - 1) * limit + index + 1),
         username: `user${(page - 1) * limit + index + 1}`,
         email: `user${(page - 1) * limit + index + 1}@example.com`,
         userType: "user" as const,
-        profile: {
-          name: `User ${(page - 1) * limit + index + 1}`,
-          phone: "",
-        },
+        profileName: `User ${(page - 1) * limit + index + 1}`,
+        profilePhone: "",
+        profileAvatar: null,
         isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
+        createdAt: new Date() as any,
+        updatedAt: new Date() as any,
       })),
     total: 100,
     page,

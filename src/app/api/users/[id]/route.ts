@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { findUserById, updateUser, deleteUser, findByEmail, findByUsername } from "@/services/userService";
-import { UserType } from "@prisma/client";
+
+type UserType = 'admin' | 'user';
 
 interface UpdateUserRequest {
   username?: string;

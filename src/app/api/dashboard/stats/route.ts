@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserStats, getWechatUserStats } from "@/services/userService";
+import { getUserStats } from "@/services/userService";
 import { getWechatUserStats as getWechatStats } from "@/services/wechatUserService";
 import { supabaseAdmin } from "@/lib/supabase-admin";
 

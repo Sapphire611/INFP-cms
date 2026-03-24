@@ -1,5 +1,3 @@
-import { IWechatUser } from "../models/wechatUser";
-
 // 创建微信用户请求
 export interface CreateWechatUserRequest {
   profile: {
