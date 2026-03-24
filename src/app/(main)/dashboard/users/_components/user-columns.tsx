@@ -8,16 +8,16 @@ import { UserWithCallback } from "./types";
 import { UserActions } from "./user-actions";
 
 // 用户类型标签颜色映射
-const userTypeColors = {
+const userTypeColors: Record<string, "default" | "secondary"> = {
   admin: "default",
   user: "secondary",
-} as const;
+};
 
 // 用户类型中文映射
-const userTypeLabels = {
+const userTypeLabels: Record<string, string> = {
   admin: "管理员",
   user: "普通用户",
-} as const;
+};
 
 // 用户列定义
 export const userColumns: ColumnDef<UserWithCallback>[] = [
