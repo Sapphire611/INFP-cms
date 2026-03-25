@@ -1,11 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
-import { PlusCircleIcon, MailIcon, ChevronRight } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   DropdownMenu,
@@ -143,6 +142,7 @@ const NavItemCollapsed = ({
 
 export function NavMain({ items }: NavMainProps) {
   const path = usePathname();
+  const router = useRouter();
   const { state, isMobile } = useSidebar();
 
   const isItemActive = (url: string, subItems?: NavMainItem["subItems"]) => {
@@ -183,7 +183,14 @@ export function NavMain({ items }: NavMainProps) {
       </SidebarGroup> */}
       {items.map((group) => (
         <SidebarGroup key={group.id}>
-          {group.label && <SidebarGroupLabel>{group.label}</SidebarGroupLabel>}
+          {group.label && (
+            <div
+              onClick={() => router.push("/dashboard/default")}
+              className="flex items-center gap-2 px-2 py-1 text-sm font-semibold text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors cursor-pointer"
+            >
+              {group.label}
+            </div>
+          )}
           <SidebarGroupContent className="flex flex-col gap-2">
             <SidebarMenu>
               {group.items.map((item) => {

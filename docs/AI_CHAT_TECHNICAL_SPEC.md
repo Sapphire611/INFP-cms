@@ -404,6 +404,7 @@ SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
 # JWT配置
 JWT_SECRET="your-jwt-secret"
 ```
+---
 
 ## 部署步骤
 

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Settings, CircleHelp, Search, Database, ClipboardList, File, Command } from "lucide-react";
 
 import {
@@ -61,10 +62,10 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="data-[slot=sidebar-menu-button]:!p-1.5">
-              <a href="#">
+              <Link href="/dashboard/default">
                 <Command />
                 <span className="text-base font-semibold">{APP_CONFIG.name}</span>
-              </a>
+              </Link>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
