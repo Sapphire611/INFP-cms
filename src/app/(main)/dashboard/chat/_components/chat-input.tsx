@@ -44,18 +44,18 @@ export function ChatInput() {
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
-        className="min-h-[60px] max-h-[200px] resize-none"
+        className="min-h-[50px] max-h-[120px] resize-none"
         disabled={isLoading}
       />
       <Button
         onClick={handleSubmit}
         disabled={!input.trim() || isLoading}
-        className="h-[60px] px-4"
+        className="h-[50px] px-4"
       >
         {isLoading ? (
-          <Loader2 className="h-5 w-5 animate-spin" />
+          <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
-          <Send className="h-5 w-5" />
+          <Send className="h-4 w-4" />
         )}
       </Button>
     </div>

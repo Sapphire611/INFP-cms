@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { requireAuth } from "@/lib/jwt";
 import { findUsers, createUser, findByEmail, findByUsername } from "@/services/userService";
 
 type UserType = 'admin' | 'user';
@@ -105,9 +105,11 @@ export async function POST(request: NextRequest) {
 // PUT /api/users/:id - 更新用户信息 (deprecated - use PATCH /api/users/[id] instead)
 export async function PUT(request: NextRequest) {
   try {
-    const token = await getToken({ req: request });
-    if (!token || token.userType !== "admin") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const user = await requireAuth();
+
+    // Check if user is admin
+    if (user.userType !== "admin") {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // 获取URL中的用户ID
@@ -133,11 +135,13 @@ export async function PUT(request: NextRequest) {
 
     // Update user (importing updateUser from service)
     const { updateUser } = await import("@/services/userService");
-    const user = await updateUser(userId, updateData);
+    const updatedUser = await updateUser(userId, updateData);
 
-    return NextResponse.json(user, { status: 200 });
+    return NextResponse.json(updatedUser, { status: 200 });
   } catch (error) {
     console.error("Error updating user:", error);
-    return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Failed to update user";
+    const status = message === "Unauthorized" ? 401 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

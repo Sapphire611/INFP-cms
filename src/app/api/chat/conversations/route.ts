@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { requireAuth } from "@/lib/jwt";
 import {
   getConversationsByUserId,
   createConversation,
@@ -24,17 +24,14 @@ function extractPaginationParams(url: URL) {
 export async function GET(request: NextRequest) {
   try {
     // Verify authentication
-    const token = await getToken({ req: request });
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requireAuth();
 
     const url = new URL(request.url);
     const { page, limit } = extractPaginationParams(url);
 
     // Get user's conversations
     const result = await getConversationsByUserId(
-      token.sub as string,
+      user.id,
       page,
       limit
     );
@@ -52,7 +49,8 @@ export async function GET(request: NextRequest) {
     console.error("Error in GET /api/chat/conversations:", error);
     const message =
       error instanceof Error ? error.message : "An unexpected error occurred";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message === "Unauthorized" ? 401 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }
 
@@ -60,16 +58,13 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
-    const token = await getToken({ req: request });
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requireAuth();
 
     const body: CreateConversationRequest = await request.json();
 
     // Create conversation
     const conversation = await createConversation(
-      token.sub as string,
+      user.id,
       body
     );
 
@@ -78,6 +73,7 @@ export async function POST(request: NextRequest) {
     console.error("Error in POST /api/chat/conversations:", error);
     const message =
       error instanceof Error ? error.message : "An unexpected error occurred";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message === "Unauthorized" ? 401 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

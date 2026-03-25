@@ -3,17 +3,14 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { requireAuth } from "@/lib/jwt";
 import { sendMessage } from "@/services/chatService";
 import type { SendMessageRequest } from "@/types/chat";
 
 export async function POST(request: NextRequest) {
   try {
     // Verify authentication
-    const token = await getToken({ req: request });
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requireAuth();
 
     const body: SendMessageRequest = await request.json();
     const { conversationId, message } = body;
@@ -48,6 +45,7 @@ export async function POST(request: NextRequest) {
     console.error("Error in POST /api/chat:", error);
     const message =
       error instanceof Error ? error.message : "An unexpected error occurred";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message === "Unauthorized" ? 401 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }

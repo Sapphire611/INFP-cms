@@ -3,7 +3,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { requireAuth } from "@/lib/jwt";
 import {
   getConversationById,
   deleteConversation as deleteConversationService,
@@ -16,10 +16,7 @@ export async function DELETE(
 ) {
   try {
     // Verify authentication
-    const token = await getToken({ req: request });
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const user = await requireAuth();
 
     const { id } = await params;
 
@@ -32,7 +29,7 @@ export async function DELETE(
       );
     }
 
-    if (conversation.userId !== token.sub) {
+    if (conversation.userId !== user.id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -44,6 +41,7 @@ export async function DELETE(
     console.error("Error in DELETE /api/chat/conversations/[id]:", error);
     const message =
       error instanceof Error ? error.message : "An unexpected error occurred";
-    return NextResponse.json({ error: message }, { status: 500 });
+    const status = message === "Unauthorized" ? 401 : 500;
+    return NextResponse.json({ error: message }, { status });
   }
 }
