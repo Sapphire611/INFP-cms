@@ -62,7 +62,7 @@ export function LoginForm() {
         document.cookie = `auth-token=${result.token}; path=/; max-age=${maxAge}; SameSite=Strict`;
         document.cookie = `user-info=${JSON.stringify(result.user)}; path=/; max-age=${maxAge}; SameSite=Strict`;
         // 跳转到仪表板
-        router.push("/dashboard/default");
+        router.push("/cms/dashboard");
       } else {
         toast.error(result.error ?? "登录失败，请检查邮箱和密码");
       }

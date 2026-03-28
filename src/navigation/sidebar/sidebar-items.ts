@@ -57,18 +57,18 @@ export const sidebarItems: NavGroup[] = [
     label: "cms",
     items: [
       {
-        title: "仪表盘(TODO: 可视化)",
-        url: "/dashboard/default",
+        title: "数据概览",
+        url: "/cms/dashboard",
         icon: LayoutDashboard,
       },
       {
         title: "用户管理",
-        url: "/dashboard/users",
+        url: "/cms/users",
         icon: Users,
       },
       {
         title: "微信用户",
-        url: "/dashboard/wechat-users",
+        url: "/cms/wechat-users",
         icon: UsersRound,
       }
       // {
@@ -121,12 +121,12 @@ export const sidebarItems: NavGroup[] = [
 
       {
         title: "AI对话",
-        url: "/dashboard/chat",
+        url: "/demo/chat",
         icon: MessageSquare,
       },
       {
         title: "Three.js Demo",
-        url: "/dashboard/default",
+        url: "/demo/threejs",
         icon: CircleCheck,
       },
     ],

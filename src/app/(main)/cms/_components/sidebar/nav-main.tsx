@@ -185,7 +185,7 @@ export function NavMain({ items }: NavMainProps) {
         <SidebarGroup key={group.id}>
           {group.label && (state === "expanded" || isMobile) && (
             <div
-              onClick={() => router.push("/dashboard/default")}
+              onClick={() => router.push("/cms/dashboard")}
               className="flex items-center gap-2 px-2 py-1 text-sm font-semibold text-sidebar-foreground/70 hover:text-sidebar-foreground transition-colors cursor-pointer"
             >
               {group.label}
