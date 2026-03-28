@@ -54,10 +54,10 @@ export interface NavGroup {
 export const sidebarItems: NavGroup[] = [
   {
     id: 1,
-    label: "INFP的小窝",
+    label: "cms",
     items: [
       {
-        title: "仪表盘(TODO: 可视化表盘)",
+        title: "仪表盘(TODO: 可视化)",
         url: "/dashboard/default",
         icon: LayoutDashboard,
       },
@@ -70,17 +70,7 @@ export const sidebarItems: NavGroup[] = [
         title: "微信用户",
         url: "/dashboard/wechat-users",
         icon: UsersRound,
-      },
-      {
-        title: "AI对话",
-        url: "/dashboard/chat",
-        icon: MessageSquare,
-      },
-      {
-        title: "Three.js Demo",
-        url: "/dashboard/default",
-        icon: CircleCheck,
-      },
+      }
       // {
       //   title: "Finance",
       //   url: "/dashboard/finance",
@@ -122,6 +112,23 @@ export const sidebarItems: NavGroup[] = [
       //   icon: Forklift,
       //   comingSoon: true,
       // },
+    ],
+  },
+  {
+    id: 2,
+    label: "demo",
+    items: [
+
+      {
+        title: "AI对话",
+        url: "/dashboard/chat",
+        icon: MessageSquare,
+      },
+      {
+        title: "Three.js Demo",
+        url: "/dashboard/default",
+        icon: CircleCheck,
+      },
     ],
   },
   // {
