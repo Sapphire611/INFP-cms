@@ -226,3 +226,116 @@ function Trace({ points, width = 0.5, color = "#c87533" }) {
 - [Three.js TubeGeometry 文档](https://threejs.org/docs/#api/en/geometries/TubeGeometry)
 - [Three.js Curve 文档](https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3)
 - [PCB 设计规范](https://www.pcbway.com/pcb_prototype/PCB_Designing_Guidelines.html)
+
+---
+
+## Q&A
+
+### Q1: 什么时候使用 `<mesh>`？
+
+**简单回答：** 需要渲染有体积、有材质、能接受光照的 3D 物体时使用 `<mesh>`。
+
+**详细说明：**
+
+`<mesh>` 是 React Three Fiber 中最常用的标签，用于渲染可见的 3D 几何体对象。
+
+**基本结构：**
+```tsx
+<mesh position={[x, y, z]} rotation={[x, y, z]}>
+  <geometry />      {/* 几何体：定义形状 */}
+  <material />      {/* 材质：定义外观 */}
+</mesh>
+```
+
+**使用场景：**
+
+1. **渲染基础几何体**
+```tsx
+// 立方体（如 PCB 板）
+<mesh>
+  <boxGeometry args={[100, 2, 60]} />
+  <meshStandardMaterial color="#1a5f1a" />
+</mesh>
+
+// 球体
+<mesh>
+  <sphereGeometry args={[1, 32, 32]} />
+  <meshStandardMaterial color="red" />
+</mesh>
+
+// 圆柱体（如焊盘）
+<mesh rotation={[-Math.PI / 2, 0, 0]}>
+  <cylinderGeometry args={[2, 2, 0.3, 32]} />
+  <meshStandardMaterial color="#d4af37" metalness={0.9} />
+</mesh>
+```
+
+2. **需要光照效果的物体**
+```tsx
+<mesh>
+  <boxGeometry />
+  <meshStandardMaterial />  {/* 基于物理的材质，支持光照 */}
+</mesh>
+```
+
+3. **需要投射/接收阴影**
+```tsx
+<mesh castShadow receiveShadow>
+  <boxGeometry />
+  <meshStandardMaterial />
+</mesh>
+```
+
+**何时不使用 `<mesh>`：**
+
+| 场景 | 使用标签 | 示例 |
+|------|---------|------|
+| 渲染线条、轨迹 | `<line>` | 坐标轴、路径预览 |
+| 渲染粒子、点云 | `<points>` | 粒子系统、星空 |
+| 组织多个对象 | `<group>` | 将多个 mesh 组合 |
+| 渲染文字 | `<Text>` | 标签、说明文字 |
+
+**本 Demo 中的例子：**
+
+```tsx
+// ✅ 使用 mesh - PCB 板（有体积的立方体）
+<mesh position={[0, 1, 0]} castShadow receiveShadow>
+  <boxGeometry args={[100, 2, 60]} />
+  <meshStandardMaterial color="#1a5f1a" />
+</mesh>
+
+// ✅ 使用 mesh - 焊盘（有体积的圆柱体）
+<mesh position={position} rotation={[-Math.PI / 2, 0, 0]}>
+  <cylinderGeometry args={[radius, radius, 0.3, 32]} />
+  <meshStandardMaterial color="#d4af37" metalness={0.9} />
+</mesh>
+
+// ✅ 使用 mesh - 走线（有体积的管道）
+<mesh geometry={tubeGeometry}>
+  <meshStandardMaterial color="#c87533" metalness={0.8} />
+</mesh>
+
+// ❌ 不使用 mesh - 坐标轴（只是线条）
+<line>
+  <bufferGeometry>
+    <bufferAttribute args={[positions, 3]} />
+  </bufferGeometry>
+  <lineBasicMaterial color="red" />
+</line>
+```
+
+**常用材质对比：**
+
+| 材质类型 | 是否受光照影响 | 适用场景 |
+|---------|--------------|---------|
+| `meshBasicMaterial` | ❌ 否 | 纯色物体、不需要光照效果 |
+| `meshStandardMaterial` | ✅ 是 | 大多数场景，基于物理渲染 |
+| `meshPhongMaterial` | ✅ 是 | 需要高光效果的物体 |
+| `lineBasicMaterial` | ❌ 否 | 线条渲染 |
+
+**记忆口诀：**
+- 有体积 → 用 `<mesh>`
+- 只是线 → 用 `<line>`
+- 只是点 → 用 `<points>`
+- 只是组 → 用 `<group>`
+

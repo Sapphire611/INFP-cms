@@ -2,12 +2,13 @@
 
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Text } from "@react-three/drei";
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import * as THREE from "three";
+import GUI from "lil-gui";
 
 /**
  * Demo 2: PCB 电路走线渲染
@@ -290,9 +291,7 @@ function Axes({ size = 50 }: { size?: number }) {
         <bufferGeometry>
           <bufferAttribute
             attach="attributes-position"
-            count={2}
-            array={new Float32Array([0, 0, 0, size, 0, 0])}
-            itemSize={3}
+            args={[new Float32Array([0, 0, 0, size, 0, 0]), 3]}
           />
         </bufferGeometry>
         <lineBasicMaterial color="#ff0000" linewidth={2} />
@@ -306,9 +305,7 @@ function Axes({ size = 50 }: { size?: number }) {
         <bufferGeometry>
           <bufferAttribute
             attach="attributes-position"
-            count={2}
-            array={new Float32Array([0, 0, 0, 0, size, 0])}
-            itemSize={3}
+            args={[new Float32Array([0, 0, 0, 0, size, 0]), 3]}
           />
         </bufferGeometry>
         <lineBasicMaterial color="#00ff00" linewidth={2} />
@@ -322,9 +319,7 @@ function Axes({ size = 50 }: { size?: number }) {
         <bufferGeometry>
           <bufferAttribute
             attach="attributes-position"
-            count={2}
-            array={new Float32Array([0, 0, 0, 0, 0, size])}
-            itemSize={3}
+            args={[new Float32Array([0, 0, 0, 0, 0, size]), 3]}
           />
         </bufferGeometry>
         <lineBasicMaterial color="#0000ff" linewidth={2} />
@@ -405,11 +400,71 @@ export default function CircuitTraces() {
   const [circuitType, setCircuitType] = useState<"simple" | "complex">(
     "simple"
   );
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  // 初始化 lil-gui
+  useEffect(() => {
+    if (!canvasContainerRef.current) return;
+
+    // 创建 GUI，指定容器
+    const gui = new GUI({
+      title: "PCB 控制面板",
+      container: canvasContainerRef.current
+    });
+
+    // 设置 GUI 位置到右上角
+    gui.domElement.style.position = 'absolute';
+    gui.domElement.style.top = '10px';
+    gui.domElement.style.right = '10px';
+    gui.domElement.style.left = 'auto';
+
+    // 创建控制参数对象
+    const params = {
+      lightIntensity: lightIntensity,
+      showAxes: showAxes,
+      showTraces: showTraces,
+      circuitType: circuitType,
+    };
+
+    // 创建文件夹分组
+    const lightFolder = gui.addFolder("光照设置");
+    lightFolder
+      .add(params, "lightIntensity", 0, 2, 0.1)
+      .name("光照强度")
+      .onChange((value: number) => setLightIntensity(value));
+
+    const displayFolder = gui.addFolder("显示设置");
+    displayFolder
+      .add(params, "showAxes")
+      .name("显示坐标轴")
+      .onChange((value: boolean) => setShowAxes(value));
+
+    displayFolder
+      .add(params, "showTraces")
+      .name("显示走线")
+      .onChange((value: boolean) => setShowTraces(value));
+
+    const circuitFolder = gui.addFolder("电路设置");
+    circuitFolder
+      .add(params, "circuitType", ["simple", "complex"])
+      .name("电路类型")
+      .onChange((value: "simple" | "complex") => setCircuitType(value));
+
+    // 默认展开所有文件夹
+    lightFolder.open();
+    displayFolder.open();
+    circuitFolder.open();
+
+    // 清理函数
+    return () => {
+      gui.destroy();
+    };
+  }, []);
 
   return (
     <div className="flex h-screen w-full flex-col gap-4 p-4 lg:flex-row">
       {/* 左侧：3D 渲染区域 */}
-      <div className="flex-1 rounded-lg border bg-card shadow-sm">
+      <div ref={canvasContainerRef} className="flex-1 rounded-lg border bg-card shadow-sm relative">
         <Canvas
           camera={{ position: [100, 80, 120], fov: 50 }}
           shadows
@@ -426,7 +481,7 @@ export default function CircuitTraces() {
         </Canvas>
       </div>
 
-      {/* 右侧：控制面板和说明 */}
+      {/* 右侧：说明文档 */}
       <div className="w-full space-y-4 overflow-y-auto lg:w-96">
         {/* 标题 */}
         <Card>
@@ -436,70 +491,6 @@ export default function CircuitTraces() {
           <CardContent className="text-muted-foreground text-sm">
             学习如何使用 TubeGeometry 和 CatmullRomCurve3
             渲染平滑的电路走线，以及如何创建焊盘和复杂电路布局。
-          </CardContent>
-        </Card>
-
-        {/* 控制面板 */}
-        <Card>
-          <CardHeader>
-            <CardTitle>控制面板</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* 光照强度 */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label>光照强度</Label>
-                <span className="text-muted-foreground text-sm">
-                  {lightIntensity.toFixed(1)}
-                </span>
-              </div>
-              <Slider
-                value={[lightIntensity]}
-                onValueChange={(value) => setLightIntensity(value[0])}
-                min={0}
-                max={2}
-                step={0.1}
-              />
-            </div>
-
-            {/* 显示坐标轴 */}
-            <div className="flex items-center justify-between">
-              <Label>显示坐标轴</Label>
-              <Switch checked={showAxes} onCheckedChange={setShowAxes} />
-            </div>
-
-            {/* 显示走线 */}
-            <div className="flex items-center justify-between">
-              <Label>显示走线</Label>
-              <Switch checked={showTraces} onCheckedChange={setShowTraces} />
-            </div>
-
-            {/* 电路类型 */}
-            <div className="space-y-2">
-              <Label>电路类型</Label>
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setCircuitType("simple")}
-                  className={`flex-1 rounded-md border px-3 py-2 text-sm transition-colors ${
-                    circuitType === "simple"
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-input bg-background hover:bg-accent"
-                  }`}
-                >
-                  简单电路
-                </button>
-                <button
-                  onClick={() => setCircuitType("complex")}
-                  className={`flex-1 rounded-md border px-3 py-2 text-sm transition-colors ${
-                    circuitType === "complex"
-                      ? "border-primary bg-primary text-primary-foreground"
-                      : "border-input bg-background hover:bg-accent"
-                  }`}
-                >
-                  复杂电路
-                </button>
-              </div>
-            </div>
           </CardContent>
         </Card>
 

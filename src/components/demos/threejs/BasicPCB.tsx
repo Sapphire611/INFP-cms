@@ -2,9 +2,9 @@
 
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Grid, Text } from "@react-three/drei";
-import { Suspense, useState } from "react";
+import { Suspense, useState, useEffect, useRef } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Slider } from "@/components/ui/slider";
+import GUI from "lil-gui";
 
 /**
  * Demo 1: 基础 PCB 板渲染
@@ -288,6 +288,40 @@ function Scene({ lightIntensity }: { lightIntensity: number }) {
  */
 export default function BasicPCB() {
   const [lightIntensity, setLightIntensity] = useState(1);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  // 初始化 lil-gui
+  useEffect(() => {
+    if (!canvasContainerRef.current) return;
+
+    // 创建 GUI，指定容器
+    const gui = new GUI({
+      title: "控制面板",
+      container: canvasContainerRef.current
+    });
+
+    // 设置 GUI 位置到右上角
+    gui.domElement.style.position = 'absolute';
+    gui.domElement.style.top = '10px';
+    gui.domElement.style.right = '10px';
+    gui.domElement.style.left = 'auto';
+
+    // 创建控制参数对象
+    const params = {
+      lightIntensity: lightIntensity,
+    };
+
+    // 添加控制项
+    gui
+      .add(params, "lightIntensity", 0, 2, 0.1)
+      .name("光照强度")
+      .onChange((value: number) => setLightIntensity(value));
+
+    // 清理函数
+    return () => {
+      gui.destroy();
+    };
+  }, []);
 
   return (
     <div className="@container/main flex flex-col gap-4 p-6">
@@ -299,7 +333,7 @@ export default function BasicPCB() {
       </div>
 
       {/* 3D 画布 */}
-      <div className="h-[500px] w-full rounded-lg border bg-gradient-to-b from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800">
+      <div ref={canvasContainerRef} className="h-[500px] w-full rounded-lg border bg-gradient-to-b from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 relative">
         {/* Canvas 是 React Three Fiber 的根组件 */}
         <Canvas
           shadows // 启用阴影渲染
@@ -316,35 +350,6 @@ export default function BasicPCB() {
           </Suspense>
         </Canvas>
       </div>
-
-      {/* 控制面板 */}
-      <Card>
-        <CardHeader>
-          <CardTitle>交互控制</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-sm font-medium">光源强度: {lightIntensity.toFixed(1)}</label>
-            <Slider
-              value={[lightIntensity]} // 滑块当前值：lightIntensity（数组格式）
-              onValueChange={(value) => setLightIntensity(value[0])} // 值改变时的回调：更新 lightIntensity 状态
-              min={0} // 最小值：0（无光照）
-              max={2} // 最大值：2（两倍强度）
-              step={0.1} // 步进值：每次调整 0.1
-            />
-          </div>
-          <div className="text-muted-foreground text-sm">
-            <p>
-              💡 <strong>操作提示</strong>：
-            </p>
-            <ul className="mt-2 list-inside list-disc space-y-1">
-              <li>鼠标左键拖拽：旋转视角</li>
-              <li>鼠标右键拖拽：平移视角</li>
-              <li>滚轮：缩放视角</li>
-            </ul>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* 代码说明 */}
       <Card>
