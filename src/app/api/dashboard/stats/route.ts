@@ -80,12 +80,50 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // 计算增长率（与上周对比）
+    const lastWeekStart = new Date(weekStart);
+    lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+
+    const [lastWeekUsersResult, lastWeekWechatResult] = await Promise.all([
+      supabaseAdmin.from('users').select('*', { count: 'exact', head: true })
+        .gte('created_at', lastWeekStart.toISOString())
+        .lt('created_at', weekStart.toISOString()),
+      supabaseAdmin.from('wechat_users').select('*', { count: 'exact', head: true })
+        .gte('created_at', lastWeekStart.toISOString())
+        .lt('created_at', weekStart.toISOString())
+    ]);
+
+    const lastWeekUsers = lastWeekUsersResult.count || 0;
+    const lastWeekWechat = lastWeekWechatResult.count || 0;
+
+    // 增长率计算：本周有新增才计算，否则为0
+    let userGrowthRate = 0;
+    if (weeklyNewUsers > 0 && lastWeekUsers > 0) {
+      userGrowthRate = ((weeklyNewUsers - lastWeekUsers) / lastWeekUsers) * 100;
+    } else if (weeklyNewUsers > 0) {
+      userGrowthRate = 100;
+    }
+
+    let wechatGrowthRate = 0;
+    if (weeklyNewWechatUsers > 0 && lastWeekWechat > 0) {
+      wechatGrowthRate = ((weeklyNewWechatUsers - lastWeekWechat) / lastWeekWechat) * 100;
+    } else if (weeklyNewWechatUsers > 0) {
+      wechatGrowthRate = 100;
+    }
+
+    const activeRate = totalWechatUsers > 0
+      ? (activeWechatUsers / totalWechatUsers) * 100
+      : 0;
+
     return NextResponse.json({
       totalUsers,
       totalWechatUsers,
       activeWechatUsers,
       weeklyNewUsers,
       weeklyNewWechatUsers,
+      userGrowthRate,
+      wechatGrowthRate,
+      activeRate,
       usersOverTime: filledUsersData,
     });
   } catch (error: unknown) {
