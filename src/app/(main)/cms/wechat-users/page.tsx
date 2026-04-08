@@ -87,7 +87,7 @@ export default function WechatUsersPage() {
     if (!deletingWechatUser) return;
 
     try {
-      const response = await fetch(`/api/wechat-users/${deletingWechatUser._id}`, {
+      const response = await fetch(`/api/wechat-users/${deletingWechatUser.id}`, {
         method: "DELETE",
       });
 
@@ -174,7 +174,7 @@ export default function WechatUsersPage() {
               <thead className="bg-muted/50 border-b">
                 <tr>
                   <th className="px-4 py-3 text-left text-sm font-medium">姓名</th>
-                  <th className="px-4 py-3 text-left text-sm font-medium">联系电话</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">openid</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">微信绑定</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">状态</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">最后登录</th>
@@ -190,9 +190,9 @@ export default function WechatUsersPage() {
                   </tr>
                 ) : (
                   wechatUsers.map((wechatUser) => (
-                    <tr key={wechatUser._id} className="hover:bg-muted/50">
-                      <td className="px-4 py-3 font-medium">{wechatUser.profile.name}</td>
-                      <td className="text-muted-foreground px-4 py-3">{wechatUser.profile.phone || "-"}</td>
+                    <tr key={wechatUser.id} className="hover:bg-muted/50">
+                      <td className="px-4 py-3 font-medium">{wechatUser.wechatNickname || "-"}</td>
+                      <td className="text-muted-foreground px-4 py-3">{wechatUser.openid || "-"}</td>
                       <td className="px-4 py-3">
                         {wechatUser.openid ? <Badge>已绑定</Badge> : <Badge variant="secondary">未绑定</Badge>}
                       </td>
@@ -273,7 +273,7 @@ export default function WechatUsersPage() {
             <AlertDialogHeader>
               <AlertDialogTitle>确认删除</AlertDialogTitle>
               <AlertDialogDescription>
-                确定要删除微信用户 {deletingWechatUser?.profile.name} 吗？此操作无法撤销。
+                确定要删除微信用户 {deletingWechatUser?.profileName} 吗？此操作无法撤销。
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

@@ -26,22 +26,19 @@ export interface UpdateWechatUserRequest {
   };
 }
 
-// 微信用户响应
+// 微信用户响应（匹配扁平化的数据库结构）
 export interface WechatUserResponse {
-  _id: string;
-  profile: {
-    name: string;
-    phone?: string;
-    avatar?: string;
-    idNumber?: string;
-  };
-  openid?: string;
-  wechatInfo?: {
-    nickname?: string;
-    avatarUrl?: string;
-  };
+  id: string;
+  profileName: string | null;
+  profilePhone: string | null;
+  profileAvatar: string | null;
+  profileIdNumber: string | null;
+  openid: string | null;
+  unionid: string | null;
+  wechatNickname: string | null;
+  wechatAvatarUrl: string | null;
   isActive: boolean;
-  lastLoginAt?: string;
+  lastLoginAt: string | null;
   createdAt: string;
   updatedAt: string;
 }

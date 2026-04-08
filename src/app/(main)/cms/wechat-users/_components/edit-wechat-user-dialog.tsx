@@ -46,9 +46,9 @@ export function EditWechatUserDialog({
   const form = useForm<WechatUserFormData>({
     resolver: zodResolver(wechatUserFormSchema),
     defaultValues: {
-      name: wechatUser.profile?.name || "",
-      phone: wechatUser.profile?.phone || "",
-      idNumber: wechatUser.profile?.idNumber || "",
+      name: wechatUser.profileName || "",
+      phone: wechatUser.profilePhone || "",
+      idNumber: wechatUser.profileIdNumber || "",
       isActive: wechatUser.isActive,
     },
   });
@@ -56,9 +56,9 @@ export function EditWechatUserDialog({
   // 当 wechatUser 改变时重置表单
   React.useEffect(() => {
     form.reset({
-      name: wechatUser.profile?.name || "",
-      phone: wechatUser.profile?.phone || "",
-      idNumber: wechatUser.profile?.idNumber || "",
+      name: wechatUser.profileName || "",
+      phone: wechatUser.profilePhone || "",
+      idNumber: wechatUser.profileIdNumber || "",
       isActive: wechatUser.isActive,
     });
   }, [wechatUser, form]);
@@ -74,7 +74,7 @@ export function EditWechatUserDialog({
         isActive: data.isActive,
       };
 
-      const response = await fetch(`/api/wechat-users/${wechatUser._id}`, {
+      const response = await fetch(`/api/wechat-users/${wechatUser.id}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
