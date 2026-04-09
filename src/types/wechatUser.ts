@@ -37,6 +37,7 @@ export interface WechatUserResponse {
   unionid: string | null;
   wechatNickname: string | null;
   wechatAvatarUrl: string | null;
+  mbti: string | null;
   isActive: boolean;
   lastLoginAt: string | null;
   createdAt: string;

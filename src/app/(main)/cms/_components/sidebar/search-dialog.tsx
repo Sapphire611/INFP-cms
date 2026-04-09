@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 
-import { LayoutDashboard, Users, UsersRound, Search, MessageSquare, CircleCheck } from "lucide-react";
+import { LayoutDashboard, Users, UsersRound, Search, MessageSquare, CircleCheck, ShieldCheck } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,6 +18,7 @@ const searchItems = [
   { group: "仪表盘", icon: LayoutDashboard, label: "数据概览", href: "/cms/dashboard" },
   { group: "用户管理", icon: Users, label: "用户列表", href: "/cms/users" },
   { group: "微信用户", icon: UsersRound, label: "微信用户列表", href: "/cms/wechat-users" },
+  { group: "权限管理", icon: ShieldCheck, label: "权限管理", href: "/cms/roles" },
   { group: "AI对话", icon: MessageSquare, label: "AI对话", href: "/demo/chat" },
   { group: "Three.js Demo", icon: CircleCheck, label: "Three.js Demo", href: "/demo/threejs" },
 ];

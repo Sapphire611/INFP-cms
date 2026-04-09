@@ -67,6 +67,24 @@ export const userColumns: ColumnDef<UserWithCallback>[] = [
     cell: ({ row }) => <span className="text-muted-foreground">{row.original.profilePhone || "-"}</span>,
   },
   {
+    accessorKey: "roles",
+    header: "角色",
+    cell: ({ row }) => {
+      const roles = row.original.roles ?? [];
+      if (row.original.userType === "admin") {
+        return <Badge variant="default">超级管理员</Badge>;
+      }
+      if (roles.length === 0) return <span className="text-muted-foreground text-sm">-</span>;
+      return (
+        <div className="flex flex-wrap gap-1">
+          {roles.map((r) => (
+            <Badge key={r.id} variant="outline">{r.name}</Badge>
+          ))}
+        </div>
+      );
+    },
+  },
+  {
     accessorKey: "isActive",
     header: "状态",
     cell: ({ row }) => (

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/jwt";
 import { findUsers, createUser, findByEmail, findByUsername } from "@/services/userService";
+import { getBatchUserRoles } from "@/services/permissionService";
 
 type UserType = 'admin' | 'user';
 
@@ -53,8 +54,17 @@ export async function GET(request: NextRequest) {
       { page, pageSize: limit }
     );
 
+    // Batch fetch roles for all users
+    const userIds = result.users.map((u: any) => u.id);
+    const rolesByUser = await getBatchUserRoles(userIds);
+
+    const usersWithRoles = result.users.map((u: any) => ({
+      ...u,
+      roles: (rolesByUser.get(u.id) ?? []).map((r) => ({ id: r.id, name: r.name })),
+    }));
+
     return NextResponse.json({
-      data: result.users,
+      data: usersWithRoles,
       pagination: {
         total: result.pagination.total,
         page: result.pagination.page,

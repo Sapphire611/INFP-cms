@@ -22,6 +22,11 @@ export interface UpdateUserRequest {
   };
 }
 
+export interface UserRole {
+  id: string;
+  name: string;
+}
+
 export interface UserResponse {
   id: string;
   username: string;
@@ -33,4 +38,5 @@ export interface UserResponse {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  roles?: UserRole[];
 }

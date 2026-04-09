@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useEffect, useState } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -8,6 +9,7 @@ import { toast } from "sonner";
 import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -19,6 +21,9 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+
+import { UserWithCallback } from "./types";
 
 const userFormSchema = z.object({
   username: z.string().min(2, "用户名至少 2 位"),
@@ -36,7 +41,11 @@ const userFormSchema = z.object({
 
 type UserFormData = z.infer<typeof userFormSchema>;
 
-import { UserWithCallback } from "./types";
+interface Role {
+  id: string;
+  name: string;
+  description: string | null;
+}
 
 interface EditUserDialogProps {
   user: UserWithCallback;
@@ -46,6 +55,10 @@ interface EditUserDialogProps {
 }
 
 export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: EditUserDialogProps) {
+  const [roles, setRoles] = useState<Role[]>([]);
+  const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(new Set());
+  const [rolesLoading, setRolesLoading] = useState(false);
+
   const form = useForm<UserFormData>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
@@ -58,38 +71,82 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
     },
   });
 
+  // Reset form and load roles when dialog opens
+  useEffect(() => {
+    if (!open) return;
+
+    form.reset({
+      username: user.username,
+      name: user.profileName || "",
+      email: user.email,
+      phone: user.profilePhone || "",
+      userType: user.userType,
+      password: undefined,
+    });
+
+    const loadRoles = async () => {
+      setRolesLoading(true);
+      try {
+        const [allRolesRes, userRolesRes] = await Promise.all([
+          fetch("/api/roles"),
+          fetch(`/api/users/${user.id}/roles`),
+        ]);
+        if (allRolesRes.ok) {
+          const { roles: allRoles } = await allRolesRes.json();
+          setRoles(allRoles);
+        }
+        if (userRolesRes.ok) {
+          const { roles: userRoles } = await userRolesRes.json();
+          setSelectedRoleIds(new Set(userRoles.map((r: Role) => r.id)));
+        }
+      } finally {
+        setRolesLoading(false);
+      }
+    };
+
+    loadRoles();
+  }, [open, user]);
+
+  const toggleRole = (id: string) => {
+    setSelectedRoleIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const onSubmit = async (data: UserFormData) => {
     try {
-      // 准备提交数据
       const submitData: any = {
         username: data.username,
         email: data.email,
         userType: data.userType,
-        profile: {
-          name: data.name,
-          phone: data.phone,
-        },
+        profile: { name: data.name, phone: data.phone },
       };
-
-      // 只有当密码不为空时才包含密码字段
       if (data.password && data.password.trim() !== "") {
         submitData.password = data.password;
       }
 
-      const response = await fetch(`/api/users/${user.id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(submitData),
-      });
+      const [userRes, rolesRes] = await Promise.all([
+        fetch(`/api/users/${user.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(submitData),
+        }),
+        fetch(`/api/users/${user.id}/roles`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ roleIds: Array.from(selectedRoleIds) }),
+        }),
+      ]);
 
-      if (response.ok) {
+      if (userRes.ok && rolesRes.ok) {
         toast.success("更新用户成功");
         onUserUpdated?.();
         onOpenChange(false);
       } else {
-        const error = await response.json();
+        const error = await (userRes.ok ? rolesRes : userRes).json();
         toast.error(error.error ?? "更新用户失败");
       }
     } catch (error) {
@@ -97,6 +154,8 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
       toast.error("更新用户失败");
     }
   };
+
+  const watchedUserType = form.watch("userType");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -113,9 +172,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>用户名</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
+                  <FormControl><Input {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -128,9 +185,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
                   <FormLabel>用户类型</FormLabel>
                   <Select onValueChange={field.onChange} value={field.value}>
                     <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="选择用户类型" />
-                      </SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="选择用户类型" /></SelectTrigger>
                     </FormControl>
                     <SelectContent>
                       <SelectItem value="admin">管理员</SelectItem>
@@ -147,9 +202,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>姓名</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
+                  <FormControl><Input {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -160,9 +213,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>邮箱</FormLabel>
-                  <FormControl>
-                    <Input type="email" {...field} />
-                  </FormControl>
+                  <FormControl><Input type="email" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -173,9 +224,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>联系电话</FormLabel>
-                  <FormControl>
-                    <Input {...field} />
-                  </FormControl>
+                  <FormControl><Input {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -186,13 +235,44 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>密码（留空则不修改）</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
-                  </FormControl>
+                  <FormControl><Input type="password" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
+            {/* Role assignment — only for non-admin users */}
+            {watchedUserType === "user" && (
+              <>
+                <Separator />
+                <div className="space-y-2">
+                  <FormLabel>分配角色</FormLabel>
+                  {rolesLoading ? (
+                    <p className="text-muted-foreground text-sm">加载角色中...</p>
+                  ) : roles.length === 0 ? (
+                    <p className="text-muted-foreground text-sm">暂无可用角色，请先在「权限管理」中创建角色</p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {roles.map((role) => (
+                        <div key={role.id} className="flex items-center gap-2 rounded-md border p-2">
+                          <Checkbox
+                            id={`role-${role.id}`}
+                            checked={selectedRoleIds.has(role.id)}
+                            onCheckedChange={() => toggleRole(role.id)}
+                          />
+                          <label htmlFor={`role-${role.id}`} className="cursor-pointer text-sm">
+                            {role.name}
+                            {role.description && (
+                              <span className="text-muted-foreground block text-xs">{role.description}</span>
+                            )}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

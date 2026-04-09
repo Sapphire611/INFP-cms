@@ -9,6 +9,7 @@ export interface JWTPayload {
   id: string;
   email: string;
   userType: "admin" | "user";
+  permissions: string[]; // e.g. ["dashboard:view", "users:view", ...]
   iat: number;
   exp: number;
 }

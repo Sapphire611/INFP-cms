@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { sign } from "jsonwebtoken";
 import { validateCredentials } from "@/lib/auth";
 import { createClient } from "@/lib/supabase-server";
+import { getUserPermissions } from "@/services/permissionService";
 
 interface LoginRequest {
   email: string;
@@ -14,43 +15,48 @@ export async function POST(request: NextRequest) {
     const body: LoginRequest = await request.json();
     const { email, password, remember = false } = body;
 
-    // Validate credentials using Supabase
     const user = await validateCredentials(email, password);
 
     if (!user) {
       return NextResponse.json({ error: "Invalid credentials" }, { status: 401 });
     }
 
-    // Create JWT token with dynamic expiration based on "remember me"
+    // Load RBAC permissions (admin bypasses — empty array is fine, middleware checks userType)
+    const permissions = user.user_type === "admin"
+      ? []
+      : await getUserPermissions(user.id as string);
+
     const token = sign(
-      { id: user.id, email: user.email, userType: user.userType },
-      process.env.JWT_SECRET ?? "",
       {
-        expiresIn: remember ? "30d" : "1d",
-      }
+        id: user.id,
+        email: user.email,
+        userType: user.user_type,
+        permissions,
+      },
+      process.env.JWT_SECRET ?? "",
+      { expiresIn: remember ? "30d" : "1d" }
     );
 
-    // Calculate max-age for cookies (in seconds)
-    const maxAge = remember ? 30 * 24 * 60 * 60 : 24 * 60 * 60; // 30 days or 1 day
+    const maxAge = remember ? 30 * 24 * 60 * 60 : 24 * 60 * 60;
 
-    // Optional: Create Supabase session for future use
     const supabase = await createClient();
     const { data: { session: supabaseSession } } = await supabase.auth.signInWithPassword({
       email,
-      password
+      password,
     });
 
     return NextResponse.json({
       ok: true,
       success: true,
       token,
-      maxAge, // Send max-age to frontend for cookie configuration
-      supabaseSession, // Include Supabase session for potential future use
+      maxAge,
+      supabaseSession,
       user: {
         id: user.id,
-        name: user.profileName || user.username,
+        name: user.profile_name || user.username,
         email: user.email,
-        userType: user.userType,
+        userType: user.user_type,
+        permissions,
       },
     });
   } catch (error: unknown) {

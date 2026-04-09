@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { Plus, Pencil, Trash2, Search } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, UserCircle } from "lucide-react";
+import Image from "next/image";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -173,7 +174,8 @@ export default function WechatUsersPage() {
             <table className="w-full">
               <thead className="bg-muted/50 border-b">
                 <tr>
-                  <th className="px-4 py-3 text-left text-sm font-medium">姓名</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">用户</th>
+                  <th className="px-4 py-3 text-left text-sm font-medium">MBTI</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">openid</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">微信绑定</th>
                   <th className="px-4 py-3 text-left text-sm font-medium">状态</th>
@@ -184,15 +186,46 @@ export default function WechatUsersPage() {
               <tbody className="divide-y">
                 {wechatUsers.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="text-muted-foreground px-4 py-8 text-center text-sm">
+                    <td colSpan={7} className="text-muted-foreground px-4 py-8 text-center text-sm">
                       暂无微信用户数据
                     </td>
                   </tr>
                 ) : (
                   wechatUsers.map((wechatUser) => (
                     <tr key={wechatUser.id} className="hover:bg-muted/50">
-                      <td className="px-4 py-3 font-medium">{wechatUser.wechatNickname || "-"}</td>
-                      <td className="text-muted-foreground px-4 py-3">{wechatUser.openid || "-"}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-full bg-muted">
+                            {wechatUser.wechatAvatarUrl ? (
+                              <Image
+                                src={wechatUser.wechatAvatarUrl}
+                                alt={wechatUser.wechatNickname ?? "avatar"}
+                                fill
+                                className="object-cover"
+                                unoptimized
+                              />
+                            ) : (
+                              <UserCircle className="text-muted-foreground h-8 w-8" />
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-medium">{wechatUser.wechatNickname || wechatUser.profileName || "-"}</div>
+                            {wechatUser.profilePhone && (
+                              <div className="text-muted-foreground text-xs">{wechatUser.profilePhone}</div>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {wechatUser.mbti ? (
+                          <Badge variant="outline" className="font-mono">{wechatUser.mbti}</Badge>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
+                      </td>
+                      <td className="text-muted-foreground max-w-[120px] truncate px-4 py-3 text-xs">
+                        {wechatUser.openid || "-"}
+                      </td>
                       <td className="px-4 py-3">
                         {wechatUser.openid ? <Badge>已绑定</Badge> : <Badge variant="secondary">未绑定</Badge>}
                       </td>

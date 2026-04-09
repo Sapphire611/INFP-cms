@@ -23,6 +23,7 @@ import {
   TrendingUp,
   UsersRound,
   BookOpen,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 
@@ -70,6 +71,11 @@ export const sidebarItems: NavGroup[] = [
         title: "微信用户",
         url: "/cms/wechat-users",
         icon: UsersRound,
+      },
+      {
+        title: "权限管理",
+        url: "/cms/roles",
+        icon: ShieldCheck,
       }
       // {
       //   title: "Finance",

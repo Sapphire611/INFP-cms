@@ -1,22 +1,52 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { verify } from "jsonwebtoken";
+import { ROUTE_PERMISSIONS } from "@/types/permission";
+import type { JWTPayload } from "@/lib/jwt";
+
+function decodeToken(token: string): JWTPayload | null {
+  try {
+    return verify(token, process.env.JWT_SECRET ?? "") as JWTPayload;
+  } catch {
+    return null;
+  }
+}
 
 export function authMiddleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const authToken = req.cookies.get("auth-token");
+  const authToken = req.cookies.get("auth-token")?.value;
   const userInfo = req.cookies.get("user-info");
 
-  // 检查是否已登录
-  const isLoggedIn = authToken && userInfo ? true : false;
+  const isLoggedIn = !!(authToken && userInfo);
 
-  // console.log({ authToken, userInfo, isLoggedIn });
-  // 如果访问dashboard但未登录，重定向到登录页
+  // Redirect unauthenticated users away from protected routes
   if (!isLoggedIn && pathname.startsWith("/dashboard")) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // 如果已登录但访问登录页或注册页，重定向到dashboard
+  // Redirect authenticated users away from auth pages
   if (isLoggedIn && (pathname === "/login" || pathname === "/register" || pathname.startsWith("/auth"))) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
+  }
+
+  // Check route-level permissions for authenticated users
+  if (isLoggedIn && authToken) {
+    const payload = decodeToken(authToken);
+
+    if (!payload) {
+      // Invalid/expired token — clear and redirect
+      const res = NextResponse.redirect(new URL("/login", req.url));
+      res.cookies.delete("auth-token");
+      res.cookies.delete("user-info");
+      return res;
+    }
+
+    // admin bypasses all permission checks
+    if (payload.userType !== "admin") {
+      const requiredPermission = ROUTE_PERMISSIONS[pathname];
+      if (requiredPermission && !payload.permissions?.includes(requiredPermission)) {
+        return NextResponse.redirect(new URL("/dashboard", req.url));
+      }
+    }
   }
 
   return NextResponse.next();
