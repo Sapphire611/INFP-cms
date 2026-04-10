@@ -24,7 +24,7 @@ export function useAuth() {
 
       if (userInfoCookie) {
         try {
-          const userInfo = JSON.parse(decodeURIComponent(userInfoCookie.split("=")[1]));
+          const userInfo = JSON.parse(decodeURIComponent(userInfoCookie.split("=").slice(1).join("=")));
           setUser(userInfo);
         } catch (error) {
           console.error("Error parsing user info:", error);

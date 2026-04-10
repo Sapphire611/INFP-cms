@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { hashPassword } from '@/lib/auth';
+import { hashPasswordWithSHA256 } from '@/lib/crypto';
 
 // Keep existing interfaces for compatibility
 export interface CreateUserRequest {
@@ -145,7 +146,8 @@ export async function findUserById(id: string) {
  * Create user using Supabase
  */
 export async function createUser(data: CreateUserRequest) {
-  const hashedPassword = await hashPassword(data.password);
+  const sha256 = await hashPasswordWithSHA256(data.password);
+  const hashedPassword = await hashPassword(sha256);
 
   const { data: user, error } = await supabaseAdmin
     .from('users')
@@ -194,7 +196,8 @@ export async function updateUser(id: string, data: UpdateUserRequest) {
   if (data.isActive !== undefined) updateData.is_active = data.isActive;
 
   if (data.password) {
-    updateData.password = await hashPassword(data.password);
+    const sha256 = await hashPasswordWithSHA256(data.password);
+    updateData.password = await hashPassword(sha256);
   }
 
   const { data: user, error } = await supabaseAdmin

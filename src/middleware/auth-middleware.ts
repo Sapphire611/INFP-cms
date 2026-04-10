@@ -19,13 +19,13 @@ export function authMiddleware(req: NextRequest) {
   const isLoggedIn = !!(authToken && userInfo);
 
   // Redirect unauthenticated users away from protected routes
-  if (!isLoggedIn && pathname.startsWith("/dashboard")) {
+  if (!isLoggedIn && pathname.startsWith("/cms")) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
   // Redirect authenticated users away from auth pages
   if (isLoggedIn && (pathname === "/login" || pathname === "/register" || pathname.startsWith("/auth"))) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+    return NextResponse.redirect(new URL("/cms/dashboard", req.url));
   }
 
   // Check route-level permissions for authenticated users
@@ -44,7 +44,7 @@ export function authMiddleware(req: NextRequest) {
     if (payload.userType !== "admin") {
       const requiredPermission = ROUTE_PERMISSIONS[pathname];
       if (requiredPermission && !payload.permissions?.includes(requiredPermission)) {
-        return NextResponse.redirect(new URL("/dashboard", req.url));
+        return NextResponse.redirect(new URL("/unauthorized", req.url));
       }
     }
   }

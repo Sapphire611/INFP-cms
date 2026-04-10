@@ -60,7 +60,7 @@ export function LoginForm() {
         // 根据后端返回的 maxAge 设置认证 cookies
         const maxAge = result.maxAge ?? 86400; // 默认1天
         document.cookie = `auth-token=${result.token}; path=/; max-age=${maxAge}; SameSite=Strict`;
-        document.cookie = `user-info=${JSON.stringify(result.user)}; path=/; max-age=${maxAge}; SameSite=Strict`;
+        document.cookie = `user-info=${encodeURIComponent(JSON.stringify(result.user))}; path=/; max-age=${maxAge}; SameSite=Strict`;
         // 跳转到仪表板
         router.push("/cms/dashboard");
       } else {

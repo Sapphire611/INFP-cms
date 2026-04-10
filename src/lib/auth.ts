@@ -73,8 +73,17 @@ export async function validateCredentials(email: string, password: string): Prom
     return null;
   }
 
-  const { password: _, ...userWithoutPassword } = user;
-  return userWithoutPassword;
+  const { password: _, ...rawUser } = user;
+
+  // Map snake_case DB columns to camelCase
+  return {
+    id: rawUser.id,
+    email: rawUser.email,
+    userType: rawUser.user_type as "admin" | "user",
+    isActive: rawUser.is_active,
+    profileName: rawUser.profile_name ?? undefined,
+    username: rawUser.username,
+  };
 }
 
 /**
