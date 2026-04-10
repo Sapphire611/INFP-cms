@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Load RBAC permissions (admin bypasses — empty array is fine, middleware checks userType)
-    const permissions = user.user_type === "admin"
+    const permissions = user.userType === "admin"
       ? []
       : await getUserPermissions(user.id as string);
 
@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       {
         id: user.id,
         email: user.email,
-        userType: user.user_type,
+        userType: user.userType,
         permissions,
       },
       process.env.JWT_SECRET ?? "",
@@ -53,9 +53,9 @@ export async function POST(request: NextRequest) {
       supabaseSession,
       user: {
         id: user.id,
-        name: user.profile_name || user.username,
+        name: user.profileName || user.username,
         email: user.email,
-        userType: user.user_type,
+        userType: user.userType,
         permissions,
       },
     });

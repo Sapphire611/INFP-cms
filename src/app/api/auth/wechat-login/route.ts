@@ -76,8 +76,8 @@ export async function POST(request: NextRequest) {
       // 更新微信信息和最后登录时间
       if (nickname || avatarUrl) {
         wechatUser = await updateWechatUser(wechatUser.id, {
-          wechatNickname: nickname || wechatUser.wechatNickname,
-          wechatAvatarUrl: avatarUrl || wechatUser.wechatAvatarUrl,
+          wechatNickname: nickname || (wechatUser.wechatNickname ?? undefined),
+          wechatAvatarUrl: avatarUrl || (wechatUser.wechatAvatarUrl ?? undefined),
           lastLoginAt: new Date(),
         });
       } else {
