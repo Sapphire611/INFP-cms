@@ -1,6 +1,6 @@
 "use client";
 
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, Text, Sphere } from "@react-three/drei";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -118,9 +118,9 @@ function Ball({
   );
 }
 
-// ─── PCB 底板 ─────────────────────────────────────────────────────────────────
+// ─── IC 底板 ─────────────────────────────────────────────────────────────────
 
-function PcbBoard() {
+function ICBoard() {
   return (
     <group>
       <mesh position={[0, -1, 0]} receiveShadow>
@@ -173,13 +173,38 @@ function Scene({
   const [hovered, setHovered] = useState<number | null>(null);
   const hoveredBall = hovered !== null ? (BALLS.find((b) => b.index === hovered) ?? null) : null;
 
+  // 拿到 directionalLight 的引用，用于 cameraHelper
+  const dirLightRef = useRef<THREE.DirectionalLight>(null);
+  const { scene } = useThree();
+
+  useEffect(() => {
+    if (!dirLightRef.current) return;
+    // CameraHelper 可视化阴影相机的正交视锥范围，调试完后删掉即可
+    const helper = new THREE.CameraHelper(dirLightRef.current.shadow.camera);
+    scene.add(helper);
+    return () => { scene.remove(helper); helper.dispose(); };
+  }, [scene]);
+
   return (
     <>
       <ambientLight intensity={0.6} />
-      <directionalLight position={[50, 80, 50]} intensity={lightIntensity} castShadow shadow-mapSize={[2048, 2048]} shadow-camera-left={-60} shadow-camera-right={60} shadow-camera-top={60} shadow-camera-bottom={-60} />
+      <directionalLight
+        ref={dirLightRef}
+        position={[50, 80, 50]}       // 光源位置 (x,y,z)，光从这里射向原点，决定光照方向
+        intensity={lightIntensity}    // 光照强度
+        castShadow                    // 开启阴影投射（默认关闭，必须显式声明）
+        shadow-mapSize={[2048, 2048]} // 阴影贴图分辨率，越高越清晰，性能消耗越大
+        // 以下四个参数定义阴影相机（正交相机）的裁剪范围
+        // 必须覆盖场景中所有需要产生/接收阴影的物体，否则阴影会被裁掉
+        // 范围过大会导致阴影贴图分辨率被稀释，阴影变模糊
+        shadow-camera-left={-60}     // 阴影相机左边界
+        shadow-camera-right={60}     // 阴影相机右边界
+        shadow-camera-top={60}       // 阴影相机上边界
+        shadow-camera-bottom={-60}   // 阴影相机下边界
+      />
       <pointLight position={[-30, 40, -30]} intensity={0.5} />
 
-      <PcbBoard />
+      <ICBoard />
 
       {BALLS.map((ball) => (
         <Ball
