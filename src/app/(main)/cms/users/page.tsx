@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
+import { usePermissions } from "@/hooks/use-permissions";
 import { UserResponse } from "@/types/user";
 
 import { AddUserDialog } from "./_components/add-user-dialog";
@@ -44,6 +45,8 @@ export default function UsersPage() {
     limit: 20,
     totalPages: 1,
   });
+  const { hasPermission } = usePermissions();
+  const canCreate = hasPermission("users", "create");
 
   // 获取用户数据（支持分页和筛选）
   const fetchUsers = useCallback(
@@ -155,10 +158,12 @@ export default function UsersPage() {
           <h1 className="text-2xl font-bold">用户</h1>
           <p className="text-muted-foreground">管理应用用户</p>
         </div>
-        <Button onClick={() => setIsAddOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          新增用户
-        </Button>
+        {canCreate && (
+          <Button onClick={() => setIsAddOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            新增用户
+          </Button>
+        )}
       </div>
 
       <div className="flex flex-col gap-4">

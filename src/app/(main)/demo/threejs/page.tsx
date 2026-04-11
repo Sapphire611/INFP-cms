@@ -2,22 +2,22 @@
 
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Cpu, Layers, GitBranch, Zap, MousePointer, AlertTriangle } from "lucide-react";
+import { Cpu, Layers, GitBranch, Zap, MousePointer, AlertTriangle, CircleDot } from "lucide-react";
 
 const demos = [
   {
     id: 1,
-    title: "基础 PCB 板渲染",
-    description: "学习 Three.js 的核心概念：场景、相机、渲染器，创建一个简单的绿色 PCB 板",
+    title: "基础 IC 载板渲染",
+    description: "学习 Three.js 的核心概念：场景、相机、渲染器，创建一个简单的 IC 载板基板",
     icon: Cpu,
-    href: "/demo/threejs/01-basic-pcb",
+    href: "/demo/threejs/01-basic-ic",
     level: "入门",
     topics: ["Scene 场景", "Camera 相机", "Renderer 渲染器", "Mesh 网格", "Material 材质"],
   },
   {
     id: 2,
-    title: "电路走线渲染",
-    description: "在 PCB 板上绘制电路走线，学习使用 Line 和 TubeGeometry 创建导线路径",
+    title: "载板走线渲染",
+    description: "在 IC 载板上绘制互连走线，学习使用 Line 和 TubeGeometry 创建导线路径",
     icon: GitBranch,
     href: "/demo/threejs/02-circuit-traces",
     level: "基础",
@@ -25,39 +25,48 @@ const demos = [
   },
   {
     id: 3,
-    title: "PCB 元器件",
-    description: "添加电阻、电容、芯片等元器件，学习几何体组合和复杂模型构建",
-    icon: Zap,
-    href: "/demo/threejs/03-components",
+    title: "BGA 焊球阵列渲染",
+    description: "渲染 BGA 封装底部的焊球阵列，用 InstancedMesh 高效渲染大量球体，并按缺陷类型（桥连、虚焊、缺失）进行状态着色",
+    icon: CircleDot,
+    href: "/demo/threejs/03-bga-balls",
     level: "进阶",
-    topics: ["Group 分组", "几何体组合", "Transform 变换", "InstancedMesh", "模型复用"],
+    topics: ["InstancedMesh 实例化", "vertexColors 顶点颜色", "Matrix4 矩阵变换", "instanceId 交互", "BGA 封装结构"],
   },
   {
     id: 4,
-    title: "多层 PCB 结构",
-    description: "展示多层电路板结构，学习透明材质和层叠渲染技术",
-    icon: Layers,
-    href: "/demo/threejs/04-multilayer",
+    title: "IC 载板 pcs 网格渲染",
+    description: "渲染 Strip 大板上的 pcs（Unit）网格阵列，为每个 pcs 标注序号，学习批量实例化渲染",
+    icon: Zap,
+    href: "/demo/threejs/04-components",
     level: "进阶",
-    topics: ["透明材质", "Layer 图层", "Clipping 裁剪", "Section 切面", "结构可视化"],
+    topics: ["InstancedMesh 实例化", "网格布局计算", "Text 序号标注", "Group 分组", "坐标映射"],
   },
   {
     id: 5,
-    title: "交互控制",
-    description: "实现鼠标交互、元器件选择、高亮显示、标注等交互功能",
-    icon: MousePointer,
-    href: "/demo/threejs/05-interaction",
-    level: "高级",
-    topics: ["OrbitControls", "Raycaster 射线", "事件处理", "高亮效果", "标注系统"],
+    title: "缺陷数据绑定与颜色映射",
+    description: "将真实缺陷类型（金面划伤、开路、短路、阻焊偏移等）绑定到 pcs，不同缺陷类别用不同颜色区分",
+    icon: Layers,
+    href: "/demo/threejs/05-defect-mapping",
+    level: "进阶",
+    topics: ["数据驱动渲染", "颜色映射策略", "缺陷分类着色", "Raycaster 点击", "Tooltip 信息面板"],
   },
   {
     id: 6,
-    title: "故障检测可视化",
-    description: "实战案例：在 PCB 上高亮显示故障区域，添加动态效果和诊断信息",
-    icon: AlertTriangle,
-    href: "/demo/threejs/06-fault-detection",
+    title: "缺陷交互与详情展示",
+    description: "点击 pcs 查看缺陷详情（缺陷名称、MES编码），高亮选中区域，实现工业检测软件的核心交互",
+    icon: MousePointer,
+    href: "/demo/threejs/06-defect-interaction",
     level: "高级",
-    topics: ["动画系统", "粒子效果", "Shader 着色器", "数据可视化", "实时更新"],
+    topics: ["onPointerOver 悬停", "onClick 选中", "状态管理", "高亮 emissive", "信息面板联动"],
+  },
+  {
+    id: 7,
+    title: "检测报告可视化",
+    description: "实战案例：统计各类缺陷数量、良品率，相机动画聚焦到缺陷区域，生成可交互的检测报告视图",
+    icon: AlertTriangle,
+    href: "/demo/threejs/07-inspection-report",
+    level: "高级",
+    topics: ["useFrame 动画", "相机 lerp 聚焦", "数据聚合统计", "良品率计算", "缺陷热力图"],
   },
 ];
 
@@ -65,9 +74,9 @@ export default function ThreeJsDemosPage() {
   return (
     <div className="@container/main flex flex-col gap-6 p-6">
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Three.js PCB 渲染学习 Demo</h1>
+        <h1 className="text-3xl font-bold">Three.js IC 载板渲染学习 Demo</h1>
         <p className="text-muted-foreground">
-          专为 PCB 工业故障检测软件设计的 Three.js 学习路径，从零基础到实战应用
+          专为 IC 载板工业故障检测软件设计的 Three.js 学习路径，从零基础到实战应用
         </p>
       </div>
 

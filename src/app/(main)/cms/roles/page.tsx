@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { RoleDialog } from "./_components/role-dialog";
+import { usePermissions } from "@/hooks/use-permissions";
 
 interface Permission {
   id: string;
@@ -47,8 +48,13 @@ export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
   const [allPermissions, setAllPermissions] = useState<Permission[]>([]);
   const [loading, setLoading] = useState(true);
+  const [forbidden, setForbidden] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
+  const { hasPermission } = usePermissions();
+  const canCreate = hasPermission("users", "create");
+  const canUpdate = hasPermission("users", "update");
+  const canDelete = hasPermission("users", "delete");
 
   const fetchRoles = useCallback(async () => {
     setLoading(true);
@@ -57,6 +63,10 @@ export default function RolesPage() {
         fetch("/api/roles"),
         fetch("/api/permissions"),
       ]);
+      if (rolesRes.status === 403 || permsRes.status === 403) {
+        setForbidden(true);
+        return;
+      }
       if (rolesRes.ok) {
         const { roles: rolesData } = await rolesRes.json();
         // Fetch each role with permissions
@@ -130,16 +140,20 @@ export default function RolesPage() {
           <h1 className="text-2xl font-bold">权限管理</h1>
           <p className="text-muted-foreground">管理角色与功能权限</p>
         </div>
-        <Button onClick={handleAdd}>
-          <Plus className="mr-2 h-4 w-4" />
-          新增角色
-        </Button>
+        {canCreate && (
+          <Button onClick={handleAdd}>
+            <Plus className="mr-2 h-4 w-4" />
+            新增角色
+          </Button>
+        )}
       </div>
 
       {roles.length === 0 ? (
         <div className="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed">
           <ShieldCheck className="text-muted-foreground h-12 w-12" />
-          <p className="text-muted-foreground">暂无角色，点击「新增角色」开始配置</p>
+          <p className="text-muted-foreground">
+            {forbidden ? "当前角色无权限访问该模块" : "暂无角色，点击「新增角色」开始配置"}
+          </p>
         </div>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -154,22 +168,26 @@ export default function RolesPage() {
                       <CardTitle className="text-base">{role.name}</CardTitle>
                     </div>
                     <div className="flex gap-1">
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8"
-                        onClick={() => handleEdit(role)}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="text-destructive hover:text-destructive h-8 w-8"
-                        onClick={() => handleDelete(role.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {canUpdate && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() => handleEdit(role)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="text-destructive hover:text-destructive h-8 w-8"
+                          onClick={() => handleDelete(role.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </div>
                   {role.description && (

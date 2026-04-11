@@ -24,6 +24,7 @@ import { WechatUserResponse } from "@/types/wechatUser";
 
 import { AddWechatUserDialog } from "./_components/add-wechat-user-dialog";
 import { EditWechatUserDialog } from "./_components/edit-wechat-user-dialog";
+import { usePermissions } from "@/hooks/use-permissions";
 
 // 定义分页信息接口
 export interface PaginationInfo {
@@ -47,6 +48,10 @@ export default function WechatUsersPage() {
     limit: 20,
     totalPages: 1,
   });
+  const { hasPermission } = usePermissions();
+  const canCreate = hasPermission("wechat_users", "create");
+  const canUpdate = hasPermission("wechat_users", "update");
+  const canDelete = hasPermission("wechat_users", "delete");
 
   // 获取微信用户数据
   const fetchWechatUsers = useCallback(
@@ -144,10 +149,12 @@ export default function WechatUsersPage() {
             <h1 className="text-2xl font-bold">微信用户管理</h1>
             <p className="text-muted-foreground">管理微信用户账户（不能登录CMS，仅通过微信小程序访问）</p>
           </div>
-          <Button onClick={() => setIsAddOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            新增微信用户
-          </Button>
+          {canCreate && (
+            <Button onClick={() => setIsAddOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              新增微信用户
+            </Button>
+          )}
         </div>
 
         <div className="flex items-center justify-between gap-4">
@@ -241,12 +248,16 @@ export default function WechatUsersPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex justify-end gap-2">
-                          <Button variant="ghost" size="sm" onClick={() => setEditingWechatUser(wechatUser)}>
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" onClick={() => setDeletingWechatUser(wechatUser)}>
-                            <Trash2 className="text-destructive h-4 w-4" />
-                          </Button>
+                          {canUpdate && (
+                            <Button variant="ghost" size="sm" onClick={() => setEditingWechatUser(wechatUser)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          )}
+                          {canDelete && (
+                            <Button variant="ghost" size="sm" onClick={() => setDeletingWechatUser(wechatUser)}>
+                              <Trash2 className="text-destructive h-4 w-4" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>

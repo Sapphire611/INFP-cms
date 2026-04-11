@@ -11,20 +11,20 @@ import * as THREE from "three";
 import GUI from "lil-gui";
 
 /**
- * Demo 2: PCB 电路走线渲染
+ * Demo 2: IC 载板走线渲染
  *
  * 学习要点：
  * 1. TubeGeometry - 管道几何体，用于创建 3D 走线
  * 2. CatmullRomCurve3 - 平滑曲线，定义走线路径
  * 3. 实例化渲染 - 高效渲染多个相似对象
  * 4. 焊盘（Pad）渲染 - 使用圆柱体创建焊盘
- * 5. 分层渲染 - 模拟 PCB 多层板结构
+ * 5. 分层渲染 - 模拟 IC 载板多层互连结构
  */
 
 /**
- * PCB 板组件 - 渲染基础 PCB 板
+ * IC 载板组件 - 渲染基础 IC 载板
  */
-function PCBBoard() {
+function SubstrateBoard() {
   const width = 100;
   const height = 2;
   const depth = 60;
@@ -32,7 +32,7 @@ function PCBBoard() {
   return (
     <mesh position={[0, height / 2, 0]} castShadow receiveShadow>
       <boxGeometry args={[width, height, depth]} />
-      <meshStandardMaterial color="#1a5f1a" roughness={0.8} metalness={0.1} />
+      <meshStandardMaterial color="#5c3d1e" roughness={0.6} metalness={0.05} />
     </mesh>
   );
 }
@@ -363,8 +363,8 @@ function Scene({
         shadow-camera-bottom={-100}
       />
 
-      {/* PCB 板 */}
-      <PCBBoard />
+      {/* IC 载板 */}
+      <SubstrateBoard />
 
       {/* 电路 */}
       {circuitType === "simple" ? (
@@ -391,7 +391,7 @@ function Scene({
 }
 
 /**
- * 主组件 - PCB 电路走线渲染演示
+ * 主组件 - IC 载板走线渲染演示
  */
 export default function CircuitTraces() {
   const [lightIntensity, setLightIntensity] = useState(1.0);
@@ -408,7 +408,7 @@ export default function CircuitTraces() {
 
     // 创建 GUI，指定容器
     const gui = new GUI({
-      title: "PCB 控制面板",
+      title: "IC 载板控制面板",
       container: canvasContainerRef.current
     });
 
@@ -486,11 +486,11 @@ export default function CircuitTraces() {
         {/* 标题 */}
         <Card>
           <CardHeader>
-            <CardTitle>Demo 2: PCB 电路走线渲染</CardTitle>
+            <CardTitle>Demo 2: IC 载板走线渲染</CardTitle>
           </CardHeader>
           <CardContent className="text-muted-foreground text-sm">
             学习如何使用 TubeGeometry 和 CatmullRomCurve3
-            渲染平滑的电路走线，以及如何创建焊盘和复杂电路布局。
+            渲染平滑的 IC 载板走线，以及如何创建焊盘和复杂互连布局。
           </CardContent>
         </Card>
 
@@ -504,7 +504,7 @@ export default function CircuitTraces() {
               <h3 className="font-semibold">1. TubeGeometry（管道几何体）</h3>
               <p className="text-muted-foreground">
                 TubeGeometry 沿着一条曲线路径创建管状几何体，非常适合渲染
-                PCB 走线：
+                IC 载板走线：
               </p>
               <pre className="bg-muted mt-2 overflow-x-auto rounded p-2 text-xs">
                 {`const tubeGeometry = new THREE.TubeGeometry(
@@ -550,7 +550,7 @@ const curve = new THREE.CatmullRomCurve3(points);`}
             <div className="space-y-2">
               <h3 className="font-semibold">4. 走线颜色规范</h3>
               <p className="text-muted-foreground">
-                在 PCB 设计中，不同类型的走线通常使用不同颜色标识：
+                在 IC 载板设计中，不同类型的走线通常使用不同颜色标识：
                 <br />• <span className="text-red-500">红色</span>：电源线（VCC）
                 <br />• <span className="text-cyan-500">青色</span>：地线（GND）
                 <br />• <span className="text-yellow-500">黄色</span>
@@ -569,7 +569,7 @@ const curve = new THREE.CatmullRomCurve3(points);`}
           </CardHeader>
           <CardContent className="space-y-2 text-sm">
             <div className="space-y-2">
-              <h3 className="font-semibold">PCB 故障检测可视化</h3>
+              <h3 className="font-semibold">IC 载板故障检测可视化</h3>
               <p className="text-muted-foreground">
                 在工业故障检测软件中，可以使用这种渲染技术：
               </p>

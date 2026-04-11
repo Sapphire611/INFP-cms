@@ -1,8 +1,8 @@
-# Demo 02: PCB 电路走线渲染
+# Demo 02: IC 载板走线渲染
 
 ## 学习目标
 
-本教程将教你如何在 PCB 板上渲染电路走线、焊盘等元素，这是 PCB 可视化的核心技术。
+本教程将教你如何在 IC 载板上渲染电路走线、焊盘等元素，这是 IC 载板可视化的核心技术。
 
 ## 核心知识点
 
@@ -85,13 +85,13 @@ const curve = new THREE.CatmullRomCurve3([
 
 | 元素 | 颜色 | roughness | metalness | 说明 |
 |------|------|-----------|-----------|------|
-| PCB 板 | `#1a5f1a` | 0.8 | 0.1 | 墨绿色，粗糙，非金属 |
+| IC 载板 | `#5c3d1e` | 0.6 | 0.05 | 棕色，ABF 树脂，非金属 |
 | 焊盘 | `#d4af37` | 0.3 | 0.9 | 金色，光滑，高金属度 |
 | 铜走线 | `#c87533` | 0.4 | 0.8 | 铜色，较光滑，金属 |
 
 ### 5. 走线颜色编码
 
-在实际 PCB 设计中，不同类型的走线通常用不同颜色标识：
+在实际 IC 载板设计中，不同类型的走线通常用不同颜色标识：
 
 ```tsx
 const traces = [
@@ -156,10 +156,10 @@ function Trace({ points, width = 0.5, color = "#c87533" }) {
 
 ### 2. 复杂电路布局
 
-适合展示真实的 PCB 设计：
+适合展示真实的 IC 载板设计：
 - 网格状焊盘布局
 - 多种走线路径（水平、垂直、对角、S形）
-- 密集的元件排布
+- 密集的焊盘排布
 
 ### 3. 故障检测可视化
 
@@ -209,23 +209,23 @@ function Trace({ points, width = 0.5, color = "#c87533" }) {
 4. 实现多层板效果（不同高度的走线）
 
 ✅ **实战练习**
-1. 导入真实的 PCB 设计数据（Gerber 文件）
+1. 导入真实的 IC 载板设计数据
 2. 实现走线的交互选择功能
 3. 添加测量工具（距离、角度）
 4. 实现故障标注和高亮功能
 
 ## 下一步学习
 
-- **Demo 03**: 元件渲染（电阻、电容、芯片等）
+- **Demo 03**: BGA 焊球阵列渲染与交互
 - **Demo 04**: 多层板渲染和透视效果
 - **Demo 05**: 动画和交互（点击、悬停、选择）
-- **Demo 06**: 导入真实 PCB 数据
+- **Demo 06**: 导入真实 IC 载板数据
 
 ## 相关资源
 
 - [Three.js TubeGeometry 文档](https://threejs.org/docs/#api/en/geometries/TubeGeometry)
 - [Three.js Curve 文档](https://threejs.org/docs/#api/en/extras/curves/CatmullRomCurve3)
-- [PCB 设计规范](https://www.pcbway.com/pcb_prototype/PCB_Designing_Guidelines.html)
+- [IC 载板设计规范](https://www.pcbway.com/pcb_prototype/PCB_Designing_Guidelines.html)
 
 ---
 
@@ -251,10 +251,10 @@ function Trace({ points, width = 0.5, color = "#c87533" }) {
 
 1. **渲染基础几何体**
 ```tsx
-// 立方体（如 PCB 板）
+// 立方体（如 IC 载板）
 <mesh>
   <boxGeometry args={[100, 2, 60]} />
-  <meshStandardMaterial color="#1a5f1a" />
+  <meshStandardMaterial color="#5c3d1e" />
 </mesh>
 
 // 球体
@@ -298,10 +298,10 @@ function Trace({ points, width = 0.5, color = "#c87533" }) {
 **本 Demo 中的例子：**
 
 ```tsx
-// ✅ 使用 mesh - PCB 板（有体积的立方体）
+// ✅ 使用 mesh - IC 载板（有体积的立方体）
 <mesh position={[0, 1, 0]} castShadow receiveShadow>
   <boxGeometry args={[100, 2, 60]} />
-  <meshStandardMaterial color="#1a5f1a" />
+  <meshStandardMaterial color="#5c3d1e" />
 </mesh>
 
 // ✅ 使用 mesh - 焊盘（有体积的圆柱体）

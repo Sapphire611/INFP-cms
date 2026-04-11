@@ -7,44 +7,44 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import GUI from "lil-gui";
 
 /**
- * Demo 1: 基础 PCB 板渲染
+ * Demo 1: 基础 IC 载板渲染
  *
  * 学习要点：
  * 1. Canvas - React Three Fiber 的根组件，创建 WebGL 渲染上下文
  * 2. mesh - 3D 对象的基本单元，由几何体（geometry）和材质（material）组成
- * 3. boxGeometry - 盒子几何体，用于创建 PCB 板的基础形状
+ * 3. boxGeometry - 盒子几何体，用于创建 IC 载板的基础形状
  * 4. meshStandardMaterial - 标准 PBR 材质，支持光照和阴影
  * 5. OrbitControls - 轨道控制器，允许用户旋转、缩放、平移视角
  */
 
 /**
- * PCB 板组件 - 渲染一个绿色的 PCB 电路板
+ * IC 载板组件 - 渲染一个棕色的 IC 载板（Substrate）
  *
  * @description
- * 创建一个标准 PCB 板的 3D 模型，使用盒子几何体和墨绿色材质
- * PCB 板尺寸：宽 100mm × 高 2mm × 深 60mm
+ * 创建一个标准 IC 载板的 3D 模型，使用盒子几何体和棕色 ABF 树脂材质
+ * IC 载板尺寸：宽 100mm × 高 2mm × 深 60mm
  *
- * @returns {JSX.Element} PCB 板的 3D 网格对象
+ * @returns {JSX.Element} IC 载板的 3D 网格对象
  */
-function PCBBoard() {
-  // PCB 板尺寸（单位：毫米）
+function SubstrateBoard() {
+  // IC 载板尺寸（单位：毫米）
   const width = 100; // 宽度
-  const height = 2; // 厚度（PCB 板通常是 1.6mm，这里用 2mm 方便观察）
+  const height = 2; // 厚度（IC 载板通常 0.1~1.0mm，这里用 2mm 方便观察）
   const depth = 60; // 深度
 
   return (
     <mesh
-      position={[0, height / 2, 0]} // PCB 板位置：X=0(中心), Y=1(半高), Z=0(中心)
+      position={[0, height / 2, 0]} // 载板位置：X=0(中心), Y=1(半高), Z=0(中心)
       castShadow // 投射阴影：允许此物体投射阴影到其他物体上
       receiveShadow // 接收阴影：允许此物体接收其他物体的阴影
     >
       {/* 创建一个盒子几何体 */}
       <boxGeometry args={[width, height, depth]} />
-      {/* 使用标准材质，绿色是典型的 PCB 板颜色 */}
+      {/* 使用标准材质，棕色是典型的 IC 载板 ABF 树脂颜色 */}
       <meshStandardMaterial
-        color="#1a5f1a" // 材质颜色：PCB 板墨绿色
-        roughness={0.8} // 粗糙度：0.8（0=光滑如镜, 1=完全粗糙），PCB 板比较粗糙
-        metalness={0.1} // 金属度：0.1（0=非金属, 1=纯金属），PCB 板几乎不反射
+        color="#5c3d1e" // 材质颜色：IC 载板棕色（ABF 树脂）
+        roughness={0.6} // 粗糙度：0.6（IC 载板表面较平整）
+        metalness={0.05} // 金属度：0.05（树脂基材，几乎不反射）
       />
     </mesh>
   );
@@ -55,7 +55,7 @@ function PCBBoard() {
  *
  * @description
  * 创建一个 200×200 单位的白色平面，水平放置在 Y=0 的位置
- * 主要作用是接收 PCB 板投射的阴影，增强立体感
+ * 主要作用是接收 IC 载板投射的阴影，增强立体感
  *
  * @returns {JSX.Element} 地面平面的 3D 网格对象
  */
@@ -64,7 +64,7 @@ function Floor() {
     <mesh
       rotation={[-Math.PI / 2, 0, 0]} // 旋转角度：X轴旋转-90度，将平面从垂直变为水平
       position={[0, 0, 0]} // 地面位置：X=0, Y=0, Z=0（原点）
-      receiveShadow // 接收阴影：允许地面接受 PCB 板投射的阴影
+      receiveShadow // 接收阴影：允许地面接受 IC 载板投射的阴影
     >
       <planeGeometry args={[200, 200]} />
       {/* 平面几何体：200×200 单位大小 */}
@@ -203,7 +203,7 @@ function AxisWithLabels() {
  *   - 取值范围：0 ~ 2
  *   - 默认值：1.0
  *   - 作用：控制主光源（DirectionalLight）的亮度，影响场景的整体明暗效果
- *   - 使用场景：用户通过滑块调整光照强度，观察不同光照条件下的 PCB 板效果
+ *   - 使用场景：用户通过滑块调整光照强度，观察不同光照条件下的 IC 载板效果
  *
  * @returns {JSX.Element} 包含所有 3D 对象的场景组件
  */
@@ -232,7 +232,7 @@ function Scene({ lightIntensity }: { lightIntensity: number }) {
         intensity={0.3} // 光照强度：0.3（较弱，作为补光）
       />
 
-      <PCBBoard />
+      <SubstrateBoard />
       <Floor />
 
       {/* 带刻度标签的坐标轴 */}
@@ -267,13 +267,13 @@ function Scene({ lightIntensity }: { lightIntensity: number }) {
 }
 
 /**
- * BasicPCB 主组件 - Demo 1: 基础 PCB 板渲染
+ * BasicIC 主组件 - Demo 1: 基础 IC 载板渲染
  *
  * @description
- * 这是 Demo 1 的主组件，展示如何使用 React Three Fiber 创建一个简单的 3D PCB 板场景。
+ * 这是 Demo 1 的主组件，展示如何使用 React Three Fiber 创建一个简单的 3D IC 载板场景。
  *
  * 功能特性：
- * - 渲染一个墨绿色的 PCB 板
+ * - 渲染一个棕色的 IC 载板（ABF 树脂基材）
  * - 显示带刻度标签的 XYZ 坐标轴
  * - 提供光照强度调节滑块
  * - 支持鼠标交互（旋转、缩放、平移）
@@ -286,7 +286,7 @@ function Scene({ lightIntensity }: { lightIntensity: number }) {
  *
  * @returns {JSX.Element} 完整的 Demo 1 页面组件
  */
-export default function BasicPCB() {
+export default function BasicIC() {
   const [lightIntensity, setLightIntensity] = useState(1);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
 
@@ -327,8 +327,8 @@ export default function BasicPCB() {
     <div className="@container/main flex flex-col gap-4 p-6">
       {/* 标题和说明 */}
       <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Demo 1: 基础 PCB 板渲染</h1>
-        <p className="text-muted-foreground">学习 Three.js 的核心概念：场景、相机、渲染器，创建一个简单的绿色 PCB 板</p>
+        <h1 className="text-3xl font-bold">Demo 1: 基础 IC 载板渲染</h1>
+        <p className="text-muted-foreground">学习 Three.js 的核心概念：场景、相机、渲染器，创建一个 IC 载板基板（ABF 树脂材质）</p>
         <p className="text-muted-foreground">🔴 X 轴标签为红色;🟢 Y 轴标签为绿色;🔵 Z 轴标签为蓝色</p>
       </div>
 
@@ -410,10 +410,10 @@ export default function BasicPCB() {
           <CardTitle>练习建议</CardTitle>
         </CardHeader>
         <CardContent className="text-muted-foreground space-y-2 text-sm">
-          <p>✅ 尝试修改 PCB 板的颜色（#1a5f1a 改为其他颜色）</p>
+          <p>✅ 尝试修改 IC 载板的颜色（#5c3d1e 改为其他颜色）</p>
           <p>✅ 调整 roughness 和 metalness 参数，观察材质变化</p>
           <p>✅ 修改相机位置参数，改变初始视角</p>
-          <p>✅ 尝试添加另一个 boxGeometry，创建第二个 PCB 板</p>
+          <p>✅ 尝试添加另一个 boxGeometry，创建第二块 IC 载板</p>
           <p>✅ 调整光源位置和强度，观察阴影变化</p>
         </CardContent>
       </Card>

@@ -22,6 +22,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+import { usePermissions } from "@/hooks/use-permissions";
+
 import { EditUserDialog } from "./edit-user-dialog";
 import { UserWithCallback } from "./types";
 
@@ -33,6 +35,11 @@ interface UserActionsProps {
 export function UserActions({ user, onUserUpdated }: UserActionsProps) {
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
+  const { hasPermission } = usePermissions();
+  const canUpdate = hasPermission("users", "update");
+  const canDelete = hasPermission("users", "delete");
+
+  if (!canUpdate && !canDelete) return null;
 
   const handleDelete = async () => {
     try {
@@ -64,15 +71,19 @@ export function UserActions({ user, onUserUpdated }: UserActionsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
-            <Edit className="mr-2 h-4 w-4" />
-            编辑
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem className="text-red-600" onClick={() => setIsDeleteOpen(true)}>
-            <Trash2 className="mr-2 h-4 w-4" />
-            删除
-          </DropdownMenuItem>
+          {canUpdate && (
+            <DropdownMenuItem onClick={() => setIsEditOpen(true)}>
+              <Edit className="mr-2 h-4 w-4" />
+              编辑
+            </DropdownMenuItem>
+          )}
+          {canUpdate && canDelete && <DropdownMenuSeparator />}
+          {canDelete && (
+            <DropdownMenuItem className="text-red-600" onClick={() => setIsDeleteOpen(true)}>
+              <Trash2 className="mr-2 h-4 w-4" />
+              删除
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
