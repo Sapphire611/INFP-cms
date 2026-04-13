@@ -184,9 +184,13 @@ export async function updateLastLogin(id: string) {
 }
 
 export async function getWechatUserStats() {
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
   const [totalResult, activeResult, loginResult] = await Promise.all([
     supabaseAdmin.from('wechat_users').select('*', { count: 'exact', head: true }),
-    supabaseAdmin.from('wechat_users').select('*', { count: 'exact', head: true }).eq('is_active', true),
+    supabaseAdmin.from('wechat_users').select('*', { count: 'exact', head: true })
+      .gte('last_login_at', sevenDaysAgo.toISOString()),
     supabaseAdmin.from('wechat_users').select('*', { count: 'exact', head: true })
       .not('openid', 'is', null).not('last_login_at', 'is', null),
   ]);

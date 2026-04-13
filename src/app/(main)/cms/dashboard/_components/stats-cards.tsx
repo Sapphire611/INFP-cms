@@ -116,7 +116,7 @@ export function StatsCards() {
         <CardHeader>
           <CardDescription className="flex items-center gap-2">
             <UserCheck className="size-4" />
-            活跃用户
+            活跃微信用户
           </CardDescription>
           <CardTitle className="text-3xl font-bold tabular-nums">
             {stats.activeWechatUsers.toLocaleString()}
@@ -124,7 +124,7 @@ export function StatsCards() {
           <CardAction>
             <Badge variant="outline" className="gap-1">
               <Activity className="size-3" />
-              {stats.activeRate.toFixed(1)}%
+              7天内 {stats.activeRate.toFixed(1)}%
             </Badge>
           </CardAction>
         </CardHeader>
