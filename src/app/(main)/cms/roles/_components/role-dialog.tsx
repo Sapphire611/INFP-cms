@@ -45,13 +45,16 @@ const MODULE_LABELS: Record<string, string> = {
 };
 
 const ACTION_LABELS: Record<string, string> = {
-  view: "查看",
+  view: "使用",
   create: "新增",
   update: "修改",
   delete: "删除",
 };
 
 const ACTION_ORDER = ["view", "create", "update", "delete"];
+
+// Modules that only support "use" (view), no CRUD
+const VIEW_ONLY_MODULES = new Set(["chat", "threejs"]);
 
 export function RoleDialog({ open, onOpenChange, role, allPermissions, onSaved }: Props) {
   const [name, setName] = useState("");
@@ -75,6 +78,10 @@ export function RoleDialog({ open, onOpenChange, role, allPermissions, onSaved }
   }, {});
 
   for (const mod of Object.keys(grouped)) {
+    // Filter out non-view actions for view-only modules
+    if (VIEW_ONLY_MODULES.has(mod)) {
+      grouped[mod] = grouped[mod].filter((p) => p.action === "view");
+    }
     grouped[mod].sort((a, b) => ACTION_ORDER.indexOf(a.action) - ACTION_ORDER.indexOf(b.action));
   }
 

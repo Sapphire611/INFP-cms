@@ -2,7 +2,6 @@ import { ReactNode } from "react";
 
 import { cookies } from "next/headers";
 
-import { AppSidebar } from "@/app/(main)/cms/_components/sidebar/app-sidebar";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
@@ -16,10 +15,11 @@ import {
   type ContentLayout,
 } from "@/types/preferences/layout";
 
-import { AccountSwitcher } from "./_components/sidebar/account-switcher";
-import { LayoutControls } from "./_components/sidebar/layout-controls";
-import { SearchDialog } from "./_components/sidebar/search-dialog";
-import { ThemeSwitcher } from "./_components/sidebar/theme-switcher";
+import { AppSidebar } from "@/components/sidebar/app-sidebar";
+import { AccountSwitcher } from "@/components/sidebar/account-switcher";
+import { LayoutControls } from "@/components/sidebar/layout-controls";
+import { SearchDialog } from "@/components/sidebar/search-dialog";
+import { ThemeSwitcher } from "@/components/sidebar/theme-switcher";
 
 export default async function Layout({ children }: Readonly<{ children: ReactNode }>) {
   const cookieStore = await cookies();

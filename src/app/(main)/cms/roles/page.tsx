@@ -31,7 +31,7 @@ const MODULE_LABELS: Record<string, string> = {
 };
 
 const ACTION_LABELS: Record<string, string> = {
-  view: "查看",
+  view: "使用",
   create: "新增",
   update: "修改",
   delete: "删除",
@@ -43,6 +43,9 @@ const ACTION_VARIANT: Record<string, "default" | "secondary" | "outline" | "dest
   update: "outline",
   delete: "destructive",
 };
+
+// Modules that only support "use" (view), no CRUD
+const VIEW_ONLY_MODULES = new Set(["chat", "threejs"]);
 
 export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);
@@ -114,6 +117,8 @@ export default function RolesPage() {
   // Group permissions by module for display
   const groupByModule = (permissions: Permission[]) => {
     return permissions.reduce<Record<string, Permission[]>>((acc, p) => {
+      // Skip non-view actions for view-only modules
+      if (VIEW_ONLY_MODULES.has(p.module) && p.action !== "view") return acc;
       if (!acc[p.module]) acc[p.module] = [];
       acc[p.module].push(p);
       return acc;
