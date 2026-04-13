@@ -2,6 +2,77 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
+---
+
 ## Project Overview
 
 **INFP-CMS** is a content management system built with Next.js 15, Supabase, and Shadcn UI. It manages CMS users and WeChat users with a hybrid authentication system (custom JWT + Supabase Auth).
@@ -29,6 +100,7 @@ npm run generate:presets # Generate theme presets
 ## Architecture
 
 ### Tech Stack
+
 - **Framework**: Next.js 15 with App Router
 - **Database**: Supabase (migrated from Prisma + PostgreSQL)
 - **UI**: Shadcn UI + Radix UI + Tailwind CSS
@@ -71,7 +143,9 @@ src/
 ## Key Concepts
 
 ### Authentication System
+
 The app uses a **hybrid authentication approach**:
+
 - Custom JWT tokens for CMS user sessions
 - Supabase Auth available for integration
 - bcrypt for password hashing (strength: 10)
@@ -81,18 +155,22 @@ The app uses a **hybrid authentication approach**:
 **Important**: Users must have `isActive: true` to login. Only `admin` and `user` types can access the CMS dashboard.
 
 ### Database Operations
+
 - **Always use service layer functions** (`userService.ts`, `wechatUserService.ts`) instead of direct Supabase calls
 - Service functions maintain consistent interfaces and handle errors properly
 - Use `supabase-admin` (from `src/lib/supabase-admin.ts`) only when bypassing RLS is necessary
 - Database columns use snake_case in Supabase but camelCase in TypeScript interfaces
 
 ### User Management
+
 - **Admin**: Full system access, can manage users
 - **User**: Basic CMS access (if account is active)
 - **WeChat Users**: Managed separately with openid/unionid authentication
 
 ### Data Tables
+
 The app includes a sophisticated data table component with:
+
 - Drag-and-drop column reordering
 - Column visibility controls
 - Pagination and sorting
@@ -121,6 +199,7 @@ The app includes a sophisticated data table component with:
 ### Adding Navigation Items
 
 Edit `src/navigation/sidebar/sidebar-items.ts`:
+
 ```typescript
 {
   title: "New Feature",
@@ -132,6 +211,7 @@ Edit `src/navigation/sidebar/sidebar-items.ts`:
 ### Environment Variables
 
 Required variables (see `.env.example`):
+
 - `DATABASE_URL`: PostgreSQL connection string
 - `JWT_SECRET`: Secret key for JWT tokens
 - `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL
@@ -149,6 +229,7 @@ Required variables (see `.env.example`):
 ## Testing
 
 After making changes:
+
 1. Test authentication flow (`/login`, `/logout`)
 2. Verify database operations through service layer
 3. Check API responses with proper error handling
@@ -164,6 +245,7 @@ After making changes:
 ## Migration Notes
 
 The project was recently migrated from Prisma to Supabase. Key changes:
+
 - Prisma has been removed from dependencies
 - All database operations now use Supabase client
 - Existing authentication logic was preserved (JWT + bcrypt)

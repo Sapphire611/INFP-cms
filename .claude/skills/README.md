@@ -76,6 +76,32 @@
 /skills troubleshoot
 ```
 
+### 6. R3F / Three.js 开发 (r3f)
+**文件**: `r3f.md`
+**功能**:
+- InstancedMesh 颜色陷阱与解决方案
+- Hover / Click 交互写法
+- lil-gui 挂载方式
+- 常见问题排查
+
+**使用示例**:
+```
+/skills r3f
+```
+
+### 7. RBAC 权限控制 (rbac)
+**文件**: `rbac.md`
+**功能**:
+- usePermissions hook 标准用法
+- 按钮条件渲染模式
+- API 403 状态处理
+- 权限字符串格式说明
+
+**使用示例**:
+```
+/skills rbac
+```
+
 ## 🎯 如何使用技能
 
 1. **列出所有技能**:
