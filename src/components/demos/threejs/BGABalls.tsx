@@ -60,10 +60,10 @@ type BallInfo = {
 
 // 固定每种缺陷各 1 个，位置固定
 const FIXED_DEFECTS: Record<number, BallStatus> = {
-  3:  "missing",  // A4
-  17: "bridge",   // B8
-  42: "cold",     // E3
-  61: "offset",   // G2
+  3: "missing", // A4
+  17: "bridge", // B8
+  42: "cold", // E3
+  61: "offset", // G2
 };
 
 const BALLS: BallInfo[] = (() => {
@@ -77,11 +77,7 @@ const BALLS: BallInfo[] = (() => {
         col: c,
         netName: `${String.fromCharCode(65 + r)}${c + 1}`,
         status: FIXED_DEFECTS[index] ?? "ok",
-        position: [
-          (c - (COLS - 1) / 2) * PITCH,
-          BALL_Y,
-          (r - (ROWS - 1) / 2) * PITCH,
-        ],
+        position: [(c - (COLS - 1) / 2) * PITCH, BALL_Y, (r - (ROWS - 1) / 2) * PITCH],
       });
     }
   }
@@ -109,9 +105,15 @@ function Ball({
     <Sphere
       args={[BALL_RADIUS, 20, 14]}
       position={ball.position}
-      onPointerOver={(e) => { e.stopPropagation(); onHover(ball.index); }}
+      onPointerOver={(e) => {
+        e.stopPropagation();
+        onHover(ball.index);
+      }}
       onPointerOut={() => onHover(null)}
-      onClick={(e) => { e.stopPropagation(); onSelect(ball.index); }}
+      onClick={(e) => {
+        e.stopPropagation();
+        onSelect(ball.index);
+      }}
     >
       <meshStandardMaterial color={color} roughness={0.25} metalness={0.75} />
     </Sphere>
@@ -145,7 +147,7 @@ function RulerLabels() {
     elems.push(
       <Text key={`col-${c}`} position={[x, y, -(ROWS * PITCH) / 2 - 5]} fontSize={2} color="#aaaaaa" anchorX="center">
         {c + 1}
-      </Text>
+      </Text>,
     );
   }
   for (let r = 0; r < ROWS; r++) {
@@ -153,7 +155,7 @@ function RulerLabels() {
     elems.push(
       <Text key={`row-${r}`} position={[-(COLS * PITCH) / 2 - 5, y, z]} fontSize={2} color="#aaaaaa" anchorX="center">
         {String.fromCharCode(65 + r)}
-      </Text>
+      </Text>,
     );
   }
   return <group>{elems}</group>;
@@ -177,32 +179,32 @@ function Scene({
   const dirLightRef = useRef<THREE.DirectionalLight>(null);
   const { scene } = useThree();
 
-  useEffect(() => {
-    if (!dirLightRef.current) return;
-    // CameraHelper 可视化阴影相机的正交视锥范围，调试完后删掉即可
-    const helper = new THREE.CameraHelper(dirLightRef.current.shadow.camera);
-    scene.add(helper);
-    return () => { scene.remove(helper); helper.dispose(); };
-  }, [scene]);
+  // useEffect(() => {
+  //   if (!dirLightRef.current) return;
+  //   // CameraHelper 可视化阴影相机的正交视锥范围，调试完后删掉即可
+  //   const helper = new THREE.CameraHelper(dirLightRef.current.shadow.camera);
+  //   scene.add(helper);
+  //   return () => { scene.remove(helper); helper.dispose(); };
+  // }, [scene]);
 
   return (
     <>
-      <ambientLight intensity={0.6} />
+      <ambientLight intensity={1} />
       <directionalLight
         ref={dirLightRef}
-        position={[50, 80, 50]}       // 光源位置 (x,y,z)，光从这里射向原点，决定光照方向
-        intensity={lightIntensity}    // 光照强度
-        castShadow                    // 开启阴影投射（默认关闭，必须显式声明）
+        position={[50, 80, 50]} // 光源位置 (x,y,z)，光从这里射向原点，决定光照方向
+        intensity={lightIntensity} // 光照强度
+        castShadow // 开启阴影投射（默认关闭，必须显式声明）
         shadow-mapSize={[2048, 2048]} // 阴影贴图分辨率，越高越清晰，性能消耗越大
         // 以下四个参数定义阴影相机（正交相机）的裁剪范围
         // 必须覆盖场景中所有需要产生/接收阴影的物体，否则阴影会被裁掉
         // 范围过大会导致阴影贴图分辨率被稀释，阴影变模糊
-        shadow-camera-left={-60}     // 阴影相机左边界
-        shadow-camera-right={60}     // 阴影相机右边界
-        shadow-camera-top={60}       // 阴影相机上边界
-        shadow-camera-bottom={-60}   // 阴影相机下边界
+        shadow-camera-left={-60} // 阴影相机左边界
+        shadow-camera-right={60} // 阴影相机右边界
+        shadow-camera-top={60} // 阴影相机上边界
+        shadow-camera-bottom={-60} // 阴影相机下边界
       />
-      <pointLight position={[-30, 40, -30]} intensity={0.5} />
+      <pointLight position={[0, 5, 30]} intensity={1.5} />
 
       <ICBoard />
 
@@ -221,6 +223,7 @@ function Scene({
 
       {hoveredBall && (
         <Text
+          rotation={[-Math.PI / 4, 0, 0]}
           position={[0, BALL_Y * 2 + 8, 0]}
           fontSize={2.5}
           color={BALL_COLORS[hoveredBall.status]}
@@ -253,13 +256,16 @@ export default function BGABalls() {
     const gui = new GUI({ title: "BGA 控制", container: canvasRef.current });
     gui.domElement.style.cssText = "position:absolute;top:10px;right:10px;left:auto;";
     const params = { lightIntensity };
-    gui.add(params, "lightIntensity", 0, 3, 0.1).name("光照强度").onChange((v: number) => setLightIntensity(v));
+    gui
+      .add(params, "lightIntensity", 0, 3, 0.1)
+      .name("光照强度")
+      .onChange((v: number) => setLightIntensity(v));
     return () => gui.destroy();
   }, []);
 
   return (
     <div className="flex h-screen w-full flex-col gap-4 p-4 lg:flex-row">
-      <div ref={canvasRef} className="relative flex-1 rounded-lg border bg-card shadow-sm">
+      <div ref={canvasRef} className="bg-card relative flex-1 rounded-lg border shadow-sm">
         <Canvas camera={{ position: [0, 60, 50], fov: 45 }} shadows onClick={() => setSelected(null)}>
           <Suspense fallback={null}>
             <Scene lightIntensity={lightIntensity} selected={selected} onSelect={setSelected} />
@@ -273,8 +279,8 @@ export default function BGABalls() {
             <CardTitle>Demo 3: BGA 焊球阵列渲染</CardTitle>
           </CardHeader>
           <CardContent className="text-muted-foreground text-sm">
-            BGA（Ball Grid Array）是高密度 IC 封装形式，底部均匀分布的焊球阵列作为 I/O 引脚。
-            共 {totalBalls} 个焊球，其中 4 个固定缺陷球，其余均为正常球。
+            BGA（Ball Grid Array）是高密度 IC 封装形式，底部均匀分布的焊球阵列作为 I/O 引脚。 共 {totalBalls}{" "}
+            个焊球，其中 4 个固定缺陷球，其余均为正常球。
           </CardContent>
         </Card>
 
@@ -283,7 +289,10 @@ export default function BGABalls() {
             <CardTitle className="flex items-center gap-2">
               <span>选中焊球</span>
               {selectedBall && (
-                <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: BALL_COLORS[selectedBall.status] }} />
+                <span
+                  className="inline-block h-3 w-3 rounded-full"
+                  style={{ backgroundColor: BALL_COLORS[selectedBall.status] }}
+                />
               )}
             </CardTitle>
           </CardHeader>
@@ -291,22 +300,27 @@ export default function BGABalls() {
             {selectedBall ? (
               <div className="space-y-2">
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="rounded-lg bg-muted p-2 text-center">
+                  <div className="bg-muted rounded-lg p-2 text-center">
                     <p className="text-lg font-bold">{selectedBall.netName}</p>
                     <p className="text-muted-foreground text-xs">网络名</p>
                   </div>
-                  <div className="rounded-lg bg-muted p-2 text-center">
-                    <p className="text-lg font-bold">R{selectedBall.row + 1}C{selectedBall.col + 1}</p>
+                  <div className="bg-muted rounded-lg p-2 text-center">
+                    <p className="text-lg font-bold">
+                      R{selectedBall.row + 1}C{selectedBall.col + 1}
+                    </p>
                     <p className="text-muted-foreground text-xs">行列位置</p>
                   </div>
                 </div>
                 <div
                   className="rounded-lg p-3 text-center font-semibold"
-                  style={{ backgroundColor: BALL_COLORS[selectedBall.status] + "33", color: BALL_COLORS[selectedBall.status] }}
+                  style={{
+                    backgroundColor: BALL_COLORS[selectedBall.status] + "33",
+                    color: BALL_COLORS[selectedBall.status],
+                  }}
                 >
                   {BALL_LABELS[selectedBall.status]}
                 </div>
-                <p className="text-muted-foreground text-xs text-center">点击空白处取消选中</p>
+                <p className="text-muted-foreground text-center text-xs">点击空白处取消选中</p>
               </div>
             ) : (
               <p className="text-muted-foreground">点击 3D 视图中的焊球查看详情</p>
@@ -315,21 +329,25 @@ export default function BGABalls() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>当前 BGA 规格</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>当前 BGA 规格</CardTitle>
+          </CardHeader>
           <CardContent className="grid grid-cols-2 gap-3 text-sm">
-            <div className="rounded-lg bg-muted p-3 text-center">
+            <div className="bg-muted rounded-lg p-3 text-center">
               <p className="text-2xl font-bold">{totalBalls}</p>
               <p className="text-muted-foreground text-xs">总焊球数</p>
             </div>
-            <div className="rounded-lg bg-muted p-3 text-center">
-              <p className="text-2xl font-bold">{ROWS} × {COLS}</p>
+            <div className="bg-muted rounded-lg p-3 text-center">
+              <p className="text-2xl font-bold">
+                {ROWS} × {COLS}
+              </p>
               <p className="text-muted-foreground text-xs">行 × 列</p>
             </div>
-            <div className="rounded-lg bg-muted p-3 text-center">
+            <div className="bg-muted rounded-lg p-3 text-center">
               <p className="text-2xl font-bold">{PITCH} mm</p>
               <p className="text-muted-foreground text-xs">焊球间距 (Pitch)</p>
             </div>
-            <div className="rounded-lg bg-muted p-3 text-center">
+            <div className="bg-muted rounded-lg p-3 text-center">
               <p className="text-2xl font-bold">{BALL_RADIUS * 2} mm</p>
               <p className="text-muted-foreground text-xs">焊球直径</p>
             </div>
@@ -337,12 +355,19 @@ export default function BGABalls() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>焊球缺陷类型</CardTitle></CardHeader>
+          <CardHeader>
+            <CardTitle>焊球缺陷类型</CardTitle>
+          </CardHeader>
           <CardContent className="space-y-2 text-sm">
             {(Object.entries(BALL_LABELS) as [BallStatus, string][]).map(([status, label]) => (
               <div key={status} className="flex items-center gap-3">
-                <div className="h-4 w-4 shrink-0 rounded-full" style={{ backgroundColor: BALL_COLORS[status], boxShadow: `0 0 0 1px ${BALL_COLORS[status]}66` }} />
-                <span className="font-medium" style={{ color: BALL_COLORS[status] }}>{label}</span>
+                <div
+                  className="h-4 w-4 shrink-0 rounded-full"
+                  style={{ backgroundColor: BALL_COLORS[status], boxShadow: `0 0 0 1px ${BALL_COLORS[status]}66` }}
+                />
+                <span className="font-medium" style={{ color: BALL_COLORS[status] }}>
+                  {label}
+                </span>
               </div>
             ))}
           </CardContent>

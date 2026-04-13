@@ -65,7 +65,7 @@ function generatePcsGrid(labelMode: "index" | "rowcol"): PcsInfo[] {
         index,
         row: r,
         col: c,
-        label: labelMode === "index" ? String(index) : `R${r + 1}C${c + 1}`,
+        label: labelMode === "index" ? String(index) : `X${r + 1}Y${c + 1}`,
         center: getPcsCenter(r, c),
       });
     }
@@ -269,7 +269,7 @@ export default function ICComponents() {
 
     const labelFolder = gui.addFolder("序号标注");
     labelFolder.add(params, "showLabel").name("显示序号").onChange((v: boolean) => setShowLabel(v));
-    labelFolder.add(params, "labelMode", { "全局序号 (1~N)": "index", "行列坐标 (RxCy)": "rowcol" })
+    labelFolder.add(params, "labelMode", { "全局序号 (1~N)": "index", "行列坐标 (XaYb)": "rowcol" })
       .name("标注模式").onChange((v: "index" | "rowcol") => setLabelMode(v));
     labelFolder.add(params, "labelSize", 1, 6, 0.5).name("字号大小").onChange((v: number) => setLabelSize(v));
     labelFolder.open();
@@ -362,7 +362,7 @@ const z = startZ + row * (PCS_D + GAP);`}</pre>
               <h3 className="font-semibold">4. 两种序号模式</h3>
               <ul className="text-muted-foreground ml-3 list-disc space-y-0.5 text-xs">
                 <li><strong>全局序号</strong>：1 → N，从左到右、从上到下连续编号</li>
-                <li><strong>行列坐标</strong>：R1C1、R2C3，直观定位 pcs 位置</li>
+                <li><strong>行列坐标</strong>：X1Y1、X2Y3，直观定位 pcs 位置</li>
               </ul>
             </div>
           </CardContent>
