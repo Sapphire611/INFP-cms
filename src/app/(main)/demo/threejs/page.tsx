@@ -53,11 +53,11 @@ const demos = [
   {
     id: 6,
     title: "缺陷交互与详情展示",
-    description: "点击 pcs 查看缺陷详情（缺陷名称、MES编码），高亮选中区域，实现工业检测软件的核心交互",
+    description: "基于 Demo 5 实现人工复判流程，支持键盘导航选择 PCS，查看缺陷图片，快捷键标记 OK/NG，自动跳过 ET 缺陷",
     icon: MousePointer,
     href: "/demo/threejs/06-defect-interaction",
     level: "高级",
-    topics: ["onPointerOver 悬停", "onClick 选中", "状态管理", "高亮 emissive", "信息面板联动"],
+    topics: ["键盘导航", "快捷键复判", "状态管理", "高亮选中", "图片展示", "进度追踪"],
   },
   {
     id: 7,
