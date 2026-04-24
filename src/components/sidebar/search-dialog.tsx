@@ -20,7 +20,7 @@ const searchItems = [
   { group: "微信用户", icon: UsersRound, label: "微信用户列表", href: "/cms/wechat-users" },
   { group: "权限管理", icon: ShieldCheck, label: "权限管理", href: "/cms/roles" },
   { group: "AI对话", icon: MessageSquare, label: "AI对话", href: "/demo/chat" },
-  { group: "Three.js Demo", icon: CircleCheck, label: "Three.js Demo", href: "/demo/threejs" },
+  { group: "Three.js IC载板复判", icon: CircleCheck, label: "Three.js IC载板复判", href: "/demo/threejs" },
 ];
 
 export function SearchDialog() {

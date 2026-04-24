@@ -443,8 +443,8 @@ export default function DefectMappingDemo() {
       {/* 左侧 3D 视图 */}
       <div
         ref={canvasContainerRef}
-        className="flex-1 rounded-lg border shadow-xl relative"
-        style={{ backgroundColor: "#4a5568" }}
+        className="flex-1 rounded-lg border shadow-xl"
+        style={{ backgroundColor: "#4a5568", position: "relative" }}
       >
         <Canvas
           camera={{ position: [0, 200, 300], fov: 50 }}

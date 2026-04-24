@@ -24,6 +24,7 @@ import {
   UsersRound,
   BookOpen,
   ShieldCheck,
+  Layers,
   type LucideIcon,
 } from "lucide-react";
 
@@ -131,9 +132,9 @@ export const sidebarItems: NavGroup[] = [
         icon: MessageSquare,
       },
       {
-        title: "Three.js Demo",
+        title: "Three.js IC载板复判",
         url: "/demo/threejs",
-        icon: CircleCheck,
+        icon: Layers,
       },
     ],
   },

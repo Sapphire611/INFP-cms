@@ -21,11 +21,11 @@ import * as THREE from "three";
 
 // ─── 网格配置 ─────────────────────────────────────────────────────────────────
 
-const BASE_ROWS = 20;   // Strip 基础行数（旋转前）
-const BASE_COLS = 6;    // Strip 基础列数（旋转前）
-const PCS_W = 20;       // 单个 pcs 宽度（mm）
-const PCS_D = 15;       // 单个 pcs 深度（mm）
-const GAP = 2;          // pcs 间距（mm）
+const BASE_ROWS = 20; // Strip 基础行数（旋转前）
+const BASE_COLS = 6; // Strip 基础列数（旋转前）
+const PCS_W = 20; // 单个 pcs 宽度（mm）
+const PCS_D = 15; // 单个 pcs 深度（mm）
+const GAP = 2; // pcs 间距（mm）
 
 // 料号旋转角度选项
 type RotationAngle = 0 | 90 | 180 | 270;
@@ -50,34 +50,26 @@ const STRIP_D = BASE_ROWS * PCS_D + (BASE_ROWS - 1) * GAP + BORDER * 2;
 
 type DefectStatus = "OK" | "待复判" | "NG" | "前道不良ET";
 
-type DefectType =
-  | "金面划伤"
-  | "开路"
-  | "短路"
-  | "阻焊偏移"
-  | "铜面氧化"
-  | "线路断裂"
-  | "孔位偏移"
-  | "表面污染";
+type DefectType = "金面划伤" | "开路" | "短路" | "阻焊偏移" | "铜面氧化" | "线路断裂" | "孔位偏移" | "表面污染";
 
 // 缺陷状态颜色映射
 const STATUS_COLORS: Record<DefectStatus, string> = {
-  "OK": "#22c55e",           // 绿色
-  "待复判": "#eab308",       // 黄色（默认）
-  "NG": "#ef4444",           // 红色
-  "前道不良ET": "#ffffff",   // 白色
+  OK: "#22c55e", // 绿色
+  待复判: "#eab308", // 黄色（默认）
+  NG: "#ef4444", // 红色
+  前道不良ET: "#ffffff", // 白色
 };
 
 // 缺陷类型颜色映射（用于区分不同缺陷）
 const DEFECT_TYPE_COLORS: Record<DefectType, string> = {
-  "金面划伤": "#f97316",     // 橙色
-  "开路": "#8b5cf6",         // 紫色
-  "短路": "#ec4899",         // 粉色
-  "阻焊偏移": "#06b6d4",     // 青色
-  "铜面氧化": "#84cc16",     // 黄绿色
-  "线路断裂": "#dc2626",     // 深红色
-  "孔位偏移": "#0ea5e9",     // 蓝色
-  "表面污染": "#a855f7",     // 紫罗兰色
+  金面划伤: "#f97316", // 橙色
+  开路: "#8b5cf6", // 紫色
+  短路: "#ec4899", // 粉色
+  阻焊偏移: "#06b6d4", // 青色
+  铜面氧化: "#84cc16", // 黄绿色
+  线路断裂: "#dc2626", // 深红色
+  孔位偏移: "#0ea5e9", // 蓝色
+  表面污染: "#a855f7", // 紫罗兰色
 };
 
 // ─── PCS 数据结构 ─────────────────────────────────────────────────────────────
@@ -100,8 +92,14 @@ function generateDefectData(rotation: RotationAngle): PcsData[] {
   const data: PcsData[] = [];
 
   const defectTypes: DefectType[] = [
-    "金面划伤", "开路", "短路", "阻焊偏移",
-    "铜面氧化", "线路断裂", "孔位偏移", "表面污染"
+    "金面划伤",
+    "开路",
+    "短路",
+    "阻焊偏移",
+    "铜面氧化",
+    "线路断裂",
+    "孔位偏移",
+    "表面污染",
   ];
 
   const statuses: DefectStatus[] = ["OK", "待复判", "NG", "前道不良ET"];
@@ -124,8 +122,8 @@ function generateDefectData(rotation: RotationAngle): PcsData[] {
       }
 
       // 计算 pcs 中心位置
-      const x = col * (pcsWidth + GAP) - (cols - 1) * (pcsWidth + GAP) / 2;
-      const z = row * (pcsDepth + GAP) - (rows - 1) * (pcsDepth + GAP) / 2;
+      const x = col * (pcsWidth + GAP) - ((cols - 1) * (pcsWidth + GAP)) / 2;
+      const z = row * (pcsDepth + GAP) - ((rows - 1) * (pcsDepth + GAP)) / 2;
 
       data.push({ id, row, col, status, defectType, defectCount, x, z });
     }
@@ -141,15 +139,26 @@ interface PcsGridProps {
   rotation: RotationAngle;
   selectedId: number | null;
   onSelect: (id: number) => void;
+  colorMode: "status" | "defectType";
 }
 
-function PcsGrid({ data, rotation, selectedId, onSelect }: PcsGridProps) {
+function PcsGrid({ data, rotation, selectedId, onSelect, colorMode }: PcsGridProps) {
   const { pcsWidth, pcsDepth } = getLayoutConfig(rotation);
 
   return (
     <group>
       {data.map((pcs) => {
-        const color = STATUS_COLORS[pcs.status];
+        // 根据颜色模式选择颜色
+        const color = useMemo(() => {
+          if (colorMode === "status") {
+            return STATUS_COLORS[pcs.status];
+          } else {
+            // 缺陷类型模式：OK 显示绿色，其他显示缺陷类型颜色
+            if (pcs.status === "OK") return STATUS_COLORS["OK"];
+            return pcs.defectType ? DEFECT_TYPE_COLORS[pcs.defectType] : STATUS_COLORS["待复判"];
+          }
+        }, [pcs, colorMode]);
+
         const isSelected = pcs.id === selectedId;
 
         return (
@@ -219,10 +228,7 @@ function StripBoard({ rotation }: { rotation: RotationAngle }) {
 
       {/* 边框线 */}
       <lineSegments>
-        <edgesGeometry
-          attach="geometry"
-          args={[new THREE.BoxGeometry(boardW, 2, boardD)]}
-        />
+        <edgesGeometry attach="geometry" args={[new THREE.BoxGeometry(boardW, 2, boardD)]} />
         <lineBasicMaterial color="#666666" />
       </lineSegments>
 
@@ -248,9 +254,10 @@ interface SceneProps {
   rotation: RotationAngle;
   selectedId: number | null;
   onSelect: (id: number) => void;
+  colorMode: "status" | "defectType";
 }
 
-function Scene({ data, rotation, selectedId, onSelect }: SceneProps) {
+function Scene({ data, rotation, selectedId, onSelect, colorMode }: SceneProps) {
   return (
     <>
       <ambientLight intensity={0.4} />
@@ -268,12 +275,7 @@ function Scene({ data, rotation, selectedId, onSelect }: SceneProps) {
 
       <Suspense fallback={null}>
         <StripBoard rotation={rotation} />
-        <PcsGrid
-          data={data}
-          rotation={rotation}
-          selectedId={selectedId}
-          onSelect={onSelect}
-        />
+        <PcsGrid data={data} rotation={rotation} selectedId={selectedId} onSelect={onSelect} colorMode={colorMode} />
       </Suspense>
 
       <OrbitControls
@@ -291,11 +293,12 @@ function Scene({ data, rotation, selectedId, onSelect }: SceneProps) {
 
 export default function DefectInteraction() {
   const [rotation, setRotation] = useState<RotationAngle>(0);
+  const [colorMode, setColorMode] = useState<"status" | "defectType">("status");
   const [data, setData] = useState<PcsData[]>([]);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [reviewedData, setReviewedData] = useState<Map<number, DefectStatus>>(new Map());
 
-  const guiRef = useRef<GUI | null>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
 
   // 初始化数据
   useEffect(() => {
@@ -303,9 +306,7 @@ export default function DefectInteraction() {
     setData(newData);
 
     // 自动选择第一个待复判的非ET缺陷
-    const firstPending = newData.find(
-      p => p.status === "待复判" && !reviewedData.has(p.id)
-    );
+    const firstPending = newData.find((p) => p.status === "待复判" && !reviewedData.has(p.id));
     if (firstPending) {
       setSelectedId(firstPending.id);
     }
@@ -313,14 +314,12 @@ export default function DefectInteraction() {
 
   // 获取当前选中的 PCS 数据
   const selectedPcs = useMemo(() => {
-    return data.find(p => p.id === selectedId);
+    return data.find((p) => p.id === selectedId);
   }, [data, selectedId]);
 
   // 获取需要复判的 PCS 列表（排除 ET 和已复判）
   const pendingReview = useMemo(() => {
-    return data.filter(
-      p => p.status === "待复判" && !reviewedData.has(p.id)
-    );
+    return data.filter((p) => p.status === "待复判" && !reviewedData.has(p.id));
   }, [data, reviewedData]);
 
   // 键盘导航
@@ -382,14 +381,10 @@ export default function DefectInteraction() {
     setReviewedData(newReviewed);
 
     // 更新数据中的状态
-    setData(prev => prev.map(p =>
-      p.id === selectedPcs.id ? { ...p, status: result } : p
-    ));
+    setData((prev) => prev.map((p) => (p.id === selectedPcs.id ? { ...p, status: result } : p)));
 
     // 自动跳转到下一个待复判项
-    const remaining = data.filter(
-      p => p.status === "待复判" && !newReviewed.has(p.id) && p.id !== selectedPcs.id
-    );
+    const remaining = data.filter((p) => p.status === "待复判" && !newReviewed.has(p.id) && p.id !== selectedPcs.id);
 
     if (remaining.length > 0) {
       setSelectedId(remaining[0].id);
@@ -398,25 +393,38 @@ export default function DefectInteraction() {
 
   // lil-gui 控制面板
   useEffect(() => {
-    if (guiRef.current) {
-      guiRef.current.destroy();
+    const gui = new GUI({ title: "Demo 6 控制面板" });
+
+    // 将 GUI 挂载到 Canvas 容器内
+    if (canvasContainerRef.current) {
+      const guiDom = gui.domElement;
+      guiDom.style.position = "absolute";
+      guiDom.style.top = "10px";
+      guiDom.style.right = "10px";
+      canvasContainerRef.current.appendChild(guiDom);
     }
 
-    const gui = new GUI({ title: "Demo 6 控制面板" });
-    guiRef.current = gui;
-
     const params = {
+      colorMode: "status",
       rotation: rotation,
       regenerate: () => {
         const newData = generateDefectData(rotation);
         setData(newData);
         setReviewedData(new Map());
-        const firstPending = newData.find(p => p.status === "待复判");
+        const firstPending = newData.find((p) => p.status === "待复判");
         if (firstPending) setSelectedId(firstPending.id);
       },
     };
 
-    gui.add(params, "rotation", [0, 90, 180, 270])
+    gui
+      .add(params, "colorMode", ["status", "defectType"])
+      .name("颜色模式")
+      .onChange((value: string) => {
+        setColorMode(value as "status" | "defectType");
+      });
+
+    gui
+      .add(params, "rotation", [0, 90, 180, 270])
       .name("料号旋转")
       .onChange((value: RotationAngle) => {
         setRotation(value);
@@ -425,10 +433,8 @@ export default function DefectInteraction() {
 
     gui.add(params, "regenerate").name("重新生成数据");
 
-    return () => {
-      gui.destroy();
-    };
-  }, [rotation]);
+    return () => gui.destroy();
+  }, [rotation, canvasContainerRef]);
 
   // 生成模拟缺陷图片 URL
   const getDefectImageUrl = (pcs: PcsData) => {
@@ -437,78 +443,71 @@ export default function DefectInteraction() {
     return `https://picsum.photos/seed/${seed}/400/300`;
   };
 
-  const progress = data.length > 0
-    ? ((reviewedData.size / data.filter(p => p.status === "待复判").length) * 100).toFixed(1)
-    : 0;
+  const progress =
+    data.length > 0 ? ((reviewedData.size / data.filter((p) => p.status === "待复判").length) * 100).toFixed(1) : 0;
 
   return (
-    <div className="w-full h-screen flex gap-4 p-4 bg-background">
+    <div className="flex h-screen w-full gap-4 bg-background p-4">
       {/* 左侧 3D 视图 */}
-      <div className="flex-1 rounded-lg overflow-hidden border border-border">
+      <div
+        ref={canvasContainerRef}
+        className="flex-1 overflow-hidden rounded-lg border border-border"
+        style={{ position: "relative" }}
+      >
         <Canvas camera={{ position: [0, 100, 150], fov: 50 }}>
           <Scene
             data={data}
             rotation={rotation}
             selectedId={selectedId}
             onSelect={setSelectedId}
+            colorMode={colorMode}
           />
         </Canvas>
       </div>
 
       {/* 右侧信息面板 */}
-      <div className="w-96 space-y-4 overflow-y-auto">
-        <Card>
+      <div className="flex w-96 flex-col gap-4 h-full overflow-y-auto">
+        <Card className="flex-shrink-0">
           <CardHeader>
-            <CardTitle>Demo 6: 缺陷交互与详情展示</CardTitle>
+            <CardTitle>复判进度</CardTitle>
           </CardHeader>
-          <CardContent className="text-sm text-muted-foreground space-y-2">
-            <p>基于 Demo 5 的缺陷数据，实现人工复判流程</p>
+          <CardContent className="text-muted-foreground space-y-2 text-sm">
+            {/* <p>基于 Demo 5 的缺陷数据，实现人工复判流程</p> */}
             <div className="flex gap-2 text-xs">
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded" style={{ backgroundColor: STATUS_COLORS.OK }}></div>
+                <div className="h-3 w-3 rounded" style={{ backgroundColor: STATUS_COLORS.OK }}></div>
                 <span>OK</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded" style={{ backgroundColor: STATUS_COLORS.待复判 }}></div>
+                <div className="h-3 w-3 rounded" style={{ backgroundColor: STATUS_COLORS.待复判 }}></div>
                 <span>待复判</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded" style={{ backgroundColor: STATUS_COLORS.NG }}></div>
+                <div className="h-3 w-3 rounded" style={{ backgroundColor: STATUS_COLORS.NG }}></div>
                 <span>NG</span>
               </div>
               <div className="flex items-center gap-1">
-                <div className="w-3 h-3 rounded" style={{ backgroundColor: STATUS_COLORS.前道不良ET }}></div>
+                <div className="h-3 w-3 rounded" style={{ backgroundColor: STATUS_COLORS.前道不良ET }}></div>
                 <span>ET</span>
               </div>
             </div>
           </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>复判进度</CardTitle>
-          </CardHeader>
           <CardContent>
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
                 <span>待复判: {pendingReview.length}</span>
                 <span>已复判: {reviewedData.size}</span>
               </div>
-              <div className="w-full bg-secondary rounded-full h-2">
-                <div
-                  className="bg-primary h-2 rounded-full transition-all"
-                  style={{ width: `${progress}%` }}
-                ></div>
+              <div className="bg-secondary h-2 w-full rounded-full">
+                <div className="bg-primary h-2 rounded-full transition-all" style={{ width: `${progress}%` }}></div>
               </div>
-              <p className="text-xs text-muted-foreground text-center">
-                {progress}% 完成
-              </p>
+              <p className="text-muted-foreground text-center text-xs">{progress}% 完成</p>
             </div>
           </CardContent>
         </Card>
 
         {selectedPcs && (
-          <Card>
+          <Card className="flex-shrink-0">
             <CardHeader>
               <CardTitle>PCS #{selectedPcs.id} 详情</CardTitle>
             </CardHeader>
@@ -516,7 +515,9 @@ export default function DefectInteraction() {
               <div className="grid grid-cols-2 gap-2 text-sm">
                 <div>
                   <span className="text-muted-foreground">位置:</span>
-                  <span className="ml-2">行{selectedPcs.row + 1} 列{selectedPcs.col + 1}</span>
+                  <span className="ml-2">
+                    行{selectedPcs.row + 1} 列{selectedPcs.col + 1}
+                  </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">状态:</span>
@@ -543,7 +544,7 @@ export default function DefectInteraction() {
                   <img
                     src={getDefectImageUrl(selectedPcs)}
                     alt={`PCS ${selectedPcs.id} 缺陷图片`}
-                    className="w-full rounded border border-border"
+                    className="w-full rounded border border-border h-53 object-cover"
                   />
                 </div>
               )}
@@ -551,39 +552,45 @@ export default function DefectInteraction() {
               {/* 复判按钮 */}
               {selectedPcs.status === "待复判" && !reviewedData.has(selectedPcs.id) && (
                 <div className="flex gap-2 pt-2">
-                  <Button
-                    onClick={() => handleReview("OK")}
-                    className="flex-1 bg-green-600 hover:bg-green-700"
-                  >
+                  <Button onClick={() => handleReview("OK")} className="flex-1 bg-green-600 hover:bg-green-700">
                     OK (Enter)
                   </Button>
-                  <Button
-                    onClick={() => handleReview("NG")}
-                    className="flex-1 bg-red-600 hover:bg-red-700"
-                  >
+                  <Button onClick={() => handleReview("NG")} className="flex-1 bg-red-600 hover:bg-red-700">
                     NG (0)
                   </Button>
                 </div>
               )}
 
               {selectedPcs.status === "前道不良ET" && (
-                <p className="text-sm text-muted-foreground text-center py-2">
-                  ET 缺陷无需复判
-                </p>
+                <p className="text-muted-foreground py-2 text-center text-sm">ET 缺陷无需复判</p>
               )}
 
               {reviewedData.has(selectedPcs.id) && (
-                <p className="text-sm text-green-600 text-center py-2">
-                  ✓ 已复判为 {reviewedData.get(selectedPcs.id)}
-                </p>
+                <p className="py-2 text-center text-sm text-green-600">✓ 已复判为 {reviewedData.get(selectedPcs.id)}</p>
               )}
             </CardContent>
           </Card>
         )}
 
+        {/* <Card>
+          <CardHeader>
+            <CardTitle>缺陷类型颜色</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {Object.entries(DEFECT_TYPE_COLORS).map(([type, color]) => (
+              <div key={type} className="flex items-center gap-2">
+                <div className="h-4 w-4 rounded" style={{ backgroundColor: color }}></div>
+                <span className="text-sm">{type}</span>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
         <Card>
-          <CardHeader><CardTitle>键盘快捷键</CardTitle></CardHeader>
-          <CardContent className="text-sm space-y-1">
+          <CardHeader>
+            <CardTitle>键盘快捷键</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-1 text-sm">
             <div className="flex justify-between">
               <span className="text-muted-foreground">↑↓←→</span>
               <span>选择 PCS</span>
@@ -600,33 +607,33 @@ export default function DefectInteraction() {
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>技术要点</CardTitle></CardHeader>
-          <CardContent className="text-muted-foreground text-sm space-y-2">
+          <CardHeader>
+            <CardTitle>技术要点</CardTitle>
+          </CardHeader>
+          <CardContent className="text-muted-foreground space-y-2 text-sm">
             <div>
-              <h3 className="font-semibold text-foreground">1. 键盘导航</h3>
+              <h3 className="text-foreground font-semibold">1. 键盘导航</h3>
               <p className="text-xs">监听 keydown 事件，计算相邻 PCS 的行列索引</p>
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">2. 选中高亮</h3>
+              <h3 className="text-foreground font-semibold">2. 选中高亮</h3>
               <p className="text-xs">使用 emissive 材质和边框线段实现高亮效果</p>
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">3. 状态管理</h3>
+              <h3 className="text-foreground font-semibold">3. 状态管理</h3>
               <p className="text-xs">Map 结构追踪复判结果，自动跳转下一项</p>
             </div>
             <div>
-              <h3 className="font-semibold text-foreground">4. 图片展示</h3>
+              <h3 className="text-foreground font-semibold">4. 图片展示</h3>
               <p className="text-xs">使用 placeholder 服务模拟缺陷图片</p>
             </div>
           </CardContent>
-        </Card>
+        </Card> */}
 
         {pendingReview.length === 0 && reviewedData.size > 0 && (
           <Card className="border-green-600">
             <CardContent className="pt-6">
-              <p className="text-center text-green-600 font-semibold">
-                🎉 所有缺陷已复判完成！
-              </p>
+              <p className="text-center font-semibold text-green-600">🎉 所有缺陷已复判完成！</p>
             </CardContent>
           </Card>
         )}

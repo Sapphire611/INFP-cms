@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Cpu, Layers, GitBranch, Zap, MousePointer, AlertTriangle, CircleDot } from "lucide-react";
+import DefectInteraction from "@/components/demos/threejs/DefectInteraction";
 
 const demos = [
   {
@@ -50,95 +51,60 @@ const demos = [
     level: "进阶",
     topics: ["数据驱动渲染", "颜色映射策略", "缺陷分类着色", "Raycaster 点击", "Tooltip 信息面板"],
   },
-  {
-    id: 6,
-    title: "缺陷交互与详情展示",
-    description: "基于 Demo 5 实现人工复判流程，支持键盘导航选择 PCS，查看缺陷图片，快捷键标记 OK/NG，自动跳过 ET 缺陷",
-    icon: MousePointer,
-    href: "/demo/threejs/06-defect-interaction",
-    level: "高级",
-    topics: ["键盘导航", "快捷键复判", "状态管理", "高亮选中", "图片展示", "进度追踪"],
-  },
-  {
-    id: 7,
-    title: "检测报告可视化",
-    description: "实战案例：统计各类缺陷数量、良品率，相机动画聚焦到缺陷区域，生成可交互的检测报告视图",
-    icon: AlertTriangle,
-    href: "/demo/threejs/07-inspection-report",
-    level: "高级",
-    topics: ["useFrame 动画", "相机 lerp 聚焦", "数据聚合统计", "良品率计算", "缺陷热力图"],
-  },
+  // {
+  //   id: 6,
+  //   title: "缺陷交互与详情展示",
+  //   description: "基于 Demo 5 实现人工复判流程，支持键盘导航选择 PCS，查看缺陷图片，快捷键标记 OK/NG，自动跳过 ET 缺陷",
+  //   icon: MousePointer,
+  //   href: "/demo/threejs/06-defect-interaction",
+  //   level: "高级",
+  //   topics: ["键盘导航", "快捷键复判", "状态管理", "高亮选中", "图片展示", "进度追踪"],
+  // },
+  // {
+  //   id: 7,
+  //   title: "检测报告可视化",
+  //   description: "实战案例：统计各类缺陷数量、良品率，相机动画聚焦到缺陷区域，生成可交互的检测报告视图",
+  //   icon: AlertTriangle,
+  //   href: "/demo/threejs/07-inspection-report",
+  //   level: "高级",
+  //   topics: ["useFrame 动画", "相机 lerp 聚焦", "数据聚合统计", "良品率计算", "缺陷热力图"],
+  // },
 ];
 
 export default function ThreeJsDemosPage() {
   return (
-    <div className="@container/main flex flex-col gap-6 p-6">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Three.js IC 载板渲染学习 Demo</h1>
-        <p className="text-muted-foreground">
-          专为 IC 载板工业故障检测软件设计的 Three.js 学习路径，从零基础到实战应用
-        </p>
-      </div>
+    <div>
+      {/* Demo 6 完整展示 */}
+      <DefectInteraction />
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {demos.map((demo) => {
-          const Icon = demo.icon;
-          return (
-            <Link key={demo.id} href={demo.href}>
-              <Card className="h-full transition-all hover:shadow-lg hover:border-primary">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                      <Icon className="h-6 w-6 text-primary" />
+      {/* 底部导航栏 - Demo 1-5 快速链接 */}
+      <div className="border-t bg-background">
+        <div className="px-6 py-4">
+          <div className="flex flex-col gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-base font-semibold">Three.js IC载板复判系列</span>
+              <span className="text-sm text-muted-foreground">- 从基础到进阶的完整学习路径</span>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {demos.map((demo) => {
+                const Icon = demo.icon;
+                return (
+                  <Link key={demo.id} href={demo.href}>
+                    <div className="flex items-center gap-3 rounded-lg border bg-card px-5 py-3 min-w-[200px] transition-all hover:bg-accent hover:border-primary hover:shadow-md">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                        <Icon className="h-5 w-5 text-primary" />
+                      </div>
+                      <div className="flex flex-col">
+                        <span className="text-sm font-semibold">Demo {demo.id}</span>
+                        <span className="text-xs text-muted-foreground">{demo.title}</span>
+                      </div>
                     </div>
-                    <span
-                      className={`rounded-full px-2 py-1 text-xs font-medium ${
-                        demo.level === "入门"
-                          ? "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                          : demo.level === "基础"
-                            ? "bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300"
-                            : demo.level === "进阶"
-                              ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900 dark:text-yellow-300"
-                              : "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                      }`}
-                    >
-                      {demo.level}
-                    </span>
-                  </div>
-                  <CardTitle className="mt-4">
-                    Demo {demo.id}: {demo.title}
-                  </CardTitle>
-                  <CardDescription>{demo.description}</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-2">
-                    <p className="text-sm font-medium text-muted-foreground">学习要点：</p>
-                    <div className="flex flex-wrap gap-2">
-                      {demo.topics.map((topic, index) => (
-                        <span
-                          key={index}
-                          className="rounded-md bg-secondary px-2 py-1 text-xs"
-                        >
-                          {topic}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          );
-        })}
-      </div>
-
-      <div className="rounded-lg border bg-muted/50 p-6">
-        <h2 className="mb-2 text-lg font-semibold">学习建议</h2>
-        <ul className="space-y-2 text-sm text-muted-foreground">
-          <li>• <strong>循序渐进</strong>：按照 Demo 1 → 6 的顺序学习，每个 demo 都建立在前一个的基础上</li>
-          <li>• <strong>动手实践</strong>：每个 demo 页面都包含详细注释，建议自己修改参数观察变化</li>
-          <li>• <strong>查看源码</strong>：所有 demo 代码都在 <code className="bg-secondary px-1 rounded">src/components/demos/threejs/</code> 目录下</li>
-          <li>• <strong>参考文档</strong>：遇到不懂的概念，查阅 <a href="https://threejs.org/docs/" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Three.js 官方文档</a></li>
-        </ul>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
