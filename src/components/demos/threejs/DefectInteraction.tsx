@@ -572,64 +572,6 @@ export default function DefectInteraction() {
           </Card>
         )}
 
-        {/* <Card>
-          <CardHeader>
-            <CardTitle>缺陷类型颜色</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {Object.entries(DEFECT_TYPE_COLORS).map(([type, color]) => (
-              <div key={type} className="flex items-center gap-2">
-                <div className="h-4 w-4 rounded" style={{ backgroundColor: color }}></div>
-                <span className="text-sm">{type}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>键盘快捷键</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-1 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">↑↓←→</span>
-              <span>选择 PCS</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Enter</span>
-              <span>标记为 OK</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">0</span>
-              <span>标记为 NG</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>技术要点</CardTitle>
-          </CardHeader>
-          <CardContent className="text-muted-foreground space-y-2 text-sm">
-            <div>
-              <h3 className="text-foreground font-semibold">1. 键盘导航</h3>
-              <p className="text-xs">监听 keydown 事件，计算相邻 PCS 的行列索引</p>
-            </div>
-            <div>
-              <h3 className="text-foreground font-semibold">2. 选中高亮</h3>
-              <p className="text-xs">使用 emissive 材质和边框线段实现高亮效果</p>
-            </div>
-            <div>
-              <h3 className="text-foreground font-semibold">3. 状态管理</h3>
-              <p className="text-xs">Map 结构追踪复判结果，自动跳转下一项</p>
-            </div>
-            <div>
-              <h3 className="text-foreground font-semibold">4. 图片展示</h3>
-              <p className="text-xs">使用 placeholder 服务模拟缺陷图片</p>
-            </div>
-          </CardContent>
-        </Card> */}
-
         {pendingReview.length === 0 && reviewedData.size > 0 && (
           <Card className="border-green-600">
             <CardContent className="pt-6">

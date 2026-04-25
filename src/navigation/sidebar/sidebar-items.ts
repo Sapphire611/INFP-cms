@@ -132,9 +132,13 @@ export const sidebarItems: NavGroup[] = [
         icon: MessageSquare,
       },
       {
-        title: "Three.js IC载板复判",
+        title: "Three.js 演示",
         url: "/demo/threejs",
         icon: Layers,
+        subItems: [
+          { title: "IC载板复判", url: "/demo/threejs" },
+          { title: "3D模型导入", url: "/demo/threejs/import", isNew: true },
+        ],
       },
     ],
   },

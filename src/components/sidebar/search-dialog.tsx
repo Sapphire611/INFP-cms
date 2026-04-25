@@ -1,7 +1,7 @@
 "use client";
 import * as React from "react";
 
-import { LayoutDashboard, Users, UsersRound, Search, MessageSquare, CircleCheck, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Users, UsersRound, Search, MessageSquare, CircleCheck, ShieldCheck, Upload } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,7 +20,8 @@ const searchItems = [
   { group: "微信用户", icon: UsersRound, label: "微信用户列表", href: "/cms/wechat-users" },
   { group: "权限管理", icon: ShieldCheck, label: "权限管理", href: "/cms/roles" },
   { group: "AI对话", icon: MessageSquare, label: "AI对话", href: "/demo/chat" },
-  { group: "Three.js IC载板复判", icon: CircleCheck, label: "Three.js IC载板复判", href: "/demo/threejs" },
+  { group: "Three.js 演示", icon: CircleCheck, label: "IC载板复判", href: "/demo/threejs" },
+  { group: "Three.js 演示", icon: Upload, label: "3D模型导入", href: "/demo/threejs/import" },
 ];
 
 export function SearchDialog() {

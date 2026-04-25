@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Cpu, Layers, GitBranch, Zap, MousePointer, AlertTriangle, CircleDot } from "lucide-react";
+import { Cpu, Layers, GitBranch, Zap, MousePointer, AlertTriangle, CircleDot, Upload } from "lucide-react";
 import DefectInteraction from "@/components/demos/threejs/DefectInteraction";
 
 const demos = [
@@ -50,6 +50,15 @@ const demos = [
     href: "/demo/threejs/05-defect-mapping",
     level: "进阶",
     topics: ["数据驱动渲染", "颜色映射策略", "缺陷分类着色", "Raycaster 点击", "Tooltip 信息面板"],
+  },
+  {
+    id: 7,
+    title: "3D 模型导入与加载",
+    description: "学习如何导入和加载 GLTF/GLB 格式的 3D 模型，支持动画播放、模型信息展示和交互控制",
+    icon: Upload,
+    href: "/demo/threejs/import",
+    level: "进阶",
+    topics: ["useGLTF 模型加载", "useAnimations 动画", "文件上传", "模型信息", "Environment 环境"],
   },
   // {
   //   id: 6,
