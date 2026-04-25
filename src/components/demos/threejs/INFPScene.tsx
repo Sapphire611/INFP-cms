@@ -72,12 +72,14 @@ function ParticleWave() {
           count={particleCount}
           array={positions}
           itemSize={3}
+          args={[positions, 3]}
         />
         <bufferAttribute
           attach="attributes-color"
           count={particleCount}
           array={colors}
           itemSize={3}
+          args={[colors, 3]}
         />
       </bufferGeometry>
       <pointsMaterial
@@ -127,6 +129,7 @@ function SpiralParticles() {
           count={particleCount}
           array={positions}
           itemSize={3}
+          args={[positions, 3]}
         />
       </bufferGeometry>
       <pointsMaterial
@@ -177,6 +180,7 @@ function ExplosionRings() {
                 count={particleCount}
                 array={positions}
                 itemSize={3}
+                args={[positions, 3]}
               />
             </bufferGeometry>
             <pointsMaterial
