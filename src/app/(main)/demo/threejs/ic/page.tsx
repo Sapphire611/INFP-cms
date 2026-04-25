@@ -50,34 +50,7 @@ const demos = [
     href: "/demo/threejs/05-defect-mapping",
     level: "进阶",
     topics: ["数据驱动渲染", "颜色映射策略", "缺陷分类着色", "Raycaster 点击", "Tooltip 信息面板"],
-  },
-  {
-    id: 7,
-    title: "3D 模型导入与加载",
-    description: "学习如何导入和加载 GLTF/GLB 格式的 3D 模型，支持动画播放、模型信息展示和交互控制",
-    icon: Upload,
-    href: "/demo/threejs/import",
-    level: "进阶",
-    topics: ["useGLTF 模型加载", "useAnimations 动画", "文件上传", "模型信息", "Environment 环境"],
-  },
-  // {
-  //   id: 6,
-  //   title: "缺陷交互与详情展示",
-  //   description: "基于 Demo 5 实现人工复判流程，支持键盘导航选择 PCS，查看缺陷图片，快捷键标记 OK/NG，自动跳过 ET 缺陷",
-  //   icon: MousePointer,
-  //   href: "/demo/threejs/06-defect-interaction",
-  //   level: "高级",
-  //   topics: ["键盘导航", "快捷键复判", "状态管理", "高亮选中", "图片展示", "进度追踪"],
-  // },
-  // {
-  //   id: 7,
-  //   title: "检测报告可视化",
-  //   description: "实战案例：统计各类缺陷数量、良品率，相机动画聚焦到缺陷区域，生成可交互的检测报告视图",
-  //   icon: AlertTriangle,
-  //   href: "/demo/threejs/07-inspection-report",
-  //   level: "高级",
-  //   topics: ["useFrame 动画", "相机 lerp 聚焦", "数据聚合统计", "良品率计算", "缺陷热力图"],
-  // },
+  }
 ];
 
 export default function ThreeJsDemosPage() {

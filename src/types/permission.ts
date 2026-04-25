@@ -41,5 +41,6 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionKey> = {
   '/cms/wechat-users': 'wechat_users:view',
   '/cms/roles': 'users:view', // Roles management requires users:view permission
   '/demo/chat': 'chat:view',
-  '/demo/threejs': 'threejs:view',
+  '/demo/threejs/ic': 'threejs:view',
+  '/demo/threejs/import': 'threejs:view',
 };

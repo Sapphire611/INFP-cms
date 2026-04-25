@@ -443,15 +443,15 @@ export default function DefectInteraction() {
     return `https://picsum.photos/seed/${seed}/400/300`;
   };
 
-  const progress =
-    data.length > 0 ? ((reviewedData.size / data.filter((p) => p.status === "待复判").length) * 100).toFixed(1) : 0;
+  const totalToReview = reviewedData.size + pendingReview.length;
+  const progress = totalToReview > 0 ? ((reviewedData.size / totalToReview) * 100).toFixed(1) : 0;
 
   return (
-    <div className="flex h-screen w-full gap-4 bg-background p-4">
+    <div className="bg-background flex h-screen w-full gap-4 p-4">
       {/* 左侧 3D 视图 */}
       <div
         ref={canvasContainerRef}
-        className="flex-1 overflow-hidden rounded-lg border border-border"
+        className="border-border flex-1 overflow-hidden rounded-lg border"
         style={{ position: "relative" }}
       >
         <Canvas camera={{ position: [0, 100, 150], fov: 50 }}>
@@ -466,7 +466,7 @@ export default function DefectInteraction() {
       </div>
 
       {/* 右侧信息面板 */}
-      <div className="flex w-96 flex-col gap-4 h-full overflow-y-auto">
+      <div className="flex h-full w-96 flex-col gap-4 overflow-y-auto">
         <Card className="flex-shrink-0">
           <CardHeader>
             <CardTitle>复判进度</CardTitle>
@@ -544,7 +544,7 @@ export default function DefectInteraction() {
                   <img
                     src={getDefectImageUrl(selectedPcs)}
                     alt={`PCS ${selectedPcs.id} 缺陷图片`}
-                    className="w-full rounded border border-border h-53 object-cover"
+                    className="border-border h-53 w-full rounded border object-cover"
                   />
                 </div>
               )}
@@ -573,11 +573,7 @@ export default function DefectInteraction() {
         )}
 
         {pendingReview.length === 0 && reviewedData.size > 0 && (
-          <Card className="border-green-600">
-            <CardContent className="pt-6">
-              <p className="text-center font-semibold text-green-600">🎉 所有缺陷已复判完成！</p>
-            </CardContent>
-          </Card>
+          <p className="text-center font-semibold text-green-600">🎉 所有缺陷已复判完成！</p>
         )}
       </div>
     </div>
