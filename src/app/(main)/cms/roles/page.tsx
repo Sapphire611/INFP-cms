@@ -27,7 +27,6 @@ const MODULE_LABELS: Record<string, string> = {
   users: "用户管理",
   wechat_users: "微信用户",
   chat: "AI对话",
-  threejs: "Three.js Demo",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -45,7 +44,7 @@ const ACTION_VARIANT: Record<string, "default" | "secondary" | "outline" | "dest
 };
 
 // Modules that only support "use" (view), no CRUD
-const VIEW_ONLY_MODULES = new Set(["chat", "threejs"]);
+const VIEW_ONLY_MODULES = new Set(["chat"]);
 
 export default function RolesPage() {
   const [roles, setRoles] = useState<Role[]>([]);

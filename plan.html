@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INFP-CMS → MBTI SaaS AI 工具站 改造计划</title>
+<style>
+  :root {
+    --bg: #0f0f14;
+    --card: #1a1a24;
+    --border: #2a2a3a;
+    --text: #c8c8d4;
+    --heading: #e8e8f0;
+    --accent: #818cf8;
+    --accent2: #34d399;
+    --accent3: #f59e0b;
+    --danger: #f87171;
+    --muted: #6b6b7b;
+    --radius: 10px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 40px 20px;
+  }
+  .container { max-width: 1000px; margin: 0 auto; }
+
+  h1 {
+    font-size: 2.2rem;
+    color: var(--heading);
+    text-align: center;
+    margin-bottom: 8px;
+    letter-spacing: -0.5px;
+  }
+  .subtitle {
+    text-align: center;
+    color: var(--muted);
+    margin-bottom: 48px;
+    font-size: 1rem;
+  }
+
+  .meta-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px;
+    margin-bottom: 48px;
+  }
+  .meta-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    text-align: center;
+  }
+  .meta-card .label { font-size: 0.8rem; color: var(--muted); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .meta-card .value { font-size: 1.1rem; color: var(--heading); font-weight: 600; }
+
+  h2 {
+    font-size: 1.5rem;
+    color: var(--heading);
+    margin: 48px 0 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .phase-tag {
+    display: inline-block;
+    padding: 3px 12px;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .p1 { background: rgba(129,140,248,0.15); color: var(--accent); }
+  .p2 { background: rgba(52,211,153,0.15); color: var(--accent2); }
+  .p3 { background: rgba(245,158,11,0.15); color: var(--accent3); }
+
+  .arch-decision {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 12px;
+  }
+  .arch-decision h4 { color: var(--heading); margin-bottom: 4px; }
+  .arch-decision p { color: var(--muted); font-size: 0.9rem; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0 24px;
+    font-size: 0.9rem;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    color: var(--muted);
+    font-weight: 500;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  td { color: var(--text); }
+  td code {
+    background: rgba(255,255,255,0.05);
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: var(--accent);
+  }
+  .new-tag {
+    display: inline-block;
+    background: rgba(52,211,153,0.15);
+    color: var(--accent2);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+  .mod-tag {
+    display: inline-block;
+    background: rgba(245,158,11,0.15);
+    color: var(--accent3);
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+  }
+
+  .file-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin: 12px 0 24px;
+  }
+  .file-item {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 14px;
+    font-family: 'Consolas', 'Fira Code', monospace;
+    font-size: 0.82rem;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .file-item .icon { font-size: 1rem; }
+
+  .scoring-box {
+    background: var(--card);
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin: 16px 0;
+  }
+  .scoring-box h4 { color: var(--accent); margin-bottom: 10px; }
+  .scoring-box pre {
+    background: rgba(0,0,0,0.3);
+    padding: 14px;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    overflow-x: auto;
+    color: #a5b4fc;
+  }
+
+  .flow-steps {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin: 12px 0 24px;
+  }
+  .flow-step {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 18px;
+    flex: 1;
+    min-width: 140px;
+    text-align: center;
+  }
+  .flow-step .num {
+    width: 28px; height: 28px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    margin-bottom: 8px;
+  }
+  .flow-step .title { color: var(--heading); font-weight: 600; margin-bottom: 4px; }
+  .flow-step .detail { color: var(--muted); font-size: 0.8rem; }
+
+  .summary-box {
+    background: linear-gradient(135deg, rgba(129,140,248,0.1), rgba(52,211,153,0.1));
+    border: 1px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 24px 28px;
+    margin: 32px 0 0;
+    text-align: center;
+  }
+  .summary-box h3 { color: var(--heading); margin-bottom: 8px; }
+  .big-num { font-size: 3rem; font-weight: 800; color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>🧠 INFP-CMS → MBTI SaaS AI 工具站</h1>
+<p class="subtitle">三阶段改造计划 · B2C 积分制 · 微信支付 · 产品优先</p>
+
+<!-- Meta -->
+<div class="meta-grid">
+  <div class="meta-card"><div class="label">定位</div><div class="value">B2C 工具站</div></div>
+  <div class="meta-card"><div class="label">变现</div><div class="value">积分/次数制</div></div>
+  <div class="meta-card"><div class="label">支付</div><div class="value">微信支付</div></div>
+  <div class="meta-card"><div class="label">优先级</div><div class="value">产品优先</div></div>
+</div>
+
+<!-- Architecture Decisions -->
+<h2>🏗️ 架构决策</h2>
+
+<div class="arch-decision">
+  <h4>1. 不动现有 users 表</h4>
+  <p>user_type（admin/user）已满足 B2C 模型。积分、分析结果单独建表，零迁移风险。</p>
+</div>
+<div class="arch-decision">
+  <h4>2. 微信用户保持独立</h4>
+  <p>wechat_users 已有 mbti 字段，Phase 2 仅添加可选的 user_id 外键做身份关联。</p>
+</div>
+<div class="arch-decision">
+  <h4>3. 测评题目落库 + 服务端计分</h4>
+  <p>mbti_questions 表种子数据写入 48 题（每维度 12 题），服务端算法计算类型，客户端不参与计分逻辑。</p>
+</div>
+<div class="arch-decision">
+  <h4>4. AI 分析复用 DeepSeek</h4>
+  <p>沿用 chatService 的 openai SDK 调用模式，替换为 MBTI 专用 system prompt + 结构化输出，零新依赖。</p>
+</div>
+<div class="arch-decision">
+  <h4>5. 积分原子性</h4>
+  <p>消费积分时用 UPDATE … WHERE balance >= amount 做乐观锁，影响 0 行则拒绝，防并发超扣。</p>
+</div>
+
+<!-- Phase 1 -->
+<h2><span class="phase-tag p1">Phase 1</span> 先把产品做出来 — AI MBTI 核心工具</h2>
+
+<h3>📊 新增数据库表 (6 张)</h3>
+<table>
+  <tr><th>表名</th><th>用途</th><th>关键字段</th></tr>
+  <tr><td><code>mbti_questions</code></td><td>题库</td><td>question_number, dimension(EI/SN/TF/JP), option_a_text, option_b_text</td></tr>
+  <tr><td><code>mbti_test_sessions</code></td><td>测评会话</td><td>user_id, status, result_type, current_question</td></tr>
+  <tr><td><code>mbti_test_answers</code></td><td>答题记录</td><td>session_id, question_id, answer_value(A/B), UNIQUE(session,question)</td></tr>
+  <tr><td><code>mbti_type_profiles</code></td><td>16型百科</td><td>type_code, title_cn, strengths, weaknesses, career_matches, celebrity_examples</td></tr>
+  <tr><td><code>mbti_analysis_sessions</code></td><td>AI 分析结果</td><td>user_id, mbti_type, analysis_text, analysis_json, token_usage</td></tr>
+  <tr><td><code>user_credits</code></td><td>积分余额</td><td>user_id(PK), balance, free_credits_claimed</td></tr>
+</table>
+
+<h3>🧮 计分算法</h3>
+<div class="scoring-box">
+  <h4>服务端 /api/mbti/sessions/[id]/complete</h4>
+  <pre>// 1. 取出该会话所有答案
+// 2. 按维度 (EI / SN / TF / JP) 分组
+// 3. 每维度统计 A 数量 vs B 数量
+// 4. 多数方决定字母:
+//    EI: A≥B → E, 否则 → I
+//    SN: A≥B → S, 否则 → N
+//    TF: A≥B → T, 否则 → F
+//    JP: A≥B → J, 否则 → P
+// 5. 组装 4 字母类型 (如 INFP)
+// 6. 平局默认取首字母 (偏 E/S/T/J 侧)</pre>
+</div>
+
+<h3>🖥️ 新增页面 (7 个路由)</h3>
+<table>
+  <tr><th>路由</th><th>页面</th><th>权限</th></tr>
+  <tr><td><code>/mbti/test</code></td><td>测评入口 — 介绍 + 开始/继续按钮</td><td>需登录</td></tr>
+  <tr><td><code>/mbti/test/[sessionId]</code></td><td>答题页 — 逐题展示 + 进度条</td><td>需登录</td></tr>
+  <tr><td><code>/mbti/result/[sessionId]</code></td><td>结果页 — 类型展示 + 维度图表 + "AI 深度分析" CTA</td><td>需登录</td></tr>
+  <tr><td><code>/mbti/analysis/[id]</code></td><td>分析报告 — 优势/劣势/职业/成长 结构化展示</td><td>需登录</td></tr>
+  <tr><td><code>/mbti/types</code></td><td>16型百科 — 卡片网格 + 搜索</td><td>公开</td></tr>
+  <tr><td><code>/mbti/types/[code]</code></td><td>单类型详情 — 完整描述 + 名人 + 职业</td><td>公开</td></tr>
+  <tr><td><code>/profile</code></td><td>个人中心 — 测试历史、积分余额</td><td>需登录</td></tr>
+</table>
+
+<h3>🔌 新增 API (11 个端点)</h3>
+<table>
+  <tr><th>方法</th><th>路径</th><th>用途</th></tr>
+  <tr><td>GET</td><td><code>/api/mbti/questions</code></td><td>获取所有测评题目</td></tr>
+  <tr><td>POST</td><td><code>/api/mbti/sessions</code></td><td>创建新测评会话</td></tr>
+  <tr><td>GET</td><td><code>/api/mbti/sessions/[id]</code></td><td>查询会话状态</td></tr>
+  <tr><td>POST</td><td><code>/api/mbti/sessions/[id]/answers</code></td><td>提交单题答案</td></tr>
+  <tr><td>POST</td><td><code>/api/mbti/sessions/[id]/complete</code></td><td>完成测评 + 计分</td></tr>
+  <tr><td>GET</td><td><code>/api/mbti/types</code></td><td>16型列表（公开）</td></tr>
+  <tr><td>GET</td><td><code>/api/mbti/types/[code]</code></td><td>单类型详情（公开）</td></tr>
+  <tr><td>POST</td><td><code>/api/mbti/analyze</code></td><td>触发 AI 深度分析</td></tr>
+  <tr><td>GET</td><td><code>/api/mbti/analyses</code></td><td>用户分析历史</td></tr>
+  <tr><td>GET</td><td><code>/api/mbti/analyses/[id]</code></td><td>单条分析详情</td></tr>
+  <tr><td>GET</td><td><code>/api/user/credits</code></td><td>积分余额</td></tr>
+</table>
+
+<h3>📁 新增文件清单</h3>
+<div class="file-list">
+  <div class="file-item"><span class="icon">📄</span> supabase/migrations/001_mbti_platform.sql <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> supabase/seeds/mbti_seed.sql <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/types/mbti.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/types/credit.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/services/mbtiService.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/services/mbtiKnowledgeService.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/services/mbtiAnalysisService.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/services/creditService.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/mbti/questions/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/mbti/sessions/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/mbti/sessions/[id]/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/mbti/sessions/[id]/answers/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/mbti/sessions/[id]/complete/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/mbti/types/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/mbti/types/[code]/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/mbti/analyze/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/mbti/analyses/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/mbti/analyses/[id]/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/user/profile/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/user/tests/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/user/credits/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/mbti/layout.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/mbti/test/page.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/mbti/test/[sessionId]/page.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/mbti/test/_components/question-card.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/mbti/test/_components/test-progress.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/mbti/result/[sessionId]/page.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/mbti/result/_components/type-display.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/mbti/result/_components/dimension-chart.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/mbti/analysis/[id]/page.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/mbti/analysis/_components/analysis-sections.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/mbti/types/page.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/mbti/types/[code]/page.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/profile/page.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/profile/tests/page.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/types/permission.ts <span class="mod-tag">MOD</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/middleware/auth-middleware.ts <span class="mod-tag">MOD</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/navigation/sidebar/sidebar-items.ts <span class="mod-tag">MOD</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/config/app-config.ts <span class="mod-tag">MOD</span></div>
+</div>
+
+<h3>🔄 用户测评流程</h3>
+<div class="flow-steps">
+  <div class="flow-step">
+    <div class="num">1</div>
+    <div class="title">进入测试</div>
+    <div class="detail">POST /api/mbti/sessions<br>创建会话</div>
+  </div>
+  <div class="flow-step">
+    <div class="num">2</div>
+    <div class="title">逐题作答</div>
+    <div class="detail">POST …/answers<br>每题选 A 或 B</div>
+  </div>
+  <div class="flow-step">
+    <div class="num">3</div>
+    <div class="title">完成计分</div>
+    <div class="detail">POST …/complete<br>服务端计算类型</div>
+  </div>
+  <div class="flow-step">
+    <div class="num">4</div>
+    <div class="title">查看结果</div>
+    <div class="detail">/mbti/result/[id]<br>类型 + 维度图表</div>
+  </div>
+  <div class="flow-step">
+    <div class="num">5</div>
+    <div class="title">AI 深度分析</div>
+    <div class="detail">POST /api/mbti/analyze<br>DeepSeek 生成报告</div>
+  </div>
+</div>
+
+<!-- Phase 2 -->
+<h2><span class="phase-tag p2">Phase 2</span> 用户平台体验</h2>
+
+<h3>📁 新增文件</h3>
+<div class="file-list">
+  <div class="file-item"><span class="icon">📄</span> src/app/_components/landing/hero-section.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/_components/landing/feature-cards.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/_components/landing/type-showcase.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/_components/landing/cta-section.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/dashboard/page.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/dashboard/_components/welcome-card.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/dashboard/_components/quick-stats.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/dashboard/_components/recent-activity.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/miniapp/mbti/questions/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/miniapp/mbti/result/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/page.tsx <span class="mod-tag">MOD</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/auth/wechat-login/route.ts <span class="mod-tag">MOD</span></div>
+</div>
+
+<h3>核心变更</h3>
+<table>
+  <tr><th>变更</th><th>说明</th></tr>
+  <tr><td>公开落地页</td><td><code>app/page.tsx</code> 从重定向改为完整的 Hero + 功能介绍 + 16型展示 + CTA 营销页（无需登录）</td></tr>
+  <tr><td>用户仪表盘</td><td><code>/dashboard</code> 欢迎卡片 + 测试次数/分析次数/积分余额速览 + 近期活动时间线</td></tr>
+  <tr><td>小程序 API</td><td>简化 JSON 格式的测评接口 + 分享卡片生成，适配微信小程序调用</td></tr>
+  <tr><td>微信登录增强</td><td>登录响应增加 <code>hasTested</code> 标记，检查 wechat_users.mbti 是否已有结果</td></tr>
+</table>
+
+<!-- Phase 3 -->
+<h2><span class="phase-tag p3">Phase 3</span> 积分变现</h2>
+
+<h3>📁 新增文件</h3>
+<div class="file-list">
+  <div class="file-item"><span class="icon">📄</span> src/app/api/credits/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/credits/transactions/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/payments/orders/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/api/payments/wechat/callback/route.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/services/wechatPayService.ts <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/credits/page.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/credits/purchase/page.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/cms/credits/page.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/cms/analytics/page.tsx <span class="new-tag">NEW</span></div>
+  <div class="file-item"><span class="icon">📄</span> src/app/(main)/cms/content/page.tsx <span class="new-tag">NEW</span></div>
+</div>
+
+<h3>积分经济模型</h3>
+<table>
+  <tr><th>事件</th><th>积分变动</th></tr>
+  <tr><td>新用户注册</td><td style="color:var(--accent2)">+100（免费赠送）</td></tr>
+  <tr><td>AI 深度分析</td><td style="color:var(--danger)">-50（每次消耗）</td></tr>
+  <tr><td>积分包购买</td><td style="color:var(--accent2)">+200 / +500 / +1200</td></tr>
+  <tr><td>分析失败退款</td><td style="color:var(--accent2)">+50（自动退还）</td></tr>
+</table>
+
+<h3>微信支付流程</h3>
+<div class="flow-steps">
+  <div class="flow-step">
+    <div class="num">1</div>
+    <div class="title">创建订单</div>
+    <div class="detail">POST /api/payments/orders<br>选择积分包</div>
+  </div>
+  <div class="flow-step">
+    <div class="num">2</div>
+    <div class="title">调起支付</div>
+    <div class="detail">wx.requestPayment<br>微信 JSAPI</div>
+  </div>
+  <div class="flow-step">
+    <div class="num">3</div>
+    <div class="title">支付回调</div>
+    <div class="detail">POST …/wechat/callback<br>验签 + 更新订单</div>
+  </div>
+  <div class="flow-step">
+    <div class="num">4</div>
+    <div class="title">积分到账</div>
+    <div class="detail">user_credits.balance += N<br>写入交易记录</div>
+  </div>
+</div>
+
+<!-- Summary -->
+<div class="summary-box">
+  <h3>三阶段总计</h3>
+  <div style="display:flex;gap:40px;justify-content:center;flex-wrap:wrap;margin-top:20px">
+    <div><div class="big-num">6</div>新增数据库表</div>
+    <div><div class="big-num">50+</div>新增文件</div>
+    <div><div class="big-num">5</div>修改现有文件</div>
+    <div><div class="big-num">0</div>删除现有代码</div>
+    <div><div class="big-num">0</div>新增 npm 依赖</div>
+  </div>
+  <p style="margin-top:16px;color:var(--muted);font-size:0.9rem">所有改动均为增量式，不破坏现有 CMS 功能。旧代码已保存在 <code>old</code> 分支。</p>
+</div>
+
+</div>
+</body>
+</html>

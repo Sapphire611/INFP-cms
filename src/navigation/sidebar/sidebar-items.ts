@@ -1,9 +1,9 @@
-import { MessageSquare, Users, LayoutDashboard, UsersRound, ShieldCheck, Layers, type LucideIcon } from "lucide-react";
+import { MessageSquare, Users, LayoutDashboard, UsersRound, ShieldCheck } from "lucide-react";
 
 export interface NavSubItem {
   title: string;
   url: string;
-  icon?: LucideIcon;
+  icon?: typeof MessageSquare;
   comingSoon?: boolean;
   newTab?: boolean;
   isNew?: boolean;
@@ -12,7 +12,7 @@ export interface NavSubItem {
 export interface NavMainItem {
   title: string;
   url: string;
-  icon?: LucideIcon;
+  icon?: typeof MessageSquare;
   subItems?: NavSubItem[];
   comingSoon?: boolean;
   newTab?: boolean;
@@ -60,16 +60,6 @@ export const sidebarItems: NavGroup[] = [
         title: "AI对话",
         url: "/demo/chat",
         icon: MessageSquare,
-      },
-      {
-        title: "Three.js 演示",
-        url: "/demo/threejs/ic",
-        icon: Layers,
-        subItems: [
-          { title: "IC载板复判", url: "/demo/threejs/ic" },
-          { title: "3D模型导入", url: "/demo/threejs/import" },
-          { title: "简单粒子动画", url: "/demo/threejs/animate", isNew: true },
-        ],
       },
     ],
   },

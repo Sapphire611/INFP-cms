@@ -41,7 +41,6 @@ const MODULE_LABELS: Record<string, string> = {
   users: "用户管理",
   wechat_users: "微信用户",
   chat: "AI对话",
-  threejs: "Three.js Demo",
 };
 
 const ACTION_LABELS: Record<string, string> = {
@@ -54,7 +53,7 @@ const ACTION_LABELS: Record<string, string> = {
 const ACTION_ORDER = ["view", "create", "update", "delete"];
 
 // Modules that only support "use" (view), no CRUD
-const VIEW_ONLY_MODULES = new Set(["chat", "threejs"]);
+const VIEW_ONLY_MODULES = new Set(["chat"]);
 
 export function RoleDialog({ open, onOpenChange, role, allPermissions, onSaved }: Props) {
   const [name, setName] = useState("");
