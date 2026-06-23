@@ -228,12 +228,17 @@ Required variables (see `.env.example`):
 
 ## Testing
 
-After making changes:
+**Before completing any new feature or fix, both test suites must pass:**
 
-1. Test authentication flow (`/login`, `/logout`)
-2. Verify database operations through service layer
-3. Check API responses with proper error handling
-4. Ensure UI components render correctly
+```bash
+npm test              # Jest unit/integration tests (backend)
+npm run test:e2e      # Playwright E2E tests (frontend)
+```
+
+1. Write or update tests that cover the changed behavior
+2. Run both suites and ensure all tests pass
+3. If E2E tests need new selectors, prefer `getByRole` / `getByText` over raw CSS selectors
+4. For forms with custom validation, bypass HTML5 validation in tests with `form.noValidate = true` when needed
 
 ## Deployment Notes
 
