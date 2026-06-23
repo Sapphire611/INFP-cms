@@ -1,7 +1,24 @@
 import Link from "next/link";
-import { ArrowRight, Sparkles, Brain, Users, Shield } from "lucide-react";
+import { cookies } from "next/headers";
+import { verify } from "jsonwebtoken";
+import { ArrowRight, Brain, Users, Shield, Settings } from "lucide-react";
+import type { JWTPayload } from "@/lib/jwt";
 
-export default function LandingPage() {
+async function getIsAdmin(): Promise<boolean> {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get("auth-token")?.value;
+    if (!token) return false;
+    const payload = verify(token, process.env.JWT_SECRET ?? "") as JWTPayload;
+    return payload.userType === "admin";
+  } catch {
+    return false;
+  }
+}
+
+export default async function LandingPage() {
+  const isAdmin = await getIsAdmin();
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
@@ -11,15 +28,27 @@ export default function LandingPage() {
           <Link href="/mbti/types" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             类型百科
           </Link>
-          <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-            登录
-          </Link>
-          <Link
-            href="/register"
-            className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
-          >
-            免费注册
-          </Link>
+          {isAdmin ? (
+            <Link
+              href="/cms/dashboard"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+            >
+              <Settings className="h-4 w-4" />
+              后台管理
+            </Link>
+          ) : (
+            <>
+              <Link href="/login" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                登录
+              </Link>
+              <Link
+                href="/register"
+                className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              >
+                免费注册
+              </Link>
+            </>
+          )}
         </nav>
       </header>
 
@@ -70,14 +99,7 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section className="border-t py-16 text-center">
-        <p className="text-muted-foreground mb-4">准备好了吗？三分钟，认识真正的自己。</p>
-        <Link
-          href="/register"
-          className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3.5 text-base font-semibold text-primary-foreground shadow-lg hover:bg-primary/90 transition-all"
-        >
-          免费开始
-          <Sparkles className="h-5 w-5" />
-        </Link>
+        <p className="text-muted-foreground">准备好了吗？三分钟，认识真正的自己。</p>
       </section>
     </div>
   );

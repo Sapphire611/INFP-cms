@@ -61,8 +61,8 @@ export function LoginForm() {
         const maxAge = result.maxAge ?? 86400; // 默认1天
         document.cookie = `auth-token=${result.token}; path=/; max-age=${maxAge}; SameSite=Strict`;
         document.cookie = `user-info=${encodeURIComponent(JSON.stringify(result.user))}; path=/; max-age=${maxAge}; SameSite=Strict`;
-        // 跳转到仪表板
-        router.push("/cms/dashboard");
+        // 跳转到首页
+        router.push("/");
       } else {
         toast.error(result.error ?? "登录失败，请检查邮箱和密码");
       }
