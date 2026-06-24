@@ -64,18 +64,16 @@ const COLOR_MAP = {
   },
 } as const;
 
-// 根据 MBTI 类型码判断颜色分组
+// 根据 MBTI 类型码判断颜色分组（正确四色分类）
 function getColorGroup(type: string): keyof typeof COLOR_MAP {
-  const first = type[0];
-  const second = type[1];
-  // 分析师 = 紫人 (N + T/J 组合，INTJ/INTP/ENTJ/ENTP)
+  // 紫人 = 分析师（NT）
   if (["INTJ", "INTP", "ENTJ", "ENTP"].includes(type)) return "紫人";
-  // 外交官 = 黄人 (NF 组合，INFJ/INFP/ENFJ/ENFP)
-  if (["INFJ", "INFP", "ENFJ", "ENFP"].includes(type)) return "黄人";
-  // 守护者 = 绿人 (SJ 组合，ISTJ/ISFJ/ESTJ/ESFJ)
-  if (["ISTJ", "ISFJ", "ESTJ", "ESFJ"].includes(type)) return "绿人";
-  // 探险家 = 蓝人 (SP 组合，ISTP/ISFP/ESTP/ESFP)
-  return "蓝人";
+  // 绿人 = 外交官（NF）
+  if (["INFJ", "INFP", "ENFJ", "ENFP"].includes(type)) return "绿人";
+  // 蓝人 = 守护者（SJ）
+  if (["ISTJ", "ISFJ", "ESTJ", "ESFJ"].includes(type)) return "蓝人";
+  // 黄人 = 探险家（SP）
+  return "黄人";
 }
 
 interface Question {
@@ -110,18 +108,18 @@ const TYPE_INFO: Record<string, { name: string; group: string; description: stri
   INTP:  { name: "逻辑学家", group: "紫人 · 分析师", description: "致力于用创新的方式解决问题，对知识有着无尽的渴望。", strengths: ["分析能力", "开放思维", "客观理性", "创意丰富"] },
   ENTJ:  { name: "指挥官", group: "紫人 · 分析师", description: "大胆、想象力丰富、意志坚定的领导者。", strengths: ["领导力", "战略规划", "自信果断", "效率至上"] },
   ENTP:  { name: "辩论家", group: "紫人 · 分析师", description: "聪明、好奇的思考者，在思想交锋中蓬勃发展。", strengths: ["机智灵活", "知识广博", "思维敏捷", "挑战精神"] },
-  INFJ:  { name: "提倡者", group: "黄人 · 外交官", description: "安静而神秘，鼓舞人心的理想主义者。", strengths: ["洞察力", "创意十足", "坚定信念", "帮助他人"] },
-  INFP:  { name: "调停者", group: "黄人 · 外交官", description: "富有诗意和善良的利他主义者，始终努力做正确的事。", strengths: ["同理心", "理想主义", "热情真诚", "好奇心"] },
-  ENFJ:  { name: "主人公", group: "黄人 · 外交官", description: "富有魅力的领导者，能鼓舞人心。", strengths: ["魅力四射", "利他精神", "天生领袖", "可靠可信"] },
-  ENFP:  { name: "竞选者", group: "黄人 · 外交官", description: "热情洋溢、灵感激荡的社交者。", strengths: ["热情洋溢", "创意无限", "社交广泛", "乐观积极"] },
-  ISTJ:  { name: "物流师", group: "绿人 · 守护者", description: "事实和逻辑的安静力量，值得信赖、履行承诺的守护者。", strengths: ["高度负责", "诚实可靠", "严谨细致", "冷静理性"] },
-  ISFJ:  { name: "守卫者", group: "绿人 · 守护者", description: "非常专注、温暖的守护者，随时准备保护所爱之人。", strengths: ["温暖体贴", "责任心强", "耐心细致", "支持他人"] },
-  ESTJ:  { name: "总经理", group: "绿人 · 守护者", description: "出色的管理者，在组织项目方面无与伦比。", strengths: ["组织能力", "执行力强", "传统稳重", "直接坦诚"] },
-  ESFJ:  { name: "执政官", group: "绿人 · 守护者", description: "非常关怀的照顾者，总是乐于助人。", strengths: ["关怀他人", "社交能力强", "忠诚可靠", "实际帮助"] },
-  ISTP:  { name: "鉴赏家", group: "蓝人 · 探险家", description: "大胆而实际的实验家，具有运用各种工具的天赋。", strengths: ["冷静分析", "实操能力强", "冒险精神", "灵活应变"] },
-  ISFP:  { name: "探险家", group: "蓝人 · 探险家", description: "灵活的艺术家，渴望用创意的方式呈现世界之美。", strengths: ["艺术天赋", "对美敏感", "好奇心强", "活在当下"] },
-  ESTP:  { name: "企业家", group: "蓝人 · 探险家", description: "聪明的社交者，喜欢即时行乐。", strengths: ["精力充沛", "务实大胆", "观察敏锐", "社交魅力"] },
-  ESFP:  { name: "表演者", group: "蓝人 · 探险家", description: "自发的、精力充沛的表演者。", strengths: ["热情开朗", "即兴能力", "关注他人", "活在当下"] },
+  INFJ:  { name: "提倡者", group: "绿人 · 外交官", description: "安静而神秘，鼓舞人心的理想主义者。", strengths: ["洞察力", "创意十足", "坚定信念", "帮助他人"] },
+  INFP:  { name: "调停者", group: "绿人 · 外交官", description: "富有诗意和善良的利他主义者，始终努力做正确的事。", strengths: ["同理心", "理想主义", "热情真诚", "好奇心"] },
+  ENFJ:  { name: "主人公", group: "绿人 · 外交官", description: "富有魅力的领导者，能鼓舞人心。", strengths: ["魅力四射", "利他精神", "天生领袖", "可靠可信"] },
+  ENFP:  { name: "竞选者", group: "绿人 · 外交官", description: "热情洋溢、灵感激荡的社交者。", strengths: ["热情洋溢", "创意无限", "社交广泛", "乐观积极"] },
+  ISTJ:  { name: "物流师", group: "蓝人 · 守护者", description: "事实和逻辑的安静力量，值得信赖、履行承诺的守护者。", strengths: ["高度负责", "诚实可靠", "严谨细致", "冷静理性"] },
+  ISFJ:  { name: "守卫者", group: "蓝人 · 守护者", description: "非常专注、温暖的守护者，随时准备保护所爱之人。", strengths: ["温暖体贴", "责任心强", "耐心细致", "支持他人"] },
+  ESTJ:  { name: "总经理", group: "蓝人 · 守护者", description: "出色的管理者，在组织项目方面无与伦比。", strengths: ["组织能力", "执行力强", "传统稳重", "直接坦诚"] },
+  ESFJ:  { name: "执政官", group: "蓝人 · 守护者", description: "非常关怀的照顾者，总是乐于助人。", strengths: ["关怀他人", "社交能力强", "忠诚可靠", "实际帮助"] },
+  ISTP:  { name: "鉴赏家", group: "黄人 · 探险家", description: "大胆而实际的实验家，具有运用各种工具的天赋。", strengths: ["冷静分析", "实操能力强", "冒险精神", "灵活应变"] },
+  ISFP:  { name: "探险家", group: "黄人 · 探险家", description: "灵活的艺术家，渴望用创意的方式呈现世界之美。", strengths: ["艺术天赋", "对美敏感", "好奇心强", "活在当下"] },
+  ESTP:  { name: "企业家", group: "黄人 · 探险家", description: "聪明的社交者，喜欢即时行乐。", strengths: ["精力充沛", "务实大胆", "观察敏锐", "社交魅力"] },
+  ESFP:  { name: "表演者", group: "黄人 · 探险家", description: "自发的、精力充沛的表演者。", strengths: ["热情开朗", "即兴能力", "关注他人", "活在当下"] },
 };
 
 function calculateType(answers: Map<number, string>): string {

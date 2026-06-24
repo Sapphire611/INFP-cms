@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Brain, Heart, Shield, Compass, Sparkles, ChevronRight } from "lucide-react";
 
-// ── 四色分类（配色直接内联，避免 TS 索引报错）────────────────────
+// ── 四色分类（正确对应关系）─────────────────────────────────
 const GROUPS = [
   {
     key: "紫人",
@@ -20,25 +20,11 @@ const GROUPS = [
     iconClass: "text-purple-500",
   },
   {
-    key: "黄人",
-    label: "黄人 · 外交官",
-    icon: Heart,
-    desc: "富有同理心、理想主义的沟通者，注重和谐",
-    bg: "bg-amber-500",
-    bgLight: "bg-amber-50 dark:bg-amber-950/40",
-    border: "border-amber-300 dark:border-amber-700",
-    text: "text-amber-700 dark:text-amber-300",
-    textLight: "text-amber-600/80 dark:text-amber-400/80",
-    badge: "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300",
-    gradient: "from-amber-400 to-orange-500",
-    ring: "ring-amber-400/40",
-    iconClass: "text-amber-500",
-  },
-  {
     key: "绿人",
-    label: "绿人 · 守护者",
-    icon: Shield,
-    desc: "务实、可靠的实践者，注重责任与安全",
+    label: "绿人 · 外交官",
+    icon: Heart,
+    desc: "富有同理心、理想主义的沟通者，注重和谐与价值",
+    // 绿人配色（绿色系）
     bg: "bg-emerald-600",
     bgLight: "bg-emerald-50 dark:bg-emerald-950/40",
     border: "border-emerald-300 dark:border-emerald-700",
@@ -51,9 +37,10 @@ const GROUPS = [
   },
   {
     key: "蓝人",
-    label: "蓝人 · 探险家",
-    icon: Compass,
-    desc: "灵活、创意的探索者，注重自由与体验",
+    label: "蓝人 · 守护者",
+    icon: Shield,
+    desc: "务实、可靠的实践者，注重责任、安全与秩序",
+    // 蓝人配色（蓝色系）
     bg: "bg-sky-600",
     bgLight: "bg-sky-50 dark:bg-sky-950/40",
     border: "border-sky-300 dark:border-sky-700",
@@ -64,32 +51,48 @@ const GROUPS = [
     ring: "ring-sky-400/40",
     iconClass: "text-sky-500",
   },
+  {
+    key: "黄人",
+    label: "黄人 · 探险家",
+    icon: Compass,
+    desc: "灵活、创意的探索者，注重自由、体验与即兴",
+    // 黄人配色（琥珀/黄色系）
+    bg: "bg-amber-500",
+    bgLight: "bg-amber-50 dark:bg-amber-950/40",
+    border: "border-amber-300 dark:border-amber-700",
+    text: "text-amber-700 dark:text-amber-300",
+    textLight: "text-amber-600/80 dark:text-amber-400/80",
+    badge: "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300",
+    gradient: "from-amber-400 to-orange-500",
+    ring: "ring-amber-400/40",
+    iconClass: "text-amber-500",
+  },
 ] as const;
 
 const TYPES = [
-  // 紫人 — 分析师
+  // 紫人 — 分析师（NT）
   { code: "INTJ", name: "建筑师", colorGroup: "紫人" as const, traits: ["独立", "战略", "理性", "高标准"], description: "富有想象力和战略性的思想家，一切都在计划之中。" },
   { code: "INTP", name: "逻辑学家", colorGroup: "紫人" as const, traits: ["好奇", "逻辑", "分析", "创新"], description: "致力于用创新的方式解决问题，对知识有着无尽的渴望。" },
   { code: "ENTJ", name: "指挥官", colorGroup: "紫人" as const, traits: ["果断", "领导力", "战略", "自信"], description: "大胆、想象力丰富、意志坚定的领导者，将愿景变为现实。" },
   { code: "ENTP", name: "辩论家", colorGroup: "紫人" as const, traits: ["机智", "好奇", "聪明", "精力充沛"], description: "聪明、好奇的思考者，在思想交锋中蓬勃发展。" },
 
-  // 黄人 — 外交官
-  { code: "INFJ", name: "提倡者", colorGroup: "黄人" as const, traits: ["理想主义", "洞察力", "创意", "忠诚"], description: "安静而神秘，鼓舞人心的理想主义者。" },
-  { code: "INFP", name: "调停者", colorGroup: "黄人" as const, traits: ["诗意", "善良", "利他", "忠诚"], description: "富有诗意和善良的利他主义者，始终努力做正确的事。" },
-  { code: "ENFJ", name: "主人公", colorGroup: "黄人" as const, traits: ["魅力", "感染力", "利他", "领导力"], description: "富有魅力的领导者，能鼓舞人心，团结人们追求共同理想。" },
-  { code: "ENFP", name: "竞选者", colorGroup: "黄人" as const, traits: ["热情", "创意", "社交", "乐观"], description: "热情洋溢、灵感激荡的社交者，总是能找到理由感到快乐。" },
+  // 绿人 — 外交官（NF）
+  { code: "INFJ", name: "提倡者", colorGroup: "绿人" as const, traits: ["理想主义", "洞察力", "创意", "忠诚"], description: "安静而神秘，鼓舞人心的理想主义者。" },
+  { code: "INFP", name: "调停者", colorGroup: "绿人" as const, traits: ["诗意", "善良", "利他", "忠诚"], description: "富有诗意和善良的利他主义者，始终努力做正确的事。" },
+  { code: "ENFJ", name: "主人公", colorGroup: "绿人" as const, traits: ["魅力", "感染力", "利他", "领导力"], description: "富有魅力的领导者，能鼓舞人心，团结人们追求共同理想。" },
+  { code: "ENFP", name: "竞选者", colorGroup: "绿人" as const, traits: ["热情", "创意", "社交", "乐观"], description: "热情洋溢、灵感激荡的社交者，总是能找到理由感到快乐。" },
 
-  // 绿人 — 守护者
-  { code: "ISTJ", name: "物流师", colorGroup: "绿人" as const, traits: ["务实", "可靠", "诚实", "负责"], description: "事实和逻辑的安静力量，值得信赖、履行承诺的守护者。" },
-  { code: "ISFJ", name: "守卫者", colorGroup: "绿人" as const, traits: ["温暖", "可靠", "细心", "忠诚"], description: "非常专注、温暖的守护者，随时准备保护所爱之人。" },
-  { code: "ESTJ", name: "总经理", colorGroup: "绿人" as const, traits: ["执行", "管理", "诚实", "传统"], description: "出色的管理者，在组织项目方面无与伦比。" },
-  { code: "ESFJ", name: "执政官", colorGroup: "绿人" as const, traits: ["关怀", "社交", "责任", "受欢迎"], description: "非常关怀的照顾者，总是乐于助人，人气很高。" },
+  // 蓝人 — 守护者（SJ）
+  { code: "ISTJ", name: "物流师", colorGroup: "蓝人" as const, traits: ["务实", "可靠", "诚实", "负责"], description: "事实和逻辑的安静力量，值得信赖、履行承诺的守护者。" },
+  { code: "ISFJ", name: "守卫者", colorGroup: "蓝人" as const, traits: ["温暖", "可靠", "细心", "忠诚"], description: "非常专注、温暖的守护者，随时准备保护所爱之人。" },
+  { code: "ESTJ", name: "总经理", colorGroup: "蓝人" as const, traits: ["执行", "管理", "诚实", "传统"], description: "出色的管理者，在组织项目方面无与伦比。" },
+  { code: "ESFJ", name: "执政官", colorGroup: "蓝人" as const, traits: ["关怀", "社交", "责任", "受欢迎"], description: "非常关怀的照顾者，总是乐于助人，人气很高。" },
 
-  // 蓝人 — 探险家
-  { code: "ISTP", name: "鉴赏家", colorGroup: "蓝人" as const, traits: ["大胆", "实用", "实验", "手巧"], description: "大胆而实际的实验家，具有运用各种工具的天赋。" },
-  { code: "ISFP", name: "探险家", colorGroup: "蓝人" as const, traits: ["灵活", "艺术", "适应", "观察"], description: "灵活的艺术家，渴望用创意的方式呈现世界之美。" },
-  { code: "ESTP", name: "企业家", colorGroup: "蓝人" as const, traits: ["活力", "现实", "大胆", "自发"], description: "聪明的社交者，喜欢即时行乐，热衷于解决挑战性问题。" },
-  { code: "ESFP", name: "表演者", colorGroup: "蓝人" as const, traits: ["自发性", "魅力", "热情", "娱乐"], description: "自发的、精力充沛的表演者，总是能让周围的人感到有趣。" },
+  // 黄人 — 探险家（SP）
+  { code: "ISTP", name: "鉴赏家", colorGroup: "黄人" as const, traits: ["大胆", "实用", "实验", "手巧"], description: "大胆而实际的实验家，具有运用各种工具的天赋。" },
+  { code: "ISFP", name: "探险家", colorGroup: "黄人" as const, traits: ["灵活", "艺术", "适应", "观察"], description: "灵活的艺术家，渴望用创意的方式呈现世界之美。" },
+  { code: "ESTP", name: "企业家", colorGroup: "黄人" as const, traits: ["活力", "现实", "大胆", "自发"], description: "聪明的社交者，喜欢即时行乐，热衷于解决挑战性问题。" },
+  { code: "ESFP", name: "表演者", colorGroup: "黄人" as const, traits: ["自发性", "魅力", "热情", "娱乐"], description: "自发的、精力充沛的表演者，总是能让周围的人感到有趣。" },
 ];
 
 export default function TypesPage() {
