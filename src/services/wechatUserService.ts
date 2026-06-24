@@ -47,6 +47,8 @@ export interface WechatUser {
   unionid: string | null;
   wechatNickname: string | null;
   wechatAvatarUrl: string | null;
+  email: string | null;        // 新增：邮箱
+  password: string | null;   // 新增：密码
   mbti: string | null;
   isActive: boolean;
   lastLoginAt: Date | null;
@@ -65,6 +67,8 @@ function transform(user: any): WechatUser {
     unionid: user.unionid,
     wechatNickname: user.wechat_nickname,
     wechatAvatarUrl: user.wechat_avatar_url,
+    email: user.email ?? null,           // 新增
+    password: user.password ?? null,     // 新增
     mbti: user.mbti ?? null,
     isActive: user.is_active,
     lastLoginAt: user.last_login_at ? new Date(user.last_login_at) : null,
@@ -158,6 +162,13 @@ export async function deleteWechatUser(id: string) {
     .from('wechat_users').delete().eq('id', id).select('*').single();
   if (error) throw error;
   return transform(user);
+}
+
+export async function findByEmail(email: string) {
+  const { data, error } = await supabaseAdmin
+    .from('wechat_users').select('*').eq('email', email).single();
+  if (error && error.code !== 'PGRST116') throw error;
+  return data ? transform(data) : null;
 }
 
 export async function findByOpenid(openid: string) {

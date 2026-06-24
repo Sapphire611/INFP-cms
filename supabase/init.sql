@@ -47,12 +47,17 @@ CREATE TABLE IF NOT EXISTS wechat_users (
   unionid VARCHAR(255) UNIQUE,
   wechat_nickname TEXT,
   wechat_avatar_url TEXT,
+  email VARCHAR(255) UNIQUE,  -- 新增：邮箱登录
+  password VARCHAR(255),           -- 新增：登录密码（bcrypt 加密）
   mbti VARCHAR(4),
   is_active BOOLEAN DEFAULT true,
   last_login_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- 邮箱唯一索引
+CREATE UNIQUE INDEX IF NOT EXISTS idx_wechat_users_email ON wechat_users(email) WHERE email IS NOT NULL;
 
 CREATE INDEX IF NOT EXISTS idx_wechat_users_openid ON wechat_users(openid);
 CREATE INDEX IF NOT EXISTS idx_wechat_users_unionid ON wechat_users(unionid);
