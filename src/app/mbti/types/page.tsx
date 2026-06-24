@@ -1,166 +1,106 @@
 import Link from "next/link";
-import { Brain, Users, Shield, Zap, Heart, Compass, Sparkles, Target } from "lucide-react";
+import { Brain, Heart, Shield, Compass, Sparkles, ChevronRight } from "lucide-react";
+
+// ── 四色分类（配色直接内联，避免 TS 索引报错）────────────────────
+const GROUPS = [
+  {
+    key: "紫人",
+    label: "紫人 · 分析师",
+    icon: Brain,
+    desc: "理性、战略性的思考者，追求逻辑与效率",
+    // 紫人配色
+    bg: "bg-purple-600",
+    bgLight: "bg-purple-50 dark:bg-purple-950/40",
+    border: "border-purple-300 dark:border-purple-700",
+    text: "text-purple-700 dark:text-purple-300",
+    textLight: "text-purple-600/80 dark:text-purple-400/80",
+    badge: "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300",
+    gradient: "from-purple-500 to-indigo-600",
+    ring: "ring-purple-400/40",
+    iconClass: "text-purple-500",
+  },
+  {
+    key: "黄人",
+    label: "黄人 · 外交官",
+    icon: Heart,
+    desc: "富有同理心、理想主义的沟通者，注重和谐",
+    bg: "bg-amber-500",
+    bgLight: "bg-amber-50 dark:bg-amber-950/40",
+    border: "border-amber-300 dark:border-amber-700",
+    text: "text-amber-700 dark:text-amber-300",
+    textLight: "text-amber-600/80 dark:text-amber-400/80",
+    badge: "bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300",
+    gradient: "from-amber-400 to-orange-500",
+    ring: "ring-amber-400/40",
+    iconClass: "text-amber-500",
+  },
+  {
+    key: "绿人",
+    label: "绿人 · 守护者",
+    icon: Shield,
+    desc: "务实、可靠的实践者，注重责任与安全",
+    bg: "bg-emerald-600",
+    bgLight: "bg-emerald-50 dark:bg-emerald-950/40",
+    border: "border-emerald-300 dark:border-emerald-700",
+    text: "text-emerald-700 dark:text-emerald-300",
+    textLight: "text-emerald-600/80 dark:text-emerald-400/80",
+    badge: "bg-emerald-100 dark:bg-emerald-900 text-emerald-700 dark:text-emerald-300",
+    gradient: "from-emerald-500 to-teal-600",
+    ring: "ring-emerald-400/40",
+    iconClass: "text-emerald-500",
+  },
+  {
+    key: "蓝人",
+    label: "蓝人 · 探险家",
+    icon: Compass,
+    desc: "灵活、创意的探索者，注重自由与体验",
+    bg: "bg-sky-600",
+    bgLight: "bg-sky-50 dark:bg-sky-950/40",
+    border: "border-sky-300 dark:border-sky-700",
+    text: "text-sky-700 dark:text-sky-300",
+    textLight: "text-sky-600/80 dark:text-sky-400/80",
+    badge: "bg-sky-100 dark:bg-sky-900 text-sky-700 dark:text-sky-300",
+    gradient: "from-sky-500 to-blue-600",
+    ring: "ring-sky-400/40",
+    iconClass: "text-sky-500",
+  },
+] as const;
 
 const TYPES = [
-  {
-    code: "INTJ",
-    name: "建筑师",
-    role: "分析师",
-    color: "bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300",
-    traits: ["独立", "战略", "理性", "高标准"],
-    description: "富有想象力和战略性的思想家，一切都在他们的计划之中。",
-  },
-  {
-    code: "INTP",
-    name: "逻辑学家",
-    role: "分析师",
-    color: "bg-sky-100 dark:bg-sky-950 text-sky-700 dark:text-sky-300",
-    traits: ["好奇", "逻辑", "分析", "创新"],
-    description: "致力于用创新的方式解决所有问题，对知识有着无尽的渴望。",
-  },
-  {
-    code: "ENTJ",
-    name: "指挥官",
-    role: "分析师",
-    color: "bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300",
-    traits: ["果断", "领导力", "战略", "自信"],
-    description: "大胆、想象力丰富、意志坚定的领导者，总能找到办法将愿景变为现实。",
-  },
-  {
-    code: "ENTP",
-    name: "辩论家",
-    role: "分析师",
-    color: "bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300",
-    traits: ["机智", "好奇", "聪明", "精力充沛"],
-    description: "聪明、好奇的思考者，喜欢思想交锋，能在辩论中蓬勃发展。",
-  },
-  {
-    code: "INFJ",
-    name: "提倡者",
-    role: "外交官",
-    color: "bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300",
-    traits: ["理想主义", "洞察力", "创意", "忠诚"],
-    description: "安静而神秘，鼓舞人心、不知疲倦地追求崇高理想。",
-  },
-  {
-    code: "INFP",
-    name: "调停者",
-    role: "外交官",
-    color: "bg-teal-100 dark:bg-teal-950 text-teal-700 dark:text-teal-300",
-    traits: ["诗意", "善良", "利他", "忠诚"],
-    description: "安静的理想主义者，富有诗意和善良的利他主义者，始终努力做正确的事。",
-  },
-  {
-    code: "ENFJ",
-    name: "主人公",
-    role: "外交官",
-    color: "bg-rose-100 dark:bg-rose-950 text-rose-700 dark:text-rose-300",
-    traits: ["魅力", "感染力", "利他", "领导力"],
-    description: "富有魅力的领导者，能鼓舞人心，将人们团结在一起追求共同理想。",
-  },
-  {
-    code: "ENFP",
-    name: "竞选者",
-    role: "外交官",
-    color: "bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300",
-    traits: ["热情", "创意", "社交", "乐观"],
-    description: "热情洋溢、灵感激荡的社交者，总是能找到理由感到快乐。",
-  },
-  {
-    code: "ISTJ",
-    name: "物流师",
-    role: "守护者",
-    color: "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300",
-    traits: ["务实", "可靠", "诚实", "负责"],
-    description: "事实和逻辑的安静力量，值得信赖、履行承诺的守护者。",
-  },
-  {
-    code: "ISFJ",
-    name: "守卫者",
-    role: "守护者",
-    color: "bg-stone-100 dark:bg-stone-800 text-stone-700 dark:text-stone-300",
-    traits: ["温暖", "可靠", "细心", "忠诚"],
-    description: "非常专注、温暖的守护者，随时准备保护所爱之人。",
-  },
-  {
-    code: "ESTJ",
-    name: "总经理",
-    role: "守护者",
-    color: "bg-orange-100 dark:bg-orange-950 text-orange-700 dark:text-orange-300",
-    traits: ["执行", "管理", "诚实", "传统"],
-    description: "出色的管理者，在组织项目方面无与伦比，更喜欢做而不是说。",
-  },
-  {
-    code: "ESFJ",
-    name: "执政官",
-    role: "守护者",
-    color: "bg-pink-100 dark:bg-pink-950 text-pink-700 dark:text-pink-300",
-    traits: ["关怀", "社交", "责任", "受欢迎"],
-    description: "非常关怀的照顾者，总是乐于助人，人气很高。",
-  },
-  {
-    code: "ISTP",
-    name: "鉴赏家",
-    role: "探险家",
-    color: "bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300",
-    traits: ["大胆", "实用", "实验", "手巧"],
-    description: "大胆而实际的实验家，具有运用各种工具的天赋。",
-  },
-  {
-    code: "ISFP",
-    name: "探险家",
-    role: "探险家",
-    color: "bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300",
-    traits: ["灵活", "艺术", "适应", "观察"],
-    description: "灵活的艺术家，渴望用创意的方式呈现世界之美。",
-  },
-  {
-    code: "ESTP",
-    name: "企业家",
-    role: "探险家",
-    color: "bg-yellow-100 dark:bg-yellow-950 text-yellow-700 dark:text-yellow-300",
-    traits: ["活力", "现实", "大胆", "自发"],
-    description: "聪明的社交者，喜欢即时行乐，热衷于解决挑战性问题。",
-  },
-  {
-    code: "ESFP",
-    name: "表演者",
-    role: "探险家",
-    color: "bg-fuchsia-100 dark:bg-fuchsia-950 text-fuchsia-700 dark:text-fuchsia-300",
-    traits: ["自发性", "魅力", "热情", "娱乐"],
-    description: "自发的、精力充沛的表演者，总是能让周围的人感到有趣和兴奋。",
-  },
+  // 紫人 — 分析师
+  { code: "INTJ", name: "建筑师", colorGroup: "紫人" as const, traits: ["独立", "战略", "理性", "高标准"], description: "富有想象力和战略性的思想家，一切都在计划之中。" },
+  { code: "INTP", name: "逻辑学家", colorGroup: "紫人" as const, traits: ["好奇", "逻辑", "分析", "创新"], description: "致力于用创新的方式解决问题，对知识有着无尽的渴望。" },
+  { code: "ENTJ", name: "指挥官", colorGroup: "紫人" as const, traits: ["果断", "领导力", "战略", "自信"], description: "大胆、想象力丰富、意志坚定的领导者，将愿景变为现实。" },
+  { code: "ENTP", name: "辩论家", colorGroup: "紫人" as const, traits: ["机智", "好奇", "聪明", "精力充沛"], description: "聪明、好奇的思考者，在思想交锋中蓬勃发展。" },
+
+  // 黄人 — 外交官
+  { code: "INFJ", name: "提倡者", colorGroup: "黄人" as const, traits: ["理想主义", "洞察力", "创意", "忠诚"], description: "安静而神秘，鼓舞人心的理想主义者。" },
+  { code: "INFP", name: "调停者", colorGroup: "黄人" as const, traits: ["诗意", "善良", "利他", "忠诚"], description: "富有诗意和善良的利他主义者，始终努力做正确的事。" },
+  { code: "ENFJ", name: "主人公", colorGroup: "黄人" as const, traits: ["魅力", "感染力", "利他", "领导力"], description: "富有魅力的领导者，能鼓舞人心，团结人们追求共同理想。" },
+  { code: "ENFP", name: "竞选者", colorGroup: "黄人" as const, traits: ["热情", "创意", "社交", "乐观"], description: "热情洋溢、灵感激荡的社交者，总是能找到理由感到快乐。" },
+
+  // 绿人 — 守护者
+  { code: "ISTJ", name: "物流师", colorGroup: "绿人" as const, traits: ["务实", "可靠", "诚实", "负责"], description: "事实和逻辑的安静力量，值得信赖、履行承诺的守护者。" },
+  { code: "ISFJ", name: "守卫者", colorGroup: "绿人" as const, traits: ["温暖", "可靠", "细心", "忠诚"], description: "非常专注、温暖的守护者，随时准备保护所爱之人。" },
+  { code: "ESTJ", name: "总经理", colorGroup: "绿人" as const, traits: ["执行", "管理", "诚实", "传统"], description: "出色的管理者，在组织项目方面无与伦比。" },
+  { code: "ESFJ", name: "执政官", colorGroup: "绿人" as const, traits: ["关怀", "社交", "责任", "受欢迎"], description: "非常关怀的照顾者，总是乐于助人，人气很高。" },
+
+  // 蓝人 — 探险家
+  { code: "ISTP", name: "鉴赏家", colorGroup: "蓝人" as const, traits: ["大胆", "实用", "实验", "手巧"], description: "大胆而实际的实验家，具有运用各种工具的天赋。" },
+  { code: "ISFP", name: "探险家", colorGroup: "蓝人" as const, traits: ["灵活", "艺术", "适应", "观察"], description: "灵活的艺术家，渴望用创意的方式呈现世界之美。" },
+  { code: "ESTP", name: "企业家", colorGroup: "蓝人" as const, traits: ["活力", "现实", "大胆", "自发"], description: "聪明的社交者，喜欢即时行乐，热衷于解决挑战性问题。" },
+  { code: "ESFP", name: "表演者", colorGroup: "蓝人" as const, traits: ["自发性", "魅力", "热情", "娱乐"], description: "自发的、精力充沛的表演者，总是能让周围的人感到有趣。" },
 ];
 
-const ROLE_ICONS: Record<string, React.ReactNode> = {
-  分析师: <Brain className="h-5 w-5" />,
-  外交官: <Heart className="h-5 w-5" />,
-  守护者: <Shield className="h-5 w-5" />,
-  探险家: <Compass className="h-5 w-5" />,
-};
-
-const ROLE_COLORS: Record<string, string> = {
-  分析师: "border-blue-300 dark:border-blue-700",
-  外交官: "border-rose-300 dark:border-rose-700",
-  守护者: "border-amber-300 dark:border-amber-700",
-  探险家: "border-green-300 dark:border-green-700",
-};
-
 export default function TypesPage() {
-  const grouped = TYPES.reduce<Record<string, typeof TYPES>>((acc, type) => {
-    if (!acc[type.role]) acc[type.role] = [];
-    acc[type.role].push(type);
-    return acc;
-  }, {});
-
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {/* ── Header ─────────────────────────────────────── */}
       <header className="border-b px-6 py-4">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">16型人格百科</h1>
-            <p className="text-sm text-muted-foreground mt-1">探索每种人格的独特魅力与特质</p>
+            <h1 className="text-2xl font-bold tracking-tight">16 型人格百科</h1>
+            <p className="text-sm text-muted-foreground mt-1">按四色分类探索每种人格的独特魅力</p>
           </div>
           <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             ← 返回首页
@@ -168,85 +108,103 @@ export default function TypesPage() {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-6 py-10 space-y-12">
-        {/* Role overview */}
+      <main className="max-w-6xl mx-auto px-6 py-10 space-y-14">
+        {/* ── 四色介绍卡片 ─────────────────────────────── */}
         <section>
           <h2 className="text-lg font-semibold mb-6 flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-primary" />
-            四大角色群组
+            MBTI 四色人格分类
           </h2>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            {Object.entries(grouped).map(([role, types]) => (
-              <div
-                key={role}
-                className={`rounded-xl border p-4 bg-card ${ROLE_COLORS[role]} border-l-4`}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-primary">{ROLE_ICONS[role]}</span>
-                  <span className="font-semibold">{role}</span>
+            {GROUPS.map((g) => {
+              const Icon = g.icon;
+              return (
+                <div
+                  key={g.key}
+                  className={`rounded-2xl border ${g.border} ${g.bgLight} p-5 relative overflow-hidden group cursor-pointer`}
+                >
+                  {/* 装饰色块 */}
+                  <div className={`absolute -right-6 -top-6 h-20 w-20 rounded-full ${g.bg} opacity-10 group-hover:opacity-20 transition-opacity`} />
+                  <div className="relative">
+                    <div className={`inline-flex h-10 w-10 items-center justify-center rounded-xl ${g.bg} text-white mb-3 shadow-sm`}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <h3 className="font-bold text-base">{g.label}</h3>
+                    <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{g.desc}</p>
+                    <div className={`mt-3 text-xs font-semibold ${g.text}`}>4 种类型</div>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  {role === "分析师" && "理性、战略性的思考者，注重逻辑与效率"}
-                  {role === "外交官" && "富有同理心、理想主义的沟通者，注重和谐"}
-                  {role === "守护者" && "务实、可靠的实践者，注重责任与安全"}
-                  {role === "探险家" && "灵活、创意的探索者，注重自由与体验"}
-                </p>
-                <div className="mt-2 text-xs text-primary font-medium">{types.length} 种类型</div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
-        {/* All types */}
-        {Object.entries(grouped).map(([role, types]) => (
-          <section key={role}>
-            <h2 className="text-base font-semibold mb-4 flex items-center gap-2">
-              {ROLE_ICONS[role]}
-              {role} — {types.length} 种类型
-            </h2>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {types.map((type) => (
-                <div
-                  key={type.code}
-                  className="rounded-xl border bg-card p-6 hover:shadow-md transition-shadow cursor-pointer group"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <div className={`inline-block rounded-md px-2 py-0.5 text-sm font-bold ${type.color}`}>
-                        {type.code}
-                      </div>
-                      <h3 className="text-lg font-semibold mt-2">{type.name}</h3>
-                    </div>
-                    <Target className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                  </div>
-                  <p className="text-sm text-muted-foreground leading-relaxed mb-4">
-                    {type.description}
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {type.traits.map((trait) => (
-                      <span
-                        key={trait}
-                        className="inline-block rounded-full bg-muted px-2 py-0.5 text-xs text-muted-foreground"
-                      >
-                        {trait}
-                      </span>
-                    ))}
-                  </div>
-                  <div className="mt-4 pt-3 border-t">
-                    <Link
-                      href={`/mbti/test?type=${type.code}`}
-                      className="text-sm text-primary font-medium hover:underline"
-                    >
-                      了解更多 →
-                    </Link>
-                  </div>
+        {/* ── 按颜色分组展示 ───────────────────────────── */}
+        {GROUPS.map((g) => {
+          const groupTypes = TYPES.filter((t) => t.colorGroup === g.key);
+          const Icon = g.icon;
+          return (
+            <section key={g.key}>
+              {/* 分组标题 */}
+              <div className="flex items-center gap-3 mb-5">
+                <div className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${g.bg} text-white shadow-sm`}>
+                  <Icon className="h-4 w-4" />
                 </div>
-              ))}
-            </div>
-          </section>
-        ))}
+                <h2 className="text-base font-bold">{g.label}</h2>
+                <div className="flex-1 border-b border-dashed border-muted-foreground/30" />
+                <span className={`text-xs font-medium ${g.textLight}`}>{groupTypes.length} 种</span>
+              </div>
 
-        {/* CTA */}
+              {/* 类型卡片 */}
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {groupTypes.map((type) => (
+                  <div
+                    key={type.code}
+                    className={`group relative rounded-2xl border ${g.border} ${g.bgLight} p-5 transition-all hover:shadow-lg hover:-translate-y-0.5 cursor-pointer`}
+                  >
+                    {/* 顶部色条 */}
+                    <div className={`absolute left-5 right-5 top-0 h-0.5 rounded-b ${g.bg} opacity-60`} />
+
+                    <div className="space-y-3">
+                      {/* 类型码 + 名称 */}
+                      <div>
+                        <span className={`inline-block rounded-md px-2 py-0.5 text-xs font-black tracking-widest ${g.badge}`}>
+                          {type.code}
+                        </span>
+                        <h3 className="text-base font-bold mt-2">{type.name}</h3>
+                      </div>
+
+                      {/* 简介 */}
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        {type.description}
+                      </p>
+
+                      {/* 标签 */}
+                      <div className="flex flex-wrap gap-1">
+                        {type.traits.map((trait) => (
+                          <span
+                            key={trait}
+                            className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-medium ${g.bgLight} ${g.text} border ${g.border}`}
+                          >
+                            {trait}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* 了解更多 */}
+                      <div className={`pt-2 border-t flex items-center justify-between ${g.border}`}>
+                        <span className={`text-xs font-medium ${g.text}`}>了解更多</span>
+                        <ChevronRight className={`h-3.5 w-3.5 ${g.iconClass} opacity-0 group-hover:opacity-100 -translate-x-1 group-hover:translate-x-0 transition-all`} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          );
+        })}
+
+        {/* ── CTA ──────────────────────────────────────── */}
         <section className="text-center py-8 border-t">
           <p className="text-muted-foreground mb-4">还没做过测试？三分钟认识真正的自己</p>
           <Link
@@ -254,6 +212,7 @@ export default function TypesPage() {
             className="inline-flex items-center gap-2 rounded-xl bg-primary px-8 py-3 text-base font-semibold text-primary-foreground shadow-lg hover:bg-primary/90 transition-all"
           >
             开始免费测试
+            <Sparkles className="h-4 w-4" />
           </Link>
         </section>
       </main>
