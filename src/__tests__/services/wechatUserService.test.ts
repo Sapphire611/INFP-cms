@@ -22,6 +22,7 @@ import {
   deleteWechatUser,
   findByOpenid,
   findByUnionid,
+  findByEmail,
   getWechatUserStats,
   getWechatUserGrowthStats,
 } from "@/services/wechatUserService";
@@ -173,6 +174,27 @@ describe("findByUnionid", () => {
     setupFrom(null, { code: "PGRST116" });
     const user = await findByUnionid("unknown");
     expect(user).toBeNull();
+  });
+});
+
+describe("findByEmail", () => {
+  it("returns user when email found", async () => {
+    const userWithEmail = { ...mockDbWechatUser, email: "test@example.com" };
+    setupFrom(userWithEmail);
+    const user = await findByEmail("test@example.com");
+    expect(user).not.toBeNull();
+    expect(user!.email).toBe("test@example.com");
+  });
+
+  it("returns null when email not found", async () => {
+    setupFrom(null, { code: "PGRST116" });
+    const user = await findByEmail("unknown@example.com");
+    expect(user).toBeNull();
+  });
+
+  it("throws on unexpected error", async () => {
+    setupFrom(null, new Error("DB error"));
+    await expect(findByEmail("test@example.com")).rejects.toThrow("DB error");
   });
 });
 

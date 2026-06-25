@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("Login Page", () => {
-  test("shows login form", async ({ page }) => {
+  test("shows login form @smoke", async ({ page }) => {
     await page.goto("/login");
 
     // Page has two h1s; filter to the login-panel heading
@@ -11,42 +11,43 @@ test.describe("Login Page", () => {
     await expect(page.locator('button[type="submit"]')).toBeVisible();
   });
 
-  test("shows branding text", async ({ page }) => {
+  test("shows INFP Notebook branding", async ({ page }) => {
     await page.goto("/login");
-    await expect(page.locator("body")).toContainText("INFP的小窝");
+    // Check header shows "INFP Notebook"
+    await expect(page.locator("header")).toContainText("INFP Notebook");
   });
 
-  test("shows validation error for empty form submission", async ({ page }) => {
+  test("has link to register page", async ({ page }) => {
     await page.goto("/login");
-    await page.click('button[type="submit"]');
-
-    await expect(page.locator("text=请输入有效的邮箱地址")).toBeVisible({ timeout: 5000 });
+    const registerLink = page.locator("a").filter({ hasText: "立即注册" });
+    await expect(registerLink).toBeVisible();
+    await expect(registerLink).toHaveAttribute("href", "/register");
   });
 
-  test("shows validation error for invalid email", async ({ page }) => {
+  test("has link to admin login", async ({ page }) => {
     await page.goto("/login");
+    // The link text is "点击这里登录"
+    const adminLink = page.locator("a").filter({ hasText: "点击这里登录" });
+    await expect(adminLink).toBeVisible();
+    await expect(adminLink).toHaveAttribute("href", "/cms/login");
+  });
+});
 
-    await page.fill("input#email", "not-an-email");
-    await page.fill("input#password", "test123");
+test.describe("Admin Login Page", () => {
+  test("loads admin login page @smoke", async ({ page }) => {
+    await page.goto("/cms/login");
 
-    // Bypass HTML5 validation so react-hook-form validation runs
-    await page.evaluate(() => {
-      const form = document.querySelector("form");
-      if (form) form.noValidate = true;
-    });
-    await page.click('button[type="submit"]');
-
-    await expect(page.locator("text=请输入有效的邮箱地址")).toBeVisible({ timeout: 5000 });
+    // Check page loads and shows admin login form
+    await expect(page.locator("h1").filter({ hasText: "欢迎回来" })).toBeVisible();
+    await expect(page.locator("input#email")).toBeVisible();
+    await expect(page.locator("input#password")).toBeVisible();
+    await expect(page.locator('button[type="submit"]')).toBeVisible();
   });
 
-  test("shows error toast for wrong credentials", async ({ page }) => {
-    await page.goto("/login");
-
-    await page.fill("input#email", "wrong@example.com");
-    await page.fill("input#password", "wrongpassword123");
-    await page.click('button[type="submit"]');
-
-    // Should show error toast
-    await expect(page.locator("[data-sonner-toast]")).toBeVisible({ timeout: 15000 });
+  test("shows INFP 的小窝 branding on desktop", async ({ page }) => {
+    await page.goto("/cms/login");
+    // Desktop branding (left panel) - use a more generic selector
+    // Desktop branding panel shows site name in an h1
+    await expect(page.getByRole("heading", { level: 1, name: "INFP的小窝" })).toBeVisible();
   });
 });

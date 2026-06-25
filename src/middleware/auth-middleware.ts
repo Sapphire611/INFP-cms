@@ -19,7 +19,7 @@ export function authMiddleware(req: NextRequest) {
   const isLoggedIn = !!(authToken && userInfo);
 
   // Redirect unauthenticated users away from protected routes
-  if (!isLoggedIn && pathname.startsWith("/cms")) {
+  if (!isLoggedIn && pathname.startsWith("/cms") && pathname !== "/cms/login") {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 

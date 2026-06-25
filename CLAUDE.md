@@ -228,17 +228,68 @@ Required variables (see `.env.example`):
 
 ## Testing
 
-**Before completing any new feature or fix, both test suites must pass:**
+**CRITICAL: Every new feature or fix MUST have passing tests before marking complete.**
+
+### Required Test Suites
+
+1. **Backend Unit/Integration Tests (Jest)**
+   - Command: `npm run test:jest`
+   - Location: `src/__tests__/`
+   - Cover: API routes, services, utilities
+
+2. **Frontend Smoke Tests (Playwright)**
+   - Command: `npm run test:playwright:smoke`
+   - Tag: `@smoke`
+   - Cover: Core page loads, basic navigation
+
+3. **Full E2E Tests (Playwright)**
+   - Command: `npm run test:playwright:e2e`
+   - Cover: Complete business processes, user flows
+
+### Testing Workflow
 
 ```bash
-npm test              # Jest unit/integration tests (backend)
-npm run test:e2e      # Playwright E2E tests (frontend)
+# 1. Write/update tests for your changes
+# 2. Run ALL test suites
+npm run test:jest              # Must pass
+npm run test:playwright:smoke  # Must pass
+npm run test:playwright:e2e    # Must pass
+
+# 3. Fix failures and re-run until ALL pass
 ```
 
-1. Write or update tests that cover the changed behavior
-2. Run both suites and ensure all tests pass
-3. If E2E tests need new selectors, prefer `getByRole` / `getByText` over raw CSS selectors
-4. For forms with custom validation, bypass HTML5 validation in tests with `form.noValidate = true` when needed
+### Test File Naming
+
+- Jest: `*.test.ts` or `*.spec.ts`
+- Playwright: `*.spec.ts` with title tags
+
+### Example Test Structure
+
+```typescript
+// src/__tests__/api/auth/wechat-user-login.test.ts
+describe('POST /api/auth/wechat-user-login', () => {
+  it('should login with valid credentials', async () => {
+    // ...
+  });
+  
+  it('should reject invalid password', async () => {
+    // ...
+  });
+});
+
+// e2e/auth/login.spec.ts
+test('should login as admin @smoke', async ({ page }) => {
+  // ...
+});
+```
+
+### Important
+
+- Run `npm run test:all` before committing
+- Fix ALL failures before marking task complete
+- Add `@smoke` tag to critical path tests
+- Use `ghp_` prefix for test data (e.g., `ghp_test_user`)
+
 
 ## Deployment Notes
 
@@ -246,6 +297,16 @@ npm run test:e2e      # Playwright E2E tests (frontend)
 - Environment variables must be configured in Vercel dashboard
 - Supabase connection requires valid credentials
 - Health check available at `/api/health`
+
+## Reminder
+
+**EVERY feature/fix must have:**
+1. ✅ Jest tests passing (`npm run test:jest`)
+2. ✅ Smoke tests passing (`npm run test:playwright:smoke`)
+3. ✅ E2E tests passing (`npm run test:playwright:e2e`)
+4. ✅ All tests passing (`npm run test:all`)
+
+**No exceptions. No "TODO: add tests later".**
 
 ## Migration Notes
 
