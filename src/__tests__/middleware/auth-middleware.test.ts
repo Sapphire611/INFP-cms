@@ -51,6 +51,22 @@ describe("authMiddleware", () => {
       // next() doesn't redirect, so it should be the "next" response
       expect(res.headers.get("Location")).toBeNull();
     });
+
+    it("redirects from /chat to /login", () => {
+      const req = createMockRequest("/chat");
+      const res = authMiddleware(req);
+
+      expect(res.status).toBe(307);
+      expect(res.headers.get("Location")).toBe("http://localhost:3000/login");
+    });
+
+    it("redirects from /chat/subpath to /login", () => {
+      const req = createMockRequest("/chat/settings");
+      const res = authMiddleware(req);
+
+      expect(res.status).toBe(307);
+      expect(res.headers.get("Location")).toBe("http://localhost:3000/login");
+    });
   });
 
   describe("authenticated users", () => {
@@ -59,22 +75,15 @@ describe("authMiddleware", () => {
       "user-info": JSON.stringify({ name: "Test" }),
     };
 
-    it("redirects from /login to /cms/dashboard", () => {
-      mockVerify.mockReturnValue({
-        id: "user-1",
-        email: "test@test.com",
-        userType: "admin",
-        permissions: [],
-      });
-
+    it("redirects from /login to /chat", () => {
       const req = createMockRequest("/login", authCookies);
       const res = authMiddleware(req);
 
       expect(res.status).toBe(307);
-      expect(res.headers.get("Location")).toBe("http://localhost:3000/cms/dashboard");
+      expect(res.headers.get("Location")).toBe("http://localhost:3000/chat");
     });
 
-    it("redirects from /register to /cms/dashboard", () => {
+    it("redirects from /register to /chat", () => {
       mockVerify.mockReturnValue({
         id: "user-1",
         userType: "admin",
@@ -84,7 +93,7 @@ describe("authMiddleware", () => {
       const req = createMockRequest("/register", authCookies);
       const res = authMiddleware(req);
 
-      expect(res.headers.get("Location")).toBe("http://localhost:3000/cms/dashboard");
+      expect(res.headers.get("Location")).toBe("http://localhost:3000/chat");
     });
 
     it("allows access to /cms/dashboard", () => {
@@ -125,6 +134,22 @@ describe("authMiddleware", () => {
       });
 
       const req = createMockRequest("/cms/users", {
+        "auth-token": "valid-token",
+        "user-info": JSON.stringify({}),
+      });
+
+      const res = authMiddleware(req);
+      expect(res.headers.get("Location")).toBeNull();
+    });
+
+    it("allows regular user to access /chat", () => {
+      mockVerify.mockReturnValue({
+        id: "user-3",
+        userType: "user",
+        permissions: [],
+      });
+
+      const req = createMockRequest("/chat", {
         "auth-token": "valid-token",
         "user-info": JSON.stringify({}),
       });

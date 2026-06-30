@@ -2,6 +2,11 @@
  * Chat feature type definitions
  */
 
+export interface SearchSource {
+  title: string;
+  url: string;
+}
+
 export interface Message {
   id: string;
   role: "user" | "assistant" | "system";
@@ -26,6 +31,7 @@ export interface Conversation {
   userId: string;
   title: string;
   model: string;
+  agentId: string;
   createdAt: Date;
   updatedAt: Date;
   messageCount?: number;
@@ -46,6 +52,7 @@ export interface ConversationSummary {
 export interface SendMessageRequest {
   conversationId: string;
   message: string;
+  agentId: string;
   conversationHistory?: Message[];
 }
 
@@ -61,6 +68,7 @@ export interface SendMessageResponse {
 export interface CreateConversationRequest {
   title?: string;
   model?: string;
+  agentId?: string;
 }
 
 export interface UpdateConversationRequest {

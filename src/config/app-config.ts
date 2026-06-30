@@ -3,11 +3,11 @@ import packageJson from "../../package.json";
 const currentYear = new Date().getFullYear();
 
 export const APP_CONFIG = {
-  name: "INFP的小窝",
+  name: "Sapphire Studio",
   version: packageJson.version,
-  copyright: `© ${currentYear} INFP`,
+  copyright: `© ${currentYear} Sapphire611`,
   meta: {
-    title: "INFP CMS",
-    description: "INFP的小窝 - 内容管理系统",
+    title: "Sapphire Studio",
+    description: "Sapphire Studio - AI 工作站",
   },
 };

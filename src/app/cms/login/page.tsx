@@ -16,7 +16,7 @@ export default function Login() {
         <div className="relative z-10 flex w-full flex-col items-center justify-center px-12 py-16 text-white">
           <div className="max-w-xl space-y-6">
             <div className="space-y-2">
-              <h1 className="text-4xl font-bold tracking-tight">INFP的小窝</h1>
+              <h1 className="text-4xl font-bold tracking-tight">Sapphire Studio</h1>
               <p className="text-lg text-white/80">内容管理平台</p>
             </div>
             <p className="leading-relaxed text-white/70">
@@ -68,7 +68,7 @@ export default function Login() {
         <div className="w-full max-w-md space-y-8">
           {/* Logo and title for mobile */}
           <div className="mb-8 space-y-2 text-center lg:hidden">
-            <h2 className="text-2xl font-bold tracking-tight">INFP的小窝</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Sapphire Studio</h2>
             <p className="text-muted-foreground text-sm">内容管理平台</p>
           </div>
 

@@ -11,10 +11,10 @@ test.describe("Login Page", () => {
     await expect(page.locator('button[type="submit"]')).toBeVisible();
   });
 
-  test("shows INFP Notebook branding", async ({ page }) => {
+  test("shows Sapphire Studio branding", async ({ page }) => {
     await page.goto("/login");
-    // Check header shows "INFP Notebook"
-    await expect(page.locator("header")).toContainText("INFP Notebook");
+    // Check header shows "Sapphire Studio"
+    await expect(page.locator("header")).toContainText("Sapphire Studio");
   });
 
   test("has link to register page", async ({ page }) => {
@@ -44,10 +44,10 @@ test.describe("Admin Login Page", () => {
     await expect(page.locator('button[type="submit"]')).toBeVisible();
   });
 
-  test("shows INFP 的小窝 branding on desktop", async ({ page }) => {
+  test("shows Sapphire Studio branding on desktop", async ({ page }) => {
     await page.goto("/cms/login");
     // Desktop branding (left panel) - use a more generic selector
     // Desktop branding panel shows site name in an h1
-    await expect(page.getByRole("heading", { level: 1, name: "INFP的小窝" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Sapphire Studio" })).toBeVisible();
   });
 });

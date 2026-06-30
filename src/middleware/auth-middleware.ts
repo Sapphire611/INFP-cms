@@ -23,9 +23,14 @@ export function authMiddleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
+  // Protect /chat routes (require login for all users)
+  if (!isLoggedIn && pathname.startsWith("/chat")) {
+    return NextResponse.redirect(new URL("/login", req.url));
+  }
+
   // Redirect authenticated users away from auth pages
   if (isLoggedIn && (pathname === "/login" || pathname === "/register" || pathname.startsWith("/auth"))) {
-    return NextResponse.redirect(new URL("/cms/dashboard", req.url));
+    return NextResponse.redirect(new URL("/chat", req.url));
   }
 
   // Check route-level permissions for authenticated users

@@ -8,14 +8,14 @@ import type { Message, ToolCallRecord, ChatStreamEvent } from "@/types/chat";
 import type { Conversation } from "@/types/chat";
 
 export type ChatState = {
-  // State
   conversations: Conversation[];
   currentConversationId: string | null;
   currentMessages: Message[];
+  currentAgentId: string;
   isLoading: boolean;
   error: string | null;
 
-  // Actions
+  setCurrentAgent: (agentId: string) => void;
   setCurrentConversation: (id: string | null) => void;
   createConversation: (title?: string) => Promise<Conversation>;
   deleteConversation: (id: string) => Promise<void>;
@@ -24,7 +24,6 @@ export type ChatState = {
   clearCurrentConversation: () => void;
   setError: (error: string | null) => void;
 
-  // LocalStorage sync
   syncToLocalStorage: () => void;
   loadFromLocalStorage: (conversationId: string) => void;
 };
@@ -34,8 +33,13 @@ export const createChatStore = (init?: Partial<ChatState>) =>
     conversations: init?.conversations ?? [],
     currentConversationId: init?.currentConversationId ?? null,
     currentMessages: init?.currentMessages ?? [],
+    currentAgentId: init?.currentAgentId ?? "default",
     isLoading: false,
     error: null,
+
+    setCurrentAgent: (agentId: string) => {
+      set({ currentAgentId: agentId, currentConversationId: null, currentMessages: [] });
+    },
 
     setCurrentConversation: (id: string | null) => {
       set({ currentConversationId: id, error: null });
@@ -47,12 +51,13 @@ export const createChatStore = (init?: Partial<ChatState>) =>
     },
 
     createConversation: async (title = "新对话") => {
+      const { currentAgentId } = get();
       set({ isLoading: true, error: null });
       try {
         const response = await fetch("/api/chat/conversations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title }),
+          body: JSON.stringify({ title, agentId: currentAgentId }),
         });
 
         if (!response.ok) {
@@ -86,9 +91,7 @@ export const createChatStore = (init?: Partial<ChatState>) =>
     deleteConversation: async (id: string) => {
       set({ isLoading: true, error: null });
       try {
-        await fetch(`/api/chat/conversations/${id}`, {
-          method: "DELETE",
-        });
+        await fetch(`/api/chat/conversations/${id}`, { method: "DELETE" });
 
         set((state) => ({
           conversations: state.conversations.filter((c) => c.id !== id),
@@ -109,9 +112,8 @@ export const createChatStore = (init?: Partial<ChatState>) =>
     },
 
     sendMessage: async (content: string) => {
-      const { currentConversationId, currentMessages } = get();
+      const { currentConversationId, currentMessages, currentAgentId } = get();
 
-      // Create conversation if none exists
       if (!currentConversationId) {
         await get().createConversation();
       }
@@ -121,7 +123,6 @@ export const createChatStore = (init?: Partial<ChatState>) =>
         throw new Error("Failed to create conversation");
       }
 
-      // Add user message
       const userMessage: Message = {
         id: crypto.randomUUID(),
         role: "user",
@@ -310,14 +311,12 @@ export const createChatStore = (init?: Partial<ChatState>) =>
           isLoading: false,
         }));
 
-        // Sync to localStorage
         get().syncToLocalStorage();
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Failed to send message";
         set({ error: message, isLoading: false });
 
-        // Remove failed user message
         set((state) => ({
           currentMessages: state.currentMessages.filter((m) => m.id !== userMessage.id),
         }));
@@ -369,8 +368,7 @@ export const createChatStore = (init?: Partial<ChatState>) =>
         const stored = localStorage.getItem(`chat_messages_${conversationId}`);
         const messages: Message[] = stored ? JSON.parse(stored) : [];
         set({ currentMessages: messages });
-      } catch (error) {
-        console.error("Error loading from localStorage:", error);
+      } catch {
         set({ currentMessages: [] });
       }
     },

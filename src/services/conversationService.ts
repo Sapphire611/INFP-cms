@@ -19,6 +19,7 @@ export async function createConversation(
       user_id: userId,
       title: data.title ?? "新对话",
       model: data.model ?? "deepseek-chat",
+      agent_id: data.agentId ?? "default",
     })
     .select()
     .single();
@@ -142,6 +143,7 @@ function transformConversation(data: any): Conversation {
     userId: data.user_id,
     title: data.title,
     model: data.model,
+    agentId: data.agent_id ?? "default",
     createdAt: new Date(data.created_at),
     updatedAt: new Date(data.updated_at),
   };

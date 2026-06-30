@@ -1,9 +1,10 @@
-import { MessageSquare, Users, LayoutDashboard, UsersRound, ShieldCheck } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { Users, LayoutDashboard, UsersRound, ShieldCheck } from "lucide-react";
 
 export interface NavSubItem {
   title: string;
   url: string;
-  icon?: typeof MessageSquare;
+  icon?: LucideIcon;
   comingSoon?: boolean;
   newTab?: boolean;
   isNew?: boolean;
@@ -12,7 +13,7 @@ export interface NavSubItem {
 export interface NavMainItem {
   title: string;
   url: string;
-  icon?: typeof MessageSquare;
+  icon?: LucideIcon;
   subItems?: NavSubItem[];
   comingSoon?: boolean;
   newTab?: boolean;
@@ -49,17 +50,6 @@ export const sidebarItems: NavGroup[] = [
         title: "权限管理",
         url: "/cms/roles",
         icon: ShieldCheck,
-      },
-    ],
-  },
-  {
-    id: 2,
-    label: "demo",
-    items: [
-      {
-        title: "AI对话",
-        url: "/demo/chat",
-        icon: MessageSquare,
       },
     ],
   },

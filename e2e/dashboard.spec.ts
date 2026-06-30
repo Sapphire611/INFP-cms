@@ -26,7 +26,7 @@ test.describe("Dashboard", () => {
   test("sidebar navigation is visible", async ({ page }) => {
     await page.goto("/cms/dashboard");
     await expect(page).toHaveURL(/cms\/dashboard/, { timeout: 10000 });
-    await expect(page.getByRole("link", { name: "INFP的小窝" })).toBeVisible({ timeout: 10000 });
+    await expect(page.getByRole("link", { name: "Sapphire Studio" })).toBeVisible({ timeout: 10000 });
   });
 
   test("logged-in user account shown in sidebar", async ({ page }) => {

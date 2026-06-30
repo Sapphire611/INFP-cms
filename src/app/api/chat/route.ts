@@ -19,11 +19,11 @@ export async function POST(request: NextRequest) {
     const user = await requireAuth();
 
     const body: SendMessageRequest = await request.json();
-    const { conversationId, message } = body;
+    const { conversationId, message, agentId } = body;
 
     if (!conversationId || !message) {
       return NextResponse.json(
-        { error: "conversationId and message are required" },
+        { error: "conversationId, message, and agentId are required" },
         { status: 400 }
       );
     }
@@ -40,6 +40,7 @@ export async function POST(request: NextRequest) {
     const stream = await streamChatResponse(
       conversationId,
       message,
+      agentId,
       conversationHistory
     );
 

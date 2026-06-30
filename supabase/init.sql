@@ -132,6 +132,7 @@ CREATE TABLE IF NOT EXISTS conversations (
   user_id TEXT NOT NULL,
   title TEXT NOT NULL,
   model TEXT DEFAULT 'deepseek-chat',
+  agent_id VARCHAR(50) DEFAULT 'default',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
