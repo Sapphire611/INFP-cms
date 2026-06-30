@@ -14,6 +14,8 @@ export interface Message {
   timestamp: Date;
   /** Tool calls initiated by the assistant (for rendering) */
   toolCalls?: ToolCallRecord[];
+  /** Search sources for web search results */
+  sources?: SearchSource[];
   /** Whether this message is still being streamed */
   isStreaming?: boolean;
 }

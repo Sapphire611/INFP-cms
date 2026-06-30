@@ -27,27 +27,12 @@ const agents: AgentConfig[] = [
     maxTokens: 2000,
     enableWebSearch: false,
   },
-  {
-    id: "mbti",
-    name: "MBTI 分析师",
-    description: "MBTI 人格分析专家，帮用户解读性格类型",
-    icon: "Brain",
-    systemPrompt: `你是一位资深的 MBTI 人格分析专家。你对 16 种人格类型的认知功能（Cognitive Functions）、荣格八维理论、以及 MBTI 与职业、人际关系、个人成长的关系有深入理解。
-
-回复要求：
-- 使用中文交流，偶尔可夹杂 MBTI 专业术语
-- 保持温暖、共情的语气，像一位善于倾听的朋友
-- 用荣格八维（Ni/Ne/Si/Se/Ti/Te/Fi/Fe）分析用户的思维模式
-- 结合具体情境给出个性化建议，而非泛泛而谈
-- 可以提供 MBTI 相关的知识科普、测试建议、类型对比
-- 语气可以适当放松，可以少量使用表情符号
-
-核心原则：MBTI 是理解自己和他人的工具，不是给人贴标签。你帮助用户探索和成长，而不是把他们框在一个类型里。`,
-    model: "deepseek-chat",
-    temperature: 0.7,
-    maxTokens: 2000,
-    enableWebSearch: false,
-  },
+  // TODO: MBTI 分析师 — 暂时隐藏，待想好执行方案后再启用
+  // {
+  //   id: "mbti",
+  //   name: "MBTI 分析师",
+  //   ...
+  // },
   {
     id: "search",
     name: "联网搜索",

@@ -7,17 +7,22 @@ import { streamText, isStepCount, type ModelMessage } from "ai";
 import type { Message } from "@/types/chat";
 import { deepseek, CHAT_MODEL } from "@/lib/ai-client";
 import { chatTools } from "@/services/chatTools";
+import { getAgent } from "@/config/agents";
 import {
   updateConversationTimestamp,
 } from "./conversationService";
 import { createSummary } from "./summaryService";
 
-const SYSTEM_PROMPT = `你是 INFP-CMS 的 AI 助手。你拥有以下能力：
-- 查询天气（getWeather）：可以查询全球城市的实时天气
-- 获取时间（getCurrentTime）：可以获取任意时区的当前时间
-- 数学计算（calculate）：可以执行复杂的数学运算
+const DEFAULT_SYSTEM_PROMPT = `你是 INFP-CMS 的 AI 助手。你拥有以下能力：
+- 联网搜索（webSearch）：获取实时最新信息，如近期活动、景点推荐、攻略、新闻等
+- 查询天气（getWeather）：查询全球城市的实时天气
+- 获取时间（getCurrentTime）：获取任意时区的当前时间
+- 数学计算（calculate）：执行复杂的数学运算
 
-请根据用户的问题，主动使用这些工具来提供准确的信息。回答时请使用中文，保持简洁专业。`;
+## 重要规则
+1. **默认联网**：当用户询问的信息可能随时间变化（推荐、攻略、活动、新闻、实时数据等），必须先调用 webSearch 获取最新结果，再基于搜索结果回答。
+2. **关键词拆分**：如果搜索一个主题不够全面，可以多次调用 webSearch 用不同关键词搜索。
+3. 回答时请使用中文，保持简洁专业，引用搜索结果中的具体信息。`;
 
 /**
  * Convert app Message[] to AI SDK ModelMessage[]
@@ -56,16 +61,18 @@ function toModelMessages(messages: Message[], currentMessage: string): ModelMess
 export async function streamChatResponse(
   conversationId: string,
   userMessage: string,
+  agentId: string,
   conversationHistory: Message[]
 ): Promise<ReadableStream<Uint8Array>> {
+  const agent = getAgent(agentId);
   const messages = toModelMessages(conversationHistory, userMessage);
 
   const result = streamText({
-    model: deepseek(CHAT_MODEL),
-    system: SYSTEM_PROMPT,
+    model: deepseek.chat(agent?.model ?? CHAT_MODEL),
+    system: agent?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
     messages,
     tools: chatTools,
-    temperature: 0.7,
+    temperature: agent?.temperature ?? 0.7,
     stopWhen: isStepCount(5),
   });
 
@@ -161,9 +168,10 @@ export async function streamChatResponse(
         controller.close();
 
         // Post-stream side effects (non-blocking)
-        updateConversationTimestamp(conversationId).catch((err) =>
-          console.error("Failed to update conversation timestamp:", err)
-        );
+        updateConversationTimestamp(conversationId).catch(() => {
+          // Supabase may be unreachable in some network environments (e.g. China),
+          // but this is non-critical — the conversation still works fine.
+        });
 
         checkAndSummarizeIfNeeded(conversationId, conversationHistory);
       } catch (error) {

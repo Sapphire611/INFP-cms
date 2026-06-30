@@ -1,6 +1,6 @@
 /**
  * Chat tools - available capabilities for the AI agent
- * Each tool is defined with AI SDK tool() helper (v7 API: inputSchema + execute(input, options))
+ * Each tool is defined with AI SDK tbool() helper (v7 API: inputSchema + execute(input, options))
  */
 
 import { tool } from "ai";
@@ -124,9 +124,58 @@ export const calculate = tool({
   },
 });
 
+// ─── Web Search ─────────────────────────────────────────────
+
+export const webSearch = tool({
+  description:
+    "联网搜索，获取实时最新信息。当用户询问近期事件、最新动态、具体地点推荐、攻略、新闻、当前活动等需要联网获取数据的场景时必须调用。",
+  inputSchema: z.object({
+    query: z.string().describe("搜索关键词，使用中文或英文"),
+  }),
+  execute: async (input) => {
+    const { query } = input;
+    try {
+      const searchUrl = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+      const res = await fetch(searchUrl, {
+        signal: AbortSignal.timeout(10000),
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        },
+      });
+      if (!res.ok) return `搜索请求失败: HTTP ${res.status}`;
+
+      const html = await res.text();
+      const blocks = html.split('class="result"');
+      const results: Array<{ title: string; snippet: string; url: string }> = [];
+
+      for (let i = 1; i < blocks.length && results.length < 8; i++) {
+        const b = blocks[i];
+        const titleMatch = b.match(/class="result__a"[^>]*>([\s\S]*?)<\/a>/);
+        const snippetMatch = b.match(/class="result__snippet"[^>]*>([\s\S]*?)<\/td>/);
+        const urlMatch = b.match(/class="result__url"[^>]*>([\s\S]*?)<\/td>/);
+
+        if (titleMatch) {
+          const title = titleMatch[1].replace(/<[^>]+>/g, "").trim();
+          const snippet = snippetMatch ? snippetMatch[1].replace(/<[^>]+>/g, "").trim() : "";
+          const url = urlMatch ? urlMatch[1].replace(/<[^>]+>/g, "").trim() : "";
+          if (title && snippet) results.push({ title, snippet, url: url || "无链接" });
+        }
+      }
+
+      if (results.length === 0) return `未找到关于 "${query}" 的搜索结果`;
+
+      return { query, totalResults: results.length, results };
+    } catch (error) {
+      return `搜索失败: ${error instanceof Error ? error.message : "未知错误"}`;
+    }
+  },
+});
+
 // ─── All tools ──────────────────────────────────────────────
 
 export const chatTools = {
+  webSearch,
   getWeather,
   getCurrentTime,
   calculate,

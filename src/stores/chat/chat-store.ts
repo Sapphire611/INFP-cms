@@ -148,6 +148,7 @@ export const createChatStore = (init?: Partial<ChatState>) =>
           body: JSON.stringify({
             conversationId: newConversationId,
             message: content,
+            agentId: currentAgentId,
             conversationHistory: messagesBeforeSend,
           }),
         });
