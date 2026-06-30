@@ -1,21 +1,26 @@
 /**
- * POST /api/chat - Send a message to DeepSeek
+ * POST /api/chat - Send a message to DeepSeek (streaming with tool calls)
+ *
+ * Response: SSE stream (text/event-stream)
+ * Events: { type: "text", content: string }
+ *          { type: "tool-call", toolCallId, toolName, args }
+ *          { type: "tool-result", toolCallId, toolName, result }
+ *          { type: "done", finishReason }
+ *          { type: "error", error }
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/jwt";
-import { sendMessage } from "@/services/chatService";
+import { streamChatResponse } from "@/services/chatService";
 import type { SendMessageRequest } from "@/types/chat";
 
 export async function POST(request: NextRequest) {
   try {
-    // Verify authentication
     const user = await requireAuth();
 
     const body: SendMessageRequest = await request.json();
     const { conversationId, message } = body;
 
-    // Validate request
     if (!conversationId || !message) {
       return NextResponse.json(
         { error: "conversationId and message are required" },
@@ -30,17 +35,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get conversation history from request body (from localStorage)
     const conversationHistory = body.conversationHistory || [];
 
-    // Send message to DeepSeek
-    const response = await sendMessage(
+    const stream = await streamChatResponse(
       conversationId,
       message,
       conversationHistory
     );
 
-    return NextResponse.json(response);
+    return new Response(stream, {
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
   } catch (error: unknown) {
     console.error("Error in POST /api/chat:", error);
     const message =

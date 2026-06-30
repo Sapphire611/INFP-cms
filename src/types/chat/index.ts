@@ -7,6 +7,18 @@ export interface Message {
   role: "user" | "assistant" | "system";
   content: string;
   timestamp: Date;
+  /** Tool calls initiated by the assistant (for rendering) */
+  toolCalls?: ToolCallRecord[];
+  /** Whether this message is still being streamed */
+  isStreaming?: boolean;
+}
+
+export interface ToolCallRecord {
+  id: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  result?: unknown;
+  status: "calling" | "done" | "error";
 }
 
 export interface Conversation {
@@ -54,3 +66,12 @@ export interface CreateConversationRequest {
 export interface UpdateConversationRequest {
   title?: string;
 }
+
+/** SSE stream event types from /api/chat */
+export type ChatStreamEvent =
+  | { type: "text"; content: string }
+  | { type: "tool-call"; toolCallId: string; toolName: string; args: Record<string, unknown> }
+  | { type: "tool-result"; toolCallId: string; toolName: string; result: unknown }
+  | { type: "tool-error"; toolCallId: string; toolName: string; error: string }
+  | { type: "done"; finishReason: string }
+  | { type: "error"; error: string };

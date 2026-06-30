@@ -4,6 +4,7 @@
 
 "use client";
 
+import { useEffect, useRef } from "react";
 import { useChatStore } from "@/stores/chat";
 import { ChatMessage } from "./chat-message";
 import { ChatInput } from "./chat-input";
@@ -14,6 +15,15 @@ export function ChatMain() {
   const isLoading = useChatStore((s) => s.isLoading);
   const currentConversationId = useChatStore((s) => s.currentConversationId);
   const error = useChatStore((s) => s.error);
+
+  // Auto-scroll to bottom on new messages
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    }
+  }, [currentMessages]);
 
   if (!currentConversationId) {
     return (
@@ -30,11 +40,14 @@ export function ChatMain() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* Messages area */}
-      <div className="flex-1 overflow-y-auto p-3">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3">
         <div className="max-w-3xl mx-auto space-y-3">
-          {currentMessages.length === 0 ? (
+          {currentMessages.length === 0 && !isLoading ? (
             <div className="text-center text-muted-foreground py-8">
               <p className="text-sm">开始对话吧！在下方输入你的问题...</p>
+              <p className="text-xs mt-1 opacity-70">
+                试试问天气、时间，或者让我帮你做计算
+              </p>
             </div>
           ) : (
             currentMessages.map((message) => (
@@ -42,15 +55,19 @@ export function ChatMain() {
             ))
           )}
 
-          {/* Loading indicator */}
-          {isLoading && (
-            <div className="flex justify-center">
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
-                <span className="text-sm">AI正在思考...</span>
+          {/* Streaming indicator - shown when loading but last message is NOT streaming */}
+          {isLoading &&
+            (currentMessages.length === 0 ||
+              currentMessages[currentMessages.length - 1]?.role !==
+                "assistant" ||
+              !currentMessages[currentMessages.length - 1]?.isStreaming) && (
+              <div className="flex justify-center">
+                <div className="flex items-center gap-2 text-muted-foreground">
+                  <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
+                  <span className="text-sm">AI正在思考...</span>
+                </div>
               </div>
-            </div>
-          )}
+            )}
 
           {/* Error message */}
           {error && (

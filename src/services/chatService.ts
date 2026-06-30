@@ -1,104 +1,191 @@
 /**
- * Chat service - integrates with DeepSeek API
+ * Chat service - integrates with DeepSeek via Vercel AI SDK v7
+ * Supports streaming responses with tool calling (weather, time, calculate, etc.)
  */
 
-import OpenAI from "openai";
+import { streamText, isStepCount, type ModelMessage } from "ai";
+import type { Message } from "@/types/chat";
+import { deepseek, CHAT_MODEL } from "@/lib/ai-client";
+import { chatTools } from "@/services/chatTools";
 import {
   updateConversationTimestamp,
 } from "./conversationService";
 import { createSummary } from "./summaryService";
-import type { Message } from "@/types/chat";
 
-// Note: generateSummary has been moved to summaryService to avoid circular dependency
+const SYSTEM_PROMPT = `你是 INFP-CMS 的 AI 助手。你拥有以下能力：
+- 查询天气（getWeather）：可以查询全球城市的实时天气
+- 获取时间（getCurrentTime）：可以获取任意时区的当前时间
+- 数学计算（calculate）：可以执行复杂的数学运算
 
-// Lazy initialization of DeepSeek client to avoid build errors
-function getDeepSeekClient() {
-  return new OpenAI({
-    apiKey: process.env.DEEPSEEK_API_KEY,
-    baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
-  });
-}
+请根据用户的问题，主动使用这些工具来提供准确的信息。回答时请使用中文，保持简洁专业。`;
 
 /**
- * Send a message to DeepSeek and get response
+ * Convert app Message[] to AI SDK ModelMessage[]
  */
-export async function sendMessage(
-  conversationId: string,
-  userMessage: string,
-  conversationHistory: Message[]
-): Promise<{ content: string }> {
-  try {
-    // Build context with current conversation
-    const messages = buildContextForAPI(conversationHistory, userMessage);
+function toModelMessages(messages: Message[], currentMessage: string): ModelMessage[] {
+  const modelMessages: ModelMessage[] = [];
 
-    // Get client and call DeepSeek API
-    const client = getDeepSeekClient();
-    const completion = await client.chat.completions.create({
-      model: "deepseek-chat",
-      messages: messages,
-      temperature: 0.7,
-      max_tokens: 2000,
-    });
-
-    const assistantMessage = completion.choices[0]?.message?.content ?? "";
-
-    // Update conversation timestamp
-    await updateConversationTimestamp(conversationId);
-
-    // Check if summarization is needed
-    await checkAndSummarizeIfNeeded(conversationId, conversationHistory);
-
-    return { content: assistantMessage };
-  } catch (error) {
-    console.error("Error calling DeepSeek API:", error);
-    throw new Error("Failed to get AI response. Please try again.");
-  }
-}
-
-/**
- * Build messages array for DeepSeek API call
- * Currently includes system prompt and current conversation
- */
-function buildContextForAPI(
-  conversationHistory: Message[],
-  currentMessage: string
-): OpenAI.Chat.Completions.ChatCompletionMessageParam[] {
-  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    {
-      role: "system",
-      content:
-        "You are a helpful AI assistant. Provide clear, concise, and accurate responses.",
-    },
-  ];
-
-  // Add conversation history (excluding system messages)
-  for (const msg of conversationHistory) {
-    if (msg.role !== "system") {
-      messages.push({
-        role: msg.role,
+  // Add conversation history (exclude system messages)
+  for (const msg of messages) {
+    if (msg.role === "user") {
+      modelMessages.push({
+        role: "user",
+        content: msg.content,
+      });
+    } else if (msg.role === "assistant") {
+      modelMessages.push({
+        role: "assistant",
         content: msg.content,
       });
     }
   }
 
-  // Add current message
-  messages.push({
+  // Add current user message
+  modelMessages.push({
     role: "user",
     content: currentMessage,
   });
 
-  return messages;
+  return modelMessages;
 }
 
-// Note: generateSummary has been moved to summaryService to avoid circular dependency
-// Use summaryService.createSummary() instead
-
 /**
- * Check if conversation needs summarization
- * Trigger conditions:
- * - Message count >= 20
- * TODO: Add 7 days inactive check (requires tracking last message time)
+ * Stream a chat response with tool calling support
+ * Returns a ReadableStream of SSE events (text/event-stream)
  */
+export async function streamChatResponse(
+  conversationId: string,
+  userMessage: string,
+  conversationHistory: Message[]
+): Promise<ReadableStream<Uint8Array>> {
+  const messages = toModelMessages(conversationHistory, userMessage);
+
+  const result = streamText({
+    model: deepseek(CHAT_MODEL),
+    system: SYSTEM_PROMPT,
+    messages,
+    tools: chatTools,
+    temperature: 0.7,
+    stopWhen: isStepCount(5),
+  });
+
+  // Convert fullStream to SSE
+  const encoder = new TextEncoder();
+  let streamFinished = false;
+
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      try {
+        for await (const chunk of result.fullStream) {
+          switch (chunk.type) {
+            case "text-delta":
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: "text", content: chunk.text })}\n\n`
+                )
+              );
+              break;
+
+            case "tool-call":
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: "tool-call",
+                    toolCallId: chunk.toolCallId,
+                    toolName: chunk.toolName,
+                    args: chunk.input,
+                  })}\n\n`
+                )
+              );
+              break;
+
+            case "tool-result":
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: "tool-result",
+                    toolCallId: chunk.toolCallId,
+                    toolName: chunk.toolName,
+                    result: chunk.output,
+                  })}\n\n`
+                )
+              );
+              break;
+
+            case "tool-error":
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: "tool-error",
+                    toolCallId: chunk.toolCallId,
+                    toolName: chunk.toolName,
+                    error: String(chunk.error),
+                  })}\n\n`
+                )
+              );
+              break;
+
+            case "error":
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: "error",
+                    error: String(chunk.error),
+                  })}\n\n`
+                )
+              );
+              break;
+
+            case "finish":
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({
+                    type: "done",
+                    finishReason: chunk.finishReason,
+                  })}\n\n`
+                )
+              );
+              streamFinished = true;
+              break;
+          }
+        }
+
+        if (!streamFinished) {
+          controller.enqueue(
+            encoder.encode(
+              `data: ${JSON.stringify({ type: "done", finishReason: "unknown" })}\n\n`
+            )
+          );
+        }
+
+        controller.close();
+
+        // Post-stream side effects (non-blocking)
+        updateConversationTimestamp(conversationId).catch((err) =>
+          console.error("Failed to update conversation timestamp:", err)
+        );
+
+        checkAndSummarizeIfNeeded(conversationId, conversationHistory);
+      } catch (error) {
+        console.error("Stream error:", error);
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              type: "error",
+              error: error instanceof Error ? error.message : "Stream error",
+            })}\n\n`
+          )
+        );
+        controller.close();
+      }
+    },
+  });
+
+  return stream;
+}
+
+// ─── Summarization ─────────────────────────────────────────
+
 async function checkAndSummarizeIfNeeded(
   conversationId: string,
   conversationHistory: Message[]
@@ -106,20 +193,20 @@ async function checkAndSummarizeIfNeeded(
   const SUMMARIZATION_THRESHOLD = 20;
 
   if (conversationHistory.length >= SUMMARIZATION_THRESHOLD) {
-    // Summarize the first half of messages
-    const messagesToSummarize = conversationHistory.slice(0, Math.floor(conversationHistory.length / 2));
+    const messagesToSummarize = conversationHistory.slice(
+      0,
+      Math.floor(conversationHistory.length / 2)
+    );
 
     if (messagesToSummarize.length > 0) {
       try {
         await createSummary(
           conversationId,
-          messagesToSummarize,
+          messagesToSummarize.map((m) => ({ role: m.role, content: m.content })),
           messagesToSummarize.length
         );
-        console.log(`Generated summary for conversation ${conversationId}`);
       } catch (error) {
         console.error("Error generating summary:", error);
-        // Don't throw - summarization failure shouldn't break chat
       }
     }
   }

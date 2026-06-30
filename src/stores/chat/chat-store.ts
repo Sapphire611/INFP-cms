@@ -1,9 +1,11 @@
 /**
  * Chat store - manages chat state with Zustand
+ * Supports streaming responses with tool call visibility
  */
 
 import { createStore } from "zustand/vanilla";
-import type { Message, Conversation } from "@/types/chat";
+import type { Message, ToolCallRecord, ChatStreamEvent } from "@/types/chat";
+import type { Conversation } from "@/types/chat";
 
 export type ChatState = {
   // State
@@ -67,7 +69,6 @@ export const createChatStore = (init?: Partial<ChatState>) =>
           isLoading: false,
         }));
 
-        // Initialize localStorage for new conversation
         localStorage.setItem(
           `chat_messages_${conversation.id}`,
           JSON.stringify([])
@@ -98,7 +99,6 @@ export const createChatStore = (init?: Partial<ChatState>) =>
           isLoading: false,
         }));
 
-        // Remove from localStorage
         localStorage.removeItem(`chat_messages_${id}`);
       } catch (error) {
         const message =
@@ -129,11 +129,16 @@ export const createChatStore = (init?: Partial<ChatState>) =>
         timestamp: new Date(),
       };
 
+      const messagesBeforeSend = get().currentMessages;
+
       set((state) => ({
         currentMessages: [...state.currentMessages, userMessage],
         isLoading: true,
         error: null,
       }));
+
+      // Create a placeholder assistant message for streaming
+      const assistantId = crypto.randomUUID();
 
       try {
         const response = await fetch("/api/chat", {
@@ -142,7 +147,7 @@ export const createChatStore = (init?: Partial<ChatState>) =>
           body: JSON.stringify({
             conversationId: newConversationId,
             message: content,
-            conversationHistory: get().currentMessages,
+            conversationHistory: messagesBeforeSend,
           }),
         });
 
@@ -151,16 +156,157 @@ export const createChatStore = (init?: Partial<ChatState>) =>
           throw new Error(error.error || "Failed to send message");
         }
 
-        const data = await response.json();
-        const assistantMessage: Message = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: data.content,
-          timestamp: new Date(),
-        };
+        // Read SSE stream
+        const reader = response.body!.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let assistantContent = "";
+        const toolCallRecords: ToolCallRecord[] = [];
+        let hasAssistantMessage = false;
 
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+
+          // Process complete SSE events (separated by \n\n)
+          const lines = buffer.split("\n\n");
+          // Keep incomplete last chunk in buffer
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith("data: ")) continue;
+
+            const jsonStr = trimmed.slice(6);
+            if (!jsonStr) continue;
+
+            try {
+              const event: ChatStreamEvent = JSON.parse(jsonStr);
+
+              switch (event.type) {
+                case "text":
+                  assistantContent += event.content;
+                  if (!hasAssistantMessage) {
+                    // Create assistant message (first text chunk)
+                    set((state) => ({
+                      currentMessages: [
+                        ...state.currentMessages,
+                        {
+                          id: assistantId,
+                          role: "assistant",
+                          content: assistantContent,
+                          timestamp: new Date(),
+                          toolCalls: toolCallRecords,
+                          isStreaming: true,
+                        },
+                      ],
+                    }));
+                    hasAssistantMessage = true;
+                  } else {
+                    // Update existing assistant message in-place
+                    set((state) => ({
+                      currentMessages: state.currentMessages.map((m) =>
+                        m.id === assistantId
+                          ? { ...m, content: assistantContent, toolCalls: toolCallRecords }
+                          : m
+                      ),
+                    }));
+                  }
+                  break;
+
+                case "tool-call":
+                  toolCallRecords.push({
+                    id: event.toolCallId,
+                    toolName: event.toolName,
+                    args: event.args,
+                    status: "calling",
+                  });
+                  // If assistant message exists, update toolCalls
+                  if (hasAssistantMessage) {
+                    set((state) => ({
+                      currentMessages: state.currentMessages.map((m) =>
+                        m.id === assistantId
+                          ? { ...m, toolCalls: [...toolCallRecords] }
+                          : m
+                      ),
+                    }));
+                  }
+                  break;
+
+                case "tool-result":
+                  // Update the matching tool call record
+                  const tcIndex = toolCallRecords.findIndex(
+                    (tc) => tc.id === event.toolCallId
+                  );
+                  if (tcIndex !== -1) {
+                    toolCallRecords[tcIndex] = {
+                      ...toolCallRecords[tcIndex],
+                      result: event.result,
+                      status: "done",
+                    };
+                  } else {
+                    toolCallRecords.push({
+                      id: event.toolCallId,
+                      toolName: event.toolName,
+                      args: {},
+                      result: event.result,
+                      status: "done",
+                    });
+                  }
+                  if (hasAssistantMessage) {
+                    set((state) => ({
+                      currentMessages: state.currentMessages.map((m) =>
+                        m.id === assistantId
+                          ? { ...m, toolCalls: [...toolCallRecords] }
+                          : m
+                      ),
+                    }));
+                  }
+                  break;
+
+                case "tool-error":
+                  toolCallRecords.push({
+                    id: event.toolCallId,
+                    toolName: event.toolName,
+                    args: {},
+                    result: event.error,
+                    status: "error",
+                  });
+                  if (hasAssistantMessage) {
+                    set((state) => ({
+                      currentMessages: state.currentMessages.map((m) =>
+                        m.id === assistantId
+                          ? { ...m, toolCalls: [...toolCallRecords] }
+                          : m
+                      ),
+                    }));
+                  }
+                  break;
+
+                case "done":
+                  // Streaming complete
+                  break;
+
+                case "error":
+                  set({ error: event.error });
+                  break;
+              }
+            } catch {
+              // Skip malformed SSE events
+              console.warn("Malformed SSE event:", jsonStr);
+            }
+          }
+        }
+
+        // Finalize assistant message (mark streaming complete)
         set((state) => ({
-          currentMessages: [...state.currentMessages, assistantMessage],
+          currentMessages: state.currentMessages.map((m) =>
+            m.id === assistantId
+              ? { ...m, content: assistantContent, toolCalls: toolCallRecords, isStreaming: false }
+              : m
+          ),
           isLoading: false,
         }));
 
@@ -209,9 +355,11 @@ export const createChatStore = (init?: Partial<ChatState>) =>
     syncToLocalStorage: () => {
       const { currentConversationId, currentMessages } = get();
       if (currentConversationId) {
+        // Strip isStreaming flag before saving
+        const toSave = currentMessages.map(({ isStreaming, ...rest }) => rest);
         localStorage.setItem(
           `chat_messages_${currentConversationId}`,
-          JSON.stringify(currentMessages)
+          JSON.stringify(toSave)
         );
       }
     },
