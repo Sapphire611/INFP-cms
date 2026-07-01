@@ -5,880 +5,377 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Sapphire Studio — 项目开发文档</title>
 <style>
-  :root {
-    --bg: #f5f7fa;
-    --card-bg: #ffffff;
-    --text: #1d2129;
-    --text-secondary: #4e5969;
-    --border: #e5e6eb;
-    --accent: #165dff;
-    --accent-light: #e8f3ff;
-    --green: #00b42a;
-    --green-bg: #e8ffea;
-    --orange: #ff7d00;
-    --orange-bg: #fff7e8;
-    --red: #f53f3f;
-    --red-bg: #fff2f0;
-    --purple: #722ed1;
-    --purple-bg: #f9f0ff;
-  }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    line-height: 1.8;
-    padding: 40px 20px;
-  }
-  .container { max-width: 1100px; margin: 0 auto; }
-
-  .header {
-    text-align: center;
-    padding: 48px 0 36px;
-    border-bottom: 1px solid var(--border);
-    margin-bottom: 32px;
-  }
-  .header h1 {
-    font-size: 32px;
-    font-weight: 700;
-    margin-bottom: 8px;
-  }
-  .header .subtitle {
-    font-size: 16px;
-    color: var(--text-secondary);
-  }
-
-  .card {
-    background: var(--card-bg);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 32px;
-    margin-bottom: 24px;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-  }
-  .card h2 {
-    font-size: 22px;
-    font-weight: 700;
-    margin-bottom: 20px;
-    padding-bottom: 12px;
-    border-bottom: 2px solid var(--accent-light);
-    display: flex;
-    align-items: center;
-    gap: 10px;
-  }
-  .card h2 .icon { font-size: 24px; }
-  .card h3 {
-    font-size: 17px;
-    font-weight: 600;
-    margin: 28px 0 12px;
-    color: var(--accent);
-  }
-  .card h3:first-child { margin-top: 0; }
-  .card h4 {
-    font-size: 15px;
-    font-weight: 600;
-    margin: 20px 0 8px;
-  }
-  .card p { margin-bottom: 12px; font-size: 14px; }
-  .card ul, .card ol { margin: 8px 0 16px 20px; font-size: 14px; }
-  .card li { margin-bottom: 6px; }
-
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 16px 0;
-    font-size: 14px;
-  }
-  table th, table td {
-    border: 1px solid var(--border);
-    padding: 10px 14px;
-    text-align: left;
-  }
-  table th {
-    background: var(--accent-light);
-    font-weight: 600;
-    color: var(--accent);
-    white-space: nowrap;
-  }
-  table tr:hover { background: #f7f9fc; }
-
-  .tag {
-    display: inline-block;
-    padding: 2px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    font-weight: 600;
-    font-family: "SF Mono", "Fira Code", monospace;
-  }
-  .tag-purple { background: var(--purple-bg); color: var(--purple); }
-  .tag-green { background: var(--green-bg); color: var(--green); }
-  .tag-blue { background: var(--accent-light); color: var(--accent); }
-  .tag-orange { background: var(--orange-bg); color: var(--orange); }
-
-  .badge {
-    display: inline-block;
-    padding: 3px 10px;
-    border-radius: 4px;
-    font-size: 13px;
-    font-weight: 700;
-    vertical-align: middle;
-    margin: 0 4px;
-  }
-  .badge-core { background: var(--red-bg); color: var(--red); }
-  .badge-free { background: var(--green-bg); color: var(--green); }
-  .badge-deprecated { background: var(--orange-bg); color: var(--orange); }
-
-  .toc {
-    list-style: none;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin: 16px 0;
-  }
-  .toc li a {
-    display: inline-block;
-    padding: 6px 14px;
-    background: var(--accent-light);
-    color: var(--accent);
-    border-radius: 20px;
-    text-decoration: none;
-    font-size: 13px;
-    font-weight: 500;
-  }
-  .toc li a:hover { background: var(--accent); color: #fff; }
-
-  .tip {
-    background: var(--accent-light);
-    border-left: 4px solid var(--accent);
-    padding: 12px 16px;
-    border-radius: 0 6px 6px 0;
-    margin: 16px 0;
-    font-size: 14px;
-  }
-  .tip.warn {
-    background: var(--orange-bg);
-    border-left-color: var(--orange);
-  }
-  .tip.important {
-    background: var(--red-bg);
-    border-left-color: var(--red);
-  }
-  .tip.green {
-    background: var(--green-bg);
-    border-left-color: var(--green);
-  }
-
-  /* Code */
-  code {
-    background: #f2f3f5;
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: "SF Mono", "Fira Code", "Cascadia Code", monospace;
-    font-size: 13px;
-    color: var(--purple);
-  }
-  pre {
-    background: #1d2129;
-    color: #e5e6eb;
-    padding: 16px 20px;
-    border-radius: 8px;
-    overflow-x: auto;
-    font-size: 13px;
-    line-height: 1.6;
-    margin: 16px 0;
-  }
-  pre code {
-    background: transparent;
-    color: inherit;
-    font-size: inherit;
-    padding: 0;
-  }
-
-  /* Architecture diagram */
-  .arch-box {
-    background: #fafafa;
-    border: 2px solid var(--border);
-    border-radius: 8px;
-    padding: 20px;
-    margin: 16px 0;
-    font-family: "SF Mono", "Fira Code", monospace;
-    font-size: 13px;
-    line-height: 1.7;
-    white-space: pre;
-    overflow-x: auto;
-    color: var(--text-secondary);
-  }
-
-  /* Steps */
-  .steps {
-    counter-reset: step;
-    list-style: none;
-    margin: 16px 0;
-    padding: 0;
-  }
-  .steps li {
-    counter-increment: step;
-    padding: 10px 0 10px 36px;
-    position: relative;
-    font-size: 14px;
-  }
-  .steps li::before {
-    content: counter(step);
-    position: absolute;
-    left: 0;
-    top: 10px;
-    width: 24px; height: 24px;
-    background: var(--accent);
-    color: #fff;
-    border-radius: 50%;
-    text-align: center;
-    font-size: 13px;
-    font-weight: 700;
-    line-height: 24px;
-  }
-
-  /* Flow arrow */
-  .flow-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    padding: 8px 0;
-    font-size: 14px;
-  }
-  .flow-arrow { color: var(--accent); font-weight: 700; font-size: 18px; }
-
-  @media (max-width: 768px) {
-    .card { padding: 20px; }
-    table { font-size: 12px; }
-    table th, table td { padding: 6px 8px; }
-    pre { font-size: 11px; padding: 10px; }
-    .arch-box { font-size: 10px; }
-  }
+  :root { --bg:#f5f7fa;--card:#fff;--t:#1d2129;--t2:#4e5969;--b:#e5e6eb;--a:#165dff;--al:#e8f3ff;--g:#00b42a;--gl:#e8ffea;--o:#ff7d00;--ol:#fff7e8;--r:#f53f3f;--rl:#fff2f0;--p:#722ed1;--pl:#f9f0ff }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--bg);color:var(--t);line-height:1.8;padding:40px 20px}
+  .c{max-width:1100px;margin:0 auto}
+  .h{text-align:center;padding:48px 0 36px;border-bottom:1px solid var(--b);margin-bottom:32px}
+  .h h1{font-size:32px;font-weight:700;margin-bottom:8px}
+  .h .s{font-size:16px;color:var(--t2)}
+  .card{background:var(--card);border:1px solid var(--b);border-radius:12px;padding:32px;margin-bottom:24px;box-shadow:0 1px 4px rgba(0,0,0,.04)}
+  .card h2{font-size:22px;font-weight:700;margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid var(--al);display:flex;align-items:center;gap:10px}
+  .card h3{font-size:17px;font-weight:600;margin:28px 0 12px;color:var(--a)}
+  .card h3:first-child{margin-top:0}
+  .card p{margin-bottom:12px;font-size:14px}
+  .card ul,.card ol{margin:8px 0 16px 20px;font-size:14px}
+  .card li{margin-bottom:6px}
+  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:14px}
+  table th,table td{border:1px solid var(--b);padding:10px 14px;text-align:left}
+  table th{background:var(--al);font-weight:600;color:var(--a);white-space:nowrap}
+  table tr:hover{background:#f7f9fc}
+  .badge{display:inline-block;padding:3px 10px;border-radius:4px;font-size:13px;font-weight:700;vertical-align:middle;margin:0 4px}
+  .badge-core{background:var(--rl);color:var(--r)}
+  .badge-free{background:var(--gl);color:var(--g)}
+  .badge-deprecated{background:var(--ol);color:var(--o)}
+  .toc{list-style:none;display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}
+  .toc li a{display:inline-block;padding:6px 14px;background:var(--al);color:var(--a);border-radius:20px;text-decoration:none;font-size:13px;font-weight:500}
+  .toc li a:hover{background:var(--a);color:#fff}
+  .tip{background:var(--al);border-left:4px solid var(--a);padding:12px 16px;border-radius:0 6px 6px 0;margin:16px 0;font-size:14px}
+  .tip.warn{background:var(--ol);border-left-color:var(--o)}
+  .tip.important{background:var(--rl);border-left-color:var(--r)}
+  .tip.green{background:var(--gl);border-left-color:var(--g)}
+  code{background:#f2f3f5;padding:2px 6px;border-radius:4px;font-family:"SF Mono","Fira Code","Cascadia Code",monospace;font-size:13px;color:var(--p)}
+  pre{background:#1d2129;color:#e5e6eb;padding:16px 20px;border-radius:8px;overflow-x:auto;font-size:13px;line-height:1.6;margin:16px 0}
+  pre code{background:transparent;color:inherit;font-size:inherit;padding:0}
+  .arch-box{background:#fafafa;border:2px solid var(--b);border-radius:8px;padding:20px;margin:16px 0;font-family:"SF Mono","Fira Code",monospace;font-size:13px;line-height:1.7;white-space:pre;overflow-x:auto;color:var(--t2)}
+  .steps{counter-reset:step;list-style:none;margin:16px 0;padding:0}
+  .steps li{counter-increment:step;padding:10px 0 10px 36px;position:relative;font-size:14px}
+  .steps li::before{content:counter(step);position:absolute;left:0;top:10px;width:24px;height:24px;background:var(--a);color:#fff;border-radius:50%;text-align:center;font-size:13px;font-weight:700;line-height:24px}
+  @media(max-width:768px){.card{padding:20px}table{font-size:12px}table th,table td{padding:6px 8px}pre{font-size:11px;padding:10px}.arch-box{font-size:10px}}
 </style>
 </head>
 <body>
-<div class="container">
+<div class="c">
 
-<!-- Header -->
-<div class="header">
+<div class="h">
   <h1>🪨 Sapphire Studio</h1>
-  <p class="subtitle">AI 工作站 — 项目开发文档 · 基于 Next.js 15 + Supabase + DeepSeek</p>
+  <p class="s">AI 工作站 — 项目开发文档 · Next.js 15 + Supabase + DeepSeek</p>
 </div>
 
-<!-- TOC -->
 <nav class="card">
-  <h2><span class="icon">📑</span>目录</h2>
+  <h2><span>📑</span>目录</h2>
   <ul class="toc">
     <li><a href="#overview">项目概述</a></li>
-    <li><a href="#ai-stack">AI 技术栈</a></li>
-    <li><a href="#commands">开发命令</a></li>
-    <li><a href="#architecture">目录结构</a></li>
-    <li><a href="#provider">模型接入层</a></li>
+    <li><a href="#stack">AI 技术栈</a></li>
+    <li><a href="#commands">常用命令</a></li>
+    <li><a href="#arch">目录结构</a></li>
+    <li><a href="#model">模型接入</a></li>
     <li><a href="#tools">AI 工具集</a></li>
-    <li><a href="#agents">Agent 系统</a></li>
     <li><a href="#streaming">流式数据流</a></li>
     <li><a href="#state">状态管理</a></li>
-    <li><a href="#auth">认证系统</a></li>
+    <li><a href="#title">标题生成</a></li>
     <li><a href="#env">环境变量</a></li>
     <li><a href="#patterns">开发模式</a></li>
-    <li><a href="#testing">测试体系</a></li>
-    <li><a href="#files">核心文件索引</a></li>
+    <li><a href="#files">核心文件</a></li>
   </ul>
 </nav>
 
-<!-- ==================== 概述 ==================== -->
+<!-- ========== 1. Overview ========== -->
 <div class="card" id="overview">
-  <h2><span class="icon">📖</span>一、项目概述</h2>
+  <h2><span>📖</span>一、项目概述</h2>
+  <p><strong>Sapphire Studio</strong> 是一个 AI 工作站，提供流式 AI 对话、Tool Calling（天气/时间/计算/联网搜索）、Markdown 富文本渲染。</p>
 
-  <p><strong>Sapphire Studio</strong> 是一个 AI 工作站，提供 AI 对话、Tool Calling、联网搜索等功能。底层基于 Next.js 15 App Router、Supabase 数据库、Shadcn UI 组件库。</p>
-
-  <p>CMS 后台负责管理用户、微信用户、RBAC 权限和仪表盘数据。<code>/chat</code> 是主要的 AI 交互界面。</p>
-
-  <h3>1.1 核心定位</h3>
-  <table>
-    <tr><th style="width:120px">模块</th><th>说明</th></tr>
-    <tr><td><strong>AI Chat</strong></td><td>主页面 <code>/chat</code>，SSE 流式对话 + Tool Calling，支持联网搜索、天气查询、数学计算等</td></tr>
-    <tr><td><strong>CMS 后台</strong></td><td><code>/cms/dashboard</code>，用户管理、微信用户管理、RBAC 权限系统</td></tr>
-    <tr><td><strong>Demo Chat</strong></td><td><code>/demo/chat</code>，新版 UI，包含 ToolCallBubble 可视化（调用状态实时展示）</td></tr>
-    <tr><td><strong>MBTI</strong></td><td><code>/mbti</code>，MBTI 人格测试功能</td></tr>
-  </table>
-
-  <h3>1.2 技术栈总览</h3>
+  <h3>1.1 技术栈</h3>
   <table>
     <tr><th style="width:140px">类别</th><th>技术</th></tr>
     <tr><td>框架</td><td>Next.js 15 (App Router)</td></tr>
-    <tr><td>语言</td><td>TypeScript</td></tr>
     <tr><td>数据库</td><td>Supabase (PostgreSQL)</td></tr>
     <tr><td>UI</td><td>Shadcn UI + Radix UI + Tailwind CSS</td></tr>
     <tr><td>状态管理</td><td>Zustand (vanilla) + React Query</td></tr>
-    <tr><td>表单</td><td>React Hook Form + Zod</td></tr>
-    <tr><td>认证</td><td>自定义 JWT + bcrypt</td></tr>
     <tr><td>AI SDK</td><td>Vercel AI SDK v7 (<code>ai</code> + <code>@ai-sdk/openai</code>)</td></tr>
-    <tr><td>模型</td><td>DeepSeek (deepseek-v4-flash)</td></tr>
+    <tr><td>模型</td><td>DeepSeek (<code>deepseek-v4-flash</code>，8192 tokens)</td></tr>
+    <tr><td>Markdown</td><td><code>react-markdown</code> + <code>remark-gfm</code></td></tr>
   </table>
 </div>
 
-<!-- ==================== AI Tech Stack ==================== -->
-<div class="card" id="ai-stack">
-  <h2><span class="icon">🧠</span>二、AI 技术栈</h2>
-
-  <p>Sapphire Studio 的 AI 能力建立在以下技术栈之上，从 UI 到模型形成一条完整链路：</p>
-
+<!-- ========== 2. AI Stack ========== -->
+<div class="card" id="stack">
+  <h2><span>🧠</span>二、AI 技术栈</h2>
   <div class="arch-box">
 ┌─────────────────────────────────────────────────────────┐
 │                    AI Tech Stack                        │
 ├─────────────────────────────────────────────────────────┤
-│  Chat UI          │  Vercel AI SDK v7  +  SSE 流式     │
-│  (React + Zustand)│  @ai-sdk/openai  (DeepSeek 适配)   │
+│  UI Layer         │  react-markdown (表格/代码/列表)    │
+│                   │  ToolCallBubble (调用状态可视化)    │
+├─────────────────────────────────────────────────────────┤
+│  Client State     │  Zustand vanilla store              │
+│                   │  isSending / isCreating / isDeleting│
+├─────────────────────────────────────────────────────────┤
+│  SSE Transport    │  text/event-stream                  │
+│                   │  text | tool-call | tool-result     │
+│                   │  tool-error | done | error           │
+├─────────────────────────────────────────────────────────┤
+│  AI SDK v7        │  streamText() + generateText()      │
+│                   │  @ai-sdk/openai (DeepSeek 适配)     │
 ├─────────────────────────────────────────────────────────┤
 │  Model            │  DeepSeek (deepseek-v4-flash)       │
-│                   │  通过 OpenAI 兼容 API               │
 ├─────────────────────────────────────────────────────────┤
-│  Tools            │  getWeather   → wttr.in             │
-│                   │  getCurrentTime → Intl.DateTimeFormat│
-│                   │  calculate    → sandboxed new Function│
-│                   │  webSearch    → DuckDuckGo HTML 抓取 │
+│  Tools (server)   │  webSearch  → Bing HTML + DDG 降级  │
+│                   │  getWeather → wttr.in               │
+│                   │  getCurrentTime → Intl.DateTime     │
+│                   │  calculate  → sandboxed Function     │
 ├─────────────────────────────────────────────────────────┤
-│  Agent System     │  config/agents.ts                   │
-│                   │  每个 Agent 有独立的 system prompt  │
-│                   │  和工具开关 (enableWebSearch)       │
-├─────────────────────────────────────────────────────────┤
-│  Persistence      │  Supabase (对话元数据 + 消息历史)   │
-│                   │  Summarization (20条触发摘要)        │
+│  Persistence      │  Supabase: conversations + messages │
+│                   │  标题自动生成 (generateText)         │
+│                   │  Forced Reply 兜底                   │
 └─────────────────────────────────────────────────────────┘
   </div>
 
-  <h3>2.1 核心 AI 依赖</h3>
+  <h3>2.1 核心依赖</h3>
   <table>
-    <tr><th style="width:180px">包名</th><th style="width:100px">版本</th><th>用途</th></tr>
-    <tr><td><code>ai</code></td><td>^7.0.8</td><td>Vercel AI SDK v7 核心 — 提供 <code>streamText()</code>、<code>tool()</code>、SSE 流式</td></tr>
-    <tr><td><code>@ai-sdk/openai</code></td><td>^4.0.4</td><td>OpenAI 兼容 provider，通过 <code>createOpenAI()</code> 指向 DeepSeek API</td></tr>
-    <tr><td><code>openai</code></td><td>^6.32.0</td><td>原生 OpenAI SDK — <strong>仅用于摘要服务</strong>（<code>summaryService.ts</code>），不走 AI SDK</td></tr>
+    <tr><th style="width:180px">包</th><th>用途</th></tr>
+    <tr><td><code>ai</code> ^7.0.8</td><td>Vercel AI SDK v7 — <code>streamText</code>、<code>generateText</code>、<code>tool()</code></td></tr>
+    <tr><td><code>@ai-sdk/openai</code></td><td>OpenAI 兼容 provider，指向 DeepSeek API</td></tr>
+    <tr><td><code>react-markdown</code></td><td>AI 回复 Markdown 渲染（表格、代码块、列表）</td></tr>
+    <tr><td><code>remark-gfm</code></td><td>GitHub Flavored Markdown（表格、删除线等）</td></tr>
   </table>
-
   <div class="tip">
-    <strong>💡 关键理解：</strong>整个项目的 AI 对话只走 DeepSeek 一家模型。没有 OpenAI、没有 Anthropic。<br>
-    <code>@ai-sdk/openai</code> 包在这里只是一个 <strong>协议适配器</strong>——把 DeepSeek 的 OpenAI 兼容 API 伪装成 OpenAI，让 Vercel AI SDK 能直接调用。
+    <strong>关键：</strong>只有 DeepSeek 一家模型，没有 OpenAI/Anthropic。<code>@ai-sdk/openai</code> 只是协议适配器。
   </div>
 </div>
 
-<!-- ==================== Development Commands ==================== -->
+<!-- ========== 3. Commands ========== -->
 <div class="card" id="commands">
-  <h2><span class="icon">⚡</span>三、常用开发命令</h2>
-
+  <h2><span>⚡</span>三、常用命令</h2>
   <table>
     <tr><th style="width:280px">命令</th><th>说明</th></tr>
     <tr><td><code>npm run dev</code></td><td>启动开发服务器 (Turbopack)</td></tr>
     <tr><td><code>npm run build</code></td><td>生产构建</td></tr>
-    <tr><td><code>npm run start</code></td><td>启动生产服务器</td></tr>
-    <tr><td><code>npm run lint</code></td><td>运行 ESLint</td></tr>
-    <tr><td><code>npm run format</code></td><td>格式化代码 (Prettier)</td></tr>
-    <tr><td><code>npm run format:check</code></td><td>检查代码格式</td></tr>
-    <tr><td><code>npm run init-db</code></td><td>初始化数据库（含测试用户）</td></tr>
-    <tr><td><code>npm run generate:presets</code></td><td>生成主题预设</td></tr>
+    <tr><td><code>npm run lint</code></td><td>ESLint</td></tr>
+    <tr><td><code>npm run format</code></td><td>Prettier 格式化</td></tr>
     <tr><td><code>npm run test:jest</code></td><td>后端单元/集成测试</td></tr>
     <tr><td><code>npm run test:playwright:smoke</code></td><td>前端冒烟测试</td></tr>
-    <tr><td><code>npm run test:playwright:e2e</code></td><td>完整 E2E 测试</td></tr>
-    <tr><td><code>npm run test:all</code></td><td>全部测试套件</td></tr>
+    <tr><td><code>npm run test:playwright:e2e</code></td><td>E2E 测试</td></tr>
   </table>
 </div>
 
-<!-- ==================== Architecture ==================== -->
-<div class="card" id="architecture">
-  <h2><span class="icon">📁</span>四、目录结构</h2>
-
+<!-- ========== 4. Architecture ========== -->
+<div class="card" id="arch">
+  <h2><span>📁</span>四、目录结构</h2>
 <pre><code>src/
 ├── app/
 │   ├── api/
 │   │   ├── auth/              # 认证端点
 │   │   ├── users/             # CMS 用户管理
 │   │   ├── wechat-users/      # 微信用户管理
-│   │   ├── dashboard/         # 仪表盘统计
-│   │   └── chat/              # Chat API (SSE 流式)
+│   │   └── chat/              # Chat API
 │   │       ├── route.ts       # POST /api/chat — SSE stream
-│   │       └── conversations/ # CRUD for conversations + messages
-│   ├── (main)/                # 受保护的 CMS 路由
-│   │   ├── dashboard/         # CMS 仪表盘页面
-│   │   └── demo/chat/         # Demo Chat（新版 UI，含 ToolCall 可视化）
-│   ├── (external)/            # 公开路由
-│   └── chat/                  # 主 Chat 页面 (/chat)
-│       ├── layout.tsx         # Chat 布局 + Provider
-│       ├── page.tsx           # Chat 页面
-│       └── _components/       # Header、图标侧栏、搜索对话框
+│   │       └── conversations/ # 对话 CRUD + messages 子路由
+│   ├── (main)/dashboard/      # CMS 后台
+│   └── chat/                  # /chat 主页面
 ├── components/
-│   ├── ui/                    # Shadcn UI 组件
-│   ├── data-table/            # 可复用数据表格
-│   └── chat/                  # 共享 Chat 组件
+│   ├── ui/                    # Shadcn UI
+│   └── chat/                  # Chat 组件
 │       ├── chat-main.tsx      # 消息列表 + 输入框
-│       ├── chat-sidebar.tsx   # Agent 选择器 + 对话列表
-│       ├── chat-input.tsx     # 输入框 + 发送按钮
-│       ├── chat-message.tsx   # 单条消息（基础版）
-│       └── conversation-item.tsx # 侧栏对话项
+│       ├── chat-sidebar.tsx   # 对话列表 + 新建按钮
+│       ├── chat-input.tsx     # 输入框
+│       ├── chat-message.tsx   # 消息气泡 (Markdown + ToolCallBubble)
+│       └── conversation-item.tsx # 对话项 (可编辑标题)
 ├── config/
-│   ├── agents.ts              # Agent 定义（system prompt、工具开关）
-│   └── app-config.ts          # 应用名称、版本、meta
+│   └── agents.ts              # Agent 配置 (单 Agent，始终联网)
 ├── lib/
-│   ├── ai-client.ts           # DeepSeek 客户端（懒加载 + Proxy）
-│   ├── supabase-client.ts     # 浏览器端 Supabase 客户端
-│   ├── supabase-server.ts     # 服务端 Supabase 客户端
-│   ├── supabase-admin.ts      # Admin 客户端（绕过 RLS）
-│   ├── auth.ts                # 密码哈希、认证辅助
-│   └── jwt.ts                 # JWT 签发/验证、requireAuth()
+│   └── ai-client.ts           # DeepSeek 客户端 (懒加载 + Proxy)
 ├── services/
-│   ├── chatService.ts         # streamText() + SSE 转换 + 消息持久化
-│   ├── chatTools.ts           # Tool 定义（天气、时间、计算、搜索）
-│   ├── messageService.ts      # 消息 CRUD（Supabase messages 表）
-│   ├── searchService.ts       # 独立 DuckDuckGo 搜索
-│   ├── summaryService.ts      # 对话摘要（OpenAI SDK）
-│   ├── conversationService.ts # 对话 CRUD（Supabase）
-│   ├── userService.ts         # CMS 用户 CRUD
-│   └── wechatUserService.ts   # 微信用户操作
-├── stores/
-│   └── chat/
-│       ├── chat-store.ts      # Zustand vanilla store (SSE 消费、API 持久化)
-│       └── chat-provider.tsx  # React Context 包装器
-└── types/
-    └── chat/
-        └── index.ts           # Message、Conversation、ToolCallRecord、SSE 事件类型</code></pre>
+│   ├── chatService.ts         # streamText + SSE + 标题生成 + forced reply
+│   ├── chatTools.ts           # Tool 定义 (Bing 搜索等)
+│   ├── messageService.ts      # 消息 CRUD (Supabase)
+│   ├── conversationService.ts # 对话 CRUD
+│   └── summaryService.ts      # 长对话摘要
+├── stores/chat/
+│   ├── chat-store.ts          # Zustand store
+│   └── chat-provider.tsx      # Context provider
+└── types/chat/index.ts        # Chat 类型定义</code></pre>
 </div>
 
-<!-- ==================== Provider ==================== -->
-<div class="card" id="provider">
-  <h2><span class="icon">🔌</span>五、模型接入层</h2>
-
-  <p>文件：<code>src/lib/ai-client.ts</code> — 这是整个 AI 系统的<strong>唯一入口</strong>。</p>
-
+<!-- ========== 5. Model ========== -->
+<div class="card" id="model">
+  <h2><span>🔌</span>五、模型接入</h2>
+  <p>文件：<code>src/lib/ai-client.ts</code></p>
 <pre><code>import { createOpenAI } from "@ai-sdk/openai";
 
-// 懒加载：模块导入时不立即初始化，避免 DEEPSEEK_API_KEY 缺失时启动崩溃
-let _deepseek: ReturnType&lt;typeof createOpenAI&gt; | null = null;
-
-function getDeepSeekClient() {
+// 懒加载：模块导入时不立即初始化（key 缺失不会炸）
+let _deepseek = null;
+function getClient() {
   if (!_deepseek) {
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) {
-      throw new Error(
-        "DEEPSEEK_API_KEY is not set. " +
-        "Please add it to your environment variables."
-      );
-    }
-    _deepseek = createOpenAI({
-      apiKey,
-      baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
-    });
+    const key = process.env.DEEPSEEK_API_KEY;
+    if (!key) throw new Error("DEEPSEEK_API_KEY 未配置");
+    _deepseek = createOpenAI({ apiKey: key, baseURL: "https://api.deepseek.com/v1" });
   }
   return _deepseek;
 }
+// Proxy 代理：属性访问时懒加载
+export const deepseek = new Proxy({}, { get(_, p) { return getClient()[p]; } });
+export const CHAT_MODEL = "deepseek-v4-flash";</code></pre>
 
-// Proxy 代理：对 deepseek 的所有属性访问都经过懒加载
-export const deepseek = new Proxy({}, {
-  get(_target, prop) {
-    const client = getDeepSeekClient();
-    const value = client[prop];
-    return typeof value === "function" ? value.bind(client) : value;
-  },
-});
-
-export const CHAT_MODEL = "deepseek-v4-flash";
-</code></pre>
-
-  <h3>5.1 模型选型</h3>
   <table>
     <tr><th style="width:200px">模型</th><th style="width:100px">状态</th><th>说明</th></tr>
-    <tr><td><code>deepseek-v4-flash</code></td><td><span class="badge badge-core">当前使用</span></td><td>默认模型，速度快、成本低，适合流式聊天</td></tr>
-    <tr><td><code>deepseek-v4-pro</code></td><td><span class="badge badge-free">按需升级</span></td><td>特定功能需要更强推理时单独切换</td></tr>
-    <tr><td><code>deepseek-chat</code></td><td><span class="badge badge-deprecated">已弃用</span></td><td>将于 2026/07/24 弃用，已全部替换</td></tr>
+    <tr><td><code>deepseek-v4-flash</code></td><td><span class="badge badge-core">当前</span></td><td>默认，8192 tokens</td></tr>
+    <tr><td><code>deepseek-v4-pro</code></td><td><span class="badge badge-free">待启用</span></td><td>特定功能需要更强推理时升级</td></tr>
+    <tr><td><code>deepseek-chat</code></td><td><span class="badge badge-deprecated">2026/07/24 弃用</span></td><td>已全部替换</td></tr>
   </table>
-
-  <div class="tip warn">
-    <strong>⚠️ 生产环境注意：</strong>必须在 Vercel 环境变量中配置 <code>DEEPSEEK_API_KEY</code>。<br>
-    代码已做懒加载保护——key 缺失时不会在模块加载阶段崩溃，而是在首次调用时抛出清晰的错误信息。
-  </div>
 </div>
 
-<!-- ==================== Tools ==================== -->
+<!-- ========== 6. Tools ========== -->
 <div class="card" id="tools">
-  <h2><span class="icon">🧰</span>六、AI 工具集</h2>
+  <h2><span>🧰</span>六、AI 工具集</h2>
+  <p>文件：<code>src/services/chatTools.ts</code>。四个工具均在服务端执行，失败时 throw error（AI SDK 发 tool-error 事件，UI 显示红标❌）。</p>
 
-  <p>文件：<code>src/services/chatTools.ts</code> — 四个工具全部使用 Vercel AI SDK v7 的 <code>tool()</code> 定义，包含 Zod 输入校验和异步执行函数。<strong>全部在服务端执行。</strong></p>
-
-  <h3>6.1 工具一览</h3>
   <table>
-    <tr><th style="width:140px">工具名</th><th style="width:180px">数据源</th><th style="width:80px">需 Key</th><th>说明</th></tr>
-    <tr>
-      <td><code>getWeather</code></td>
-      <td><a href="https://wttr.in" target="_blank">wttr.in</a></td>
-      <td><span class="badge badge-free">免费</span></td>
-      <td>免费天气 API，返回 JSON (<code>?format=j1</code>)。8 秒超时。支持全球城市英文名。</td>
-    </tr>
-    <tr>
-      <td><code>getCurrentTime</code></td>
-      <td><code>Intl.DateTimeFormat</code></td>
-      <td><span class="badge badge-free">内置</span></td>
-      <td>JavaScript 内置 API。支持时区参数，默认 <code>Asia/Shanghai</code>。</td>
-    </tr>
-    <tr>
-      <td><code>calculate</code></td>
-      <td>沙箱化 <code>new Function()</code></td>
-      <td><span class="badge badge-free">内置</span></td>
-      <td>安全的数学表达式求值器。白名单 Math 函数（<code>sin</code>、<code>sqrt</code>、<code>log</code> 等）。无全局作用域访问。</td>
-    </tr>
-    <tr>
-      <td><code>webSearch</code></td>
-      <td>DuckDuckGo HTML 抓取</td>
-      <td><span class="badge badge-free">免费</span></td>
-      <td>抓取 <code>html.duckduckgo.com/html/</code> 搜索结果页，解析 title/snippet/url。最多 8 条结果，10 秒超时。</td>
-    </tr>
+    <tr><th style="width:120px">工具</th><th style="width:150px">数据源</th><th style="width:60px">Key</th><th>说明</th></tr>
+    <tr><td><code>webSearch</code></td><td>Bing → DuckDuckGo</td><td><span class="badge badge-free">免费</span></td><td>
+      <strong>Bing 优先</strong>（<code>cn.bing.com</code> 国内直连），三层降级解析。<br>
+      失败时自动回退 DuckDuckGo。10s 超时。
+    </td></tr>
+    <tr><td><code>getWeather</code></td><td>wttr.in</td><td><span class="badge badge-free">免费</span></td><td>全球城市天气，JSON API。8s 超时。</td></tr>
+    <tr><td><code>getCurrentTime</code></td><td>Intl.DateTimeFormat</td><td><span class="badge badge-free">内置</span></td><td>支持时区参数，默认 Asia/Shanghai。</td></tr>
+    <tr><td><code>calculate</code></td><td>沙箱 new Function()</td><td><span class="badge badge-free">内置</span></td><td>Math 函数白名单，无全局访问。</td></tr>
   </table>
 
-  <h3>6.2 工具定义示例</h3>
-<pre><code>import { tool } from "ai";
-import { z } from "zod";
-
-export const getWeather = tool({
-  description: "查询指定城市当前天气。返回温度、天气状况、湿度、风速等信息。",
-  inputSchema: z.object({
-    city: z.string().describe("城市名称，使用英文如 Beijing, Shanghai"),
-  }),
-  execute: async (input) => {
-    const url = `https://wttr.in/${encodeURIComponent(input.city)}?format=j1`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    const data = await res.json();
-    const current = data.current_condition?.[0];
-    return {
-      temperature: `${current.temp_C}°C`,
-      condition: current.weatherDesc?.[0]?.value ?? "未知",
-      humidity: `${current.humidity}%`,
-    };
-  },
-});
-
-// 所有工具统一导出，传给 streamText()
-export const chatTools = {
-  webSearch,
-  getWeather,
-  getCurrentTime,
-  calculate,
-} as const;</code></pre>
-
-  <h3>6.3 添加新工具</h3>
+  <h3>Bing 搜索三层降级</h3>
   <ol class="steps">
-    <li>在 <code>src/services/chatTools.ts</code> 中用 <code>tool({...})</code> 定义</li>
-    <li>加入 <code>chatTools</code> 导出对象</li>
-    <li>在 <code>src/config/agents.ts</code> 或 <code>chatService.ts</code> 的 system prompt 中描述新能力</li>
-    <li>（可选）在 <code>src/types/chat/index.ts</code> 中新增相关类型</li>
+    <li>解析 <code>li.b_algo</code> 块（标准桌面版结构）</li>
+    <li>通用链接提取（过滤 bing/microsoft 自身链接，>5 字文本）</li>
+    <li>换 <code>cn.bing.com</code> 再试一次</li>
   </ol>
-
-  <div class="tip green">
-    <strong>✅ 优势：</strong>四个工具全部免费、无需 API Key。部署到任何环境都能直接用，不依赖付费第三方 API。
-  </div>
+  <div class="tip green"><strong>全部免费，零 API Key。</strong>只要配好 DEEPSEEK_API_KEY，AI 系统即用。</div>
 </div>
 
-<!-- ==================== Agent System ==================== -->
-<div class="card" id="agents">
-  <h2><span class="icon">🤖</span>七、Agent 系统</h2>
-
-  <p>文件：<code>src/config/agents.ts</code> — Agent 是<strong>纯配置对象</strong>，通过不同的 system prompt 和工具开关来定制 AI 行为。</p>
-
-  <h3>7.1 Agent 配置接口</h3>
-<pre><code>interface AgentConfig {
-  id: string;              // 唯一标识
-  name: string;            // 显示名称
-  description: string;     // 描述
-  icon: string;            // Lucide 图标名: "Bot" | "Search"
-  systemPrompt: string;    // 发送给模型的 system prompt
-  model: string;           // 默认 "deepseek-v4-flash"
-  temperature: number;     // 默认 0.7
-  maxTokens: number;       // 默认 2000
-  enableWebSearch: boolean; // 是否在 prompt 中强调联网搜索
-}</code></pre>
-
-  <h3>7.2 当前 Agent</h3>
-  <table>
-    <tr><th style="width:100px">ID</th><th style="width:120px">名称</th><th>核心行为</th></tr>
-    <tr>
-      <td><code>default</code></td>
-      <td>默认助手</td>
-      <td>通用 AI 助手，日常对话和问题解答。不强调联网搜索。</td>
-    </tr>
-    <tr>
-      <td><code>search</code></td>
-      <td>联网搜索</td>
-      <td>主动联网搜索——遇到时间敏感问题（天气、新闻、攻略等）时先调 <code>webSearch</code> 再回答。要求注明来源链接。</td>
-    </tr>
-  </table>
-
-  <h3>7.3 添加新 Agent</h3>
-  <ol class="steps">
-    <li>在 <code>agents</code> 数组中新增一条配置</li>
-    <li>新 Agent 自动出现在 Chat 侧栏的 Agent 选择器中（无需改 UI）</li>
-    <li>如需自定义图标，在 <code>chat-sidebar.tsx</code> 中添加图标映射</li>
-  </ol>
-
-  <div class="tip">
-    <strong>💡 设计意图：</strong>Agent 只是"角色扮演"——同一个模型、同一套工具，但 system prompt 不同导致行为差异。<br>
-    未来如果需要不同模型、不同工具集、甚至不同 provider，可以扩展这个接口。
-  </div>
-</div>
-
-<!-- ==================== Streaming Flow ==================== -->
+<!-- ========== 7. Streaming ========== -->
 <div class="card" id="streaming">
-  <h2><span class="icon">🌊</span>八、流式数据流</h2>
-
-  <p>一条用户消息从输入到存储的完整旅程：</p>
-
+  <h2><span>🌊</span>七、流式数据流</h2>
   <div class="arch-box">
-┌──────────────────────────────────────────────────────────────┐
-│  Browser                                                     │
-│  chat-store.ts.sendMessage()                                 │
-│    ├─ Creates conversation (if new)                          │
-│    ├─ Adds user message optimistically                       │
-│    ├─ POST /api/chat (SSE request)                           │
-│    │     ↓                                                   │
-│    │  Server: chatService.streamChatResponse()               │
-│    │     ├─ Save user message to Supabase                    │
-│    │     ├─ toModelMessages() — 转为 AI SDK 格式             │
-│    │     ├─ streamText({ model, system, messages, tools })   │
-│    │     ├─ 遍历 fullStream → SSE 事件:                      │
-│    │     │   "text-delta"  → { type: "text", content }       │
-│    │     │   "tool-call"   → { type: "tool-call", ... }      │
-│    │     │   "tool-result" → { type: "tool-result", ... }    │
-│    │     │   "finish"      → { type: "done" }                │
-│    │     ↓                                                   │
-│    │  Client: 读取 SSE 流                                    │
-│    │     ├─ text: 增量拼接到 assistant message              │
-│    │     ├─ tool-call: 追加到 toolCallRecords[]              │
-│    │     ├─ tool-result: 更新对应的 toolCallRecord           │
-│    │     └─ done: 标记 isStreaming=false                     │
-│    │                                                         │
-│    │  Post-stream（服务端，非阻塞）:                          │
-│    │     ├─ 保存 assistant message 到 Supabase               │
-│    │     ├─ 更新 conversation.updated_at（Supabase）          │
-│    │     └─ 检查是否需要摘要（≥20 条消息）                    │
-│    └─────────────────────────────────────────────────────────┘
-│  Client: loadConversations() 刷新对话列表顺序                  │
-└──────────────────────────────────────────────────────────────┘
+POST /api/chat
+  │
+  ├─ 1. saveUserMessage(conversationId, userMessage) — fire-and-forget
+  │
+  └─ ReadableStream.start()
+       │
+       ├─ streamText({ model, system, messages, tools })
+       │    │
+       │    ├─ text-delta → SSE { type: "text", content }
+       │    ├─ tool-call  → SSE { type: "tool-call", toolCallId, toolName, args }
+       │    ├─ tool-result→ SSE { type: "tool-result", toolCallId, toolName, result }
+       │    ├─ tool-error → SSE { type: "tool-error", toolCallId, toolName, error }
+       │    └─ finish     → SSE { type: "done", finishReason }
+       │
+       ├─ 如果 assistantContent 为空 → forced reply (generateText 补发)
+       ├─ saveAssistantMessage() → Supabase
+       ├─ controller.close()
+       ├─ generateAndSaveTitle() → generateText() → Supabase
+       └─ updateConversationTimestamp() + summarization check
+
+Client (chat-store.ts):
+  ├─ SSE 事件消费 → 更新 currentMessages state
+  ├─ isSending=false → 移动对话到列表顶部
+  └─ 5s 后 loadConversations() 取回服务器生成的标题
   </div>
 
-  <h3>8.1 SSE 事件类型</h3>
-  <p>定义在 <code>src/types/chat/index.ts</code> 的 <code>ChatStreamEvent</code>：</p>
+  <h3>SSE 事件类型</h3>
   <table>
-    <tr><th style="width:120px">事件</th><th style="width:120px">方向</th><th>载荷</th></tr>
-    <tr><td><code>text</code></td><td>Server → Client</td><td><code>{ type: "text", content: string }</code></td></tr>
-    <tr><td><code>tool-call</code></td><td>Server → Client</td><td><code>{ type: "tool-call", toolCallId, toolName, args }</code></td></tr>
-    <tr><td><code>tool-result</code></td><td>Server → Client</td><td><code>{ type: "tool-result", toolCallId, toolName, result }</code></td></tr>
-    <tr><td><code>tool-error</code></td><td>Server → Client</td><td><code>{ type: "tool-error", toolCallId, toolName, error }</code></td></tr>
-    <tr><td><code>done</code></td><td>Server → Client</td><td><code>{ type: "done", finishReason }</code></td></tr>
-    <tr><td><code>error</code></td><td>双向</td><td><code>{ type: "error", error: string }</code></td></tr>
+    <tr><th style="width:120px">事件</th><th>载荷</th></tr>
+    <tr><td><code>text</code></td><td><code>{ content: string }</code> — 流式文字增量</td></tr>
+    <tr><td><code>tool-call</code></td><td><code>{ toolCallId, toolName, args }</code> — AI 发起工具调用</td></tr>
+    <tr><td><code>tool-result</code></td><td><code>{ toolCallId, toolName, result }</code> — 工具执行成功</td></tr>
+    <tr><td><code>tool-error</code></td><td><code>{ toolCallId, toolName, error }</code> — 工具执行失败</td></tr>
+    <tr><td><code>done</code></td><td><code>{ finishReason }</code> — 流结束</td></tr>
+    <tr><td><code>error</code></td><td><code>{ error: string }</code> — 流异常</td></tr>
   </table>
-
-  <h3>8.2 关键设计决策</h3>
-  <ul>
-    <li><strong>消息持久化在服务端：</strong>用户消息在流开始前保存，助手消息在流结束后保存。客户端断开也不丢消息。</li>
-    <li><strong>Tool 调用上限：</strong><code>stopWhen: isStepCount(5)</code> 限制最多 5 轮 tool call，防止无限循环。</li>
-    <li><strong>摘要触发阈值：</strong>对话超过 20 条消息时，自动用前半段历史生成中文摘要，存入 <code>conversation_summaries</code> 表。</li>
-    <li><strong>Side effects 非阻塞：</strong>时间戳更新、摘要生成都是 fire-and-forget，不阻塞 SSE 流。</li>
-  </ul>
 </div>
 
-<!-- ==================== State Management ==================== -->
+<!-- ========== 8. State ========== -->
 <div class="card" id="state">
-  <h2><span class="icon">🗄️</span>九、状态管理</h2>
-
-  <p>Chat 状态使用 <strong>Zustand vanilla store</strong>（非 React Zustand），通过 React Context 注入。</p>
-
-  <h3>9.1 Store 结构</h3>
-  <table>
-    <tr><th style="width:240px">字段/方法</th><th>说明</th></tr>
-    <tr><td><code>conversations</code></td><td>对话列表（从 API 加载）</td></tr>
-    <tr><td><code>currentConversationId</code></td><td>当前选中对话 ID</td></tr>
-    <tr><td><code>currentMessages</code></td><td>当前对话的消息列表（从 API 加载）</td></tr>
-    <tr><td><code>currentAgentId</code></td><td>当前选中的 Agent（默认 "default"）</td></tr>
-    <tr><td><code>isLoading</code></td><td>加载状态</td></tr>
-    <tr><td><code>sendMessage(content)</code></td><td>发送消息 → SSE 消费 → 更新 state</td></tr>
-    <tr><td><code>loadMessages(conversationId)</code></td><td>从 API 加载消息（替代旧 localStorage）</td></tr>
-    <tr><td><code>loadConversations()</code></td><td>加载对话列表</td></tr>
-    <tr><td><code>createConversation(title?)</code></td><td>创建新对话</td></tr>
-    <tr><td><code>deleteConversation(id)</code></td><td>删除对话（消息由 DB 级联删除）</td></tr>
-  </table>
-
-  <h3>9.2 消息存储</h3>
-  <p>消息<strong>全部存在 Supabase <code>messages</code> 表</strong>，不再使用 localStorage。dev 和 prod 共用同一数据库时对话自动同步。</p>
+  <h2><span>🗄️</span>八、状态管理</h2>
+  <p>使用 <strong>Zustand vanilla store</strong>，通过 React Context 注入。四种加载状态各自独立，互不干扰：</p>
 
   <table>
-    <tr><th style="width:160px">表</th><th>存储内容</th></tr>
-    <tr><td><code>conversations</code></td><td>对话元数据：id、user_id、title、model、agent_id、时间戳</td></tr>
-    <tr><td><code>messages</code></td><td>消息：id、conversation_id、role、content、tool_calls (JSONB)、created_at</td></tr>
-    <tr><td><code>conversation_summaries</code></td><td>摘要：id、conversation_id、summary_text、message_count</td></tr>
+    <tr><th style="width:180px">状态</th><th>谁设置</th><th>影响范围</th></tr>
+    <tr><td><code>isLoading</code></td><td><code>loadConversations()</code></td><td>侧栏 loading spinner</td></tr>
+    <tr><td><code>isCreating</code></td><td><code>createConversation()</code></td><td>"新对话"按钮 disabled + spinner</td></tr>
+    <tr><td><code>isDeleting</code></td><td><code>deleteConversation()</code></td><td>"新对话"按钮 disabled（防并发）</td></tr>
+    <tr><td><code>isSending</code></td><td><code>sendMessage()</code></td><td>输入框 disabled + "AI正在思考..."</td></tr>
+    <tr><td><code>isLoadingMessages</code></td><td><code>loadMessages()</code></td><td>聊天区 loading，阻止切换对话</td></tr>
   </table>
+
+  <h3>消息存储</h3>
+  <table>
+    <tr><th style="width:160px">表</th><th>内容</th></tr>
+    <tr><td><code>conversations</code></td><td>对话元数据：id, user_id, title, model, agent_id, 时间戳</td></tr>
+    <tr><td><code>messages</code></td><td>消息：id, conversation_id, role, content, tool_calls (JSONB), created_at</td></tr>
+    <tr><td><code>conversation_summaries</code></td><td>摘要：id, conversation_id, summary_text, message_count</td></tr>
+  </table>
+  <div class="tip green">消息存储在 Supabase，dev/prod 共用同一数据库时自动同步。</div>
 </div>
 
-<!-- ==================== Auth ==================== -->
-<div class="card" id="auth">
-  <h2><span class="icon">🔐</span>十、认证系统</h2>
+<!-- ========== 9. Title ========== -->
+<div class="card" id="title">
+  <h2><span>✏️</span>九、标题生成</h2>
+  <p><strong>自动生成</strong>：首次对话流结束后，调用 <code>generateText()</code>（共享 deepseek 客户端）根据用户问题生成 5-20 字标题，存入 Supabase。客户端 5 秒后 <code>loadConversations()</code> 拿到。</p>
+  <p><strong>兜底</strong>：API 失败时用用户问题前 20 字。确保标题不会是"新对话"。</p>
+  <p><strong>手动编辑</strong>：hover 对话项时标题右边出现 ✏️ 图标，点击 inline 编辑，Enter 保存 / Escape 取消，<code>PATCH /api/chat/conversations/[id]</code> 持久化。</p>
 
-  <ul>
-    <li><strong>JWT Token：</strong>自定义签发/验证（<code>src/lib/jwt.ts</code>），Cookie 存储（HttpOnly + SameSite=Strict）</li>
-    <li><strong>密码哈希：</strong>bcrypt，强度 10</li>
-    <li><strong>路由保护：</strong>中间件保护 <code>/dashboard</code> 路由；Chat API 路由使用 <code>requireAuth()</code></li>
-    <li><strong>账号要求：</strong>用户必须 <code>isActive: true</code>，且 <code>user_type</code> 为 <code>admin</code> 或 <code>user</code></li>
-  </ul>
-
-  <div class="tip important">
-    <strong>🔒 安全提醒：</strong>服务端始终使用 <code>supabase-admin</code>（绕过 RLS）操作数据库。<br>
-    <code>SUPABASE_SERVICE_ROLE_KEY</code> 仅用于服务端，绝不暴露到客户端。
-  </div>
+  <h3>Forced Reply</h3>
+  <p>流结束后如果 assistantContent 太短（&lt; 30 字符）且有 tool 调用，自动调 <code>generateText</code> 补一发完整回答，确保用户不会看到空白或残缺回复。</p>
 </div>
 
-<!-- ==================== Env Variables ==================== -->
+<!-- ========== 10. Env ========== -->
 <div class="card" id="env">
-  <h2><span class="icon">🔧</span>十一、环境变量</h2>
-
+  <h2><span>🔧</span>十、环境变量</h2>
   <table>
-    <tr><th style="width:280px">变量</th><th style="width:80px">必须</th><th>用途</th></tr>
-    <tr>
-      <td><code>DEEPSEEK_API_KEY</code></td>
-      <td><span class="badge badge-core">是</span></td>
-      <td>DeepSeek API 密钥。Vercel 生产环境必须配置。</td>
-    </tr>
-    <tr>
-      <td><code>DEEPSEEK_BASE_URL</code></td>
-      <td>否</td>
-      <td>DeepSeek API 地址，默认 <code>https://api.deepseek.com/v1</code></td>
-    </tr>
-    <tr>
-      <td><code>JWT_SECRET</code></td>
-      <td><span class="badge badge-core">是</span></td>
-      <td>JWT 签名密钥</td>
-    </tr>
-    <tr>
-      <td><code>NEXT_PUBLIC_SUPABASE_URL</code></td>
-      <td><span class="badge badge-core">是</span></td>
-      <td>Supabase 项目 URL</td>
-    </tr>
-    <tr>
-      <td><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code></td>
-      <td><span class="badge badge-core">是</span></td>
-      <td>Supabase 匿名密钥</td>
-    </tr>
-    <tr>
-      <td><code>SUPABASE_SERVICE_ROLE_KEY</code></td>
-      <td><span class="badge badge-core">是</span></td>
-      <td>Supabase 服务角色密钥 — 绕过 RLS，仅服务端使用</td>
-    </tr>
+    <tr><th style="width:280px">变量</th><th style="width:60px">必须</th><th>用途</th></tr>
+    <tr><td><code>DEEPSEEK_API_KEY</code></td><td><span class="badge badge-core">是</span></td><td>DeepSeek API 密钥</td></tr>
+    <tr><td><code>DEEPSEEK_BASE_URL</code></td><td>否</td><td>默认 <code>https://api.deepseek.com/v1</code></td></tr>
+    <tr><td><code>JWT_SECRET</code></td><td><span class="badge badge-core">是</span></td><td>JWT 签名密钥</td></tr>
+    <tr><td><code>NEXT_PUBLIC_SUPABASE_URL</code></td><td><span class="badge badge-core">是</span></td><td>Supabase 项目 URL</td></tr>
+    <tr><td><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code></td><td><span class="badge badge-core">是</span></td><td>Supabase 匿名密钥</td></tr>
+    <tr><td><code>SUPABASE_SERVICE_ROLE_KEY</code></td><td><span class="badge badge-core">是</span></td><td>绕过 RLS，仅服务端</td></tr>
   </table>
-
-  <div class="tip green">
-    <strong>✅ 好消息：</strong>四个 AI Tool（天气、时间、计算、搜索）全部不需要 API Key。<br>
-    只要配好 <code>DEEPSEEK_API_KEY</code>，整个 AI 系统就能正常工作。
-  </div>
 </div>
 
-<!-- ==================== Development Patterns ==================== -->
+<!-- ========== 11. Patterns ========== -->
 <div class="card" id="patterns">
-  <h2><span class="icon">📐</span>十二、开发模式</h2>
+  <h2><span>📐</span>十一、开发模式</h2>
 
-  <h3>12.1 添加新的 AI Tool</h3>
+  <h3>添加新 Tool</h3>
   <ol class="steps">
-    <li>在 <code>src/services/chatTools.ts</code> 中用 <code>tool({...})</code> 定义</li>
-    <li>加入 <code>chatTools</code> 导出对象</li>
-    <li>更新 system prompt（在 <code>agents.ts</code> 或 <code>chatService.ts</code> 中描述新能力）</li>
-    <li>（可选）在 <code>types/chat/index.ts</code> 中新增相关类型</li>
+    <li>在 <code>src/services/chatTools.ts</code> 用 <code>tool({...})</code> 定义</li>
+    <li>加入 <code>chatTools</code> 导出</li>
+    <li>更新 system prompt（<code>src/config/agents.ts</code>）</li>
   </ol>
 
-  <h3>12.2 添加新的 API 路由</h3>
+  <h3>添加新 API 路由</h3>
   <ol class="steps">
-    <li>在 <code>src/app/api/</code> 创建路由文件</li>
-    <li>用 <code>requireAuth()</code> 保护需要登录的端点</li>
-    <li>用 Zod 校验请求参数</li>
-    <li>返回统一的 JSON 响应格式</li>
+    <li>在 <code>src/app/api/</code> 创建路由</li>
+    <li>用 <code>requireAuth()</code> 保护</li>
+    <li>Zod 校验 + 统一 JSON 响应</li>
   </ol>
 
-  <h3>12.3 添加 CMS 后台页面</h3>
-  <ol class="steps">
-    <li>在 <code>src/app/(main)/dashboard/</code> 创建页面</li>
-    <li>使用 <code>"use client"</code> 指令</li>
-    <li>在 <code>src/navigation/sidebar/sidebar-items.ts</code> 添加导航项</li>
-  </ol>
-
-  <h3>12.4 数据库操作规范</h3>
+  <h3>数据库规范</h3>
   <ul>
-    <li><strong>始终通过 service 层</strong>操作数据库，不要直接调 Supabase</li>
+    <li>始终通过 service 层操作，不直接调 Supabase</li>
     <li><code>supabase-admin</code> 仅在需要绕过 RLS 时使用</li>
-    <li>数据库字段用 snake_case，TypeScript 接口用 camelCase</li>
+    <li>DB 字段 snake_case，TS 接口 camelCase</li>
   </ul>
 </div>
 
-<!-- ==================== Testing ==================== -->
-<div class="card" id="testing">
-  <h2><span class="icon">🧪</span>十三、测试体系</h2>
-
-  <div class="tip important">
-    <strong>⚠️ 铁律：</strong>每个新功能或修复<strong>必须</strong>有通过的测试才能标记完成。<br>
-    提交前运行 <code>npm run test:all</code>，全部通过才能提交。
-  </div>
-
-  <h3>13.1 测试套件</h3>
-  <table>
-    <tr><th style="width:200px">套件</th><th style="width:200px">命令</th><th>覆盖范围</th></tr>
-    <tr><td>Jest 单元/集成测试</td><td><code>npm run test:jest</code></td><td>API 路由、Services、工具函数</td></tr>
-    <tr><td>Playwright 冒烟测试</td><td><code>npm run test:playwright:smoke</code></td><td>核心页面加载、基础导航（标记 <code>@smoke</code>）</td></tr>
-    <tr><td>Playwright E2E 测试</td><td><code>npm run test:playwright:e2e</code></td><td>完整业务流程、用户操作链路</td></tr>
-  </table>
-
-  <h3>13.2 测试工作流</h3>
-  <ol class="steps">
-    <li>为新功能/修复编写测试</li>
-    <li><code>npm run test:jest</code> 必须通过</li>
-    <li><code>npm run test:playwright:smoke</code> 必须通过</li>
-    <li><code>npm run test:playwright:e2e</code> 必须通过</li>
-    <li>修好所有失败，直到全部通过</li>
-  </ol>
-</div>
-
-<!-- ==================== Important Files ==================== -->
+<!-- ========== 12. Files ========== -->
 <div class="card" id="files">
-  <h2><span class="icon">🗂️</span>十四、核心文件索引</h2>
-
-  <h3>14.1 AI 核心</h3>
+  <h2><span>🗂️</span>十二、核心文件</h2>
   <table>
     <tr><th style="width:300px">文件</th><th>作用</th></tr>
-    <tr><td><code>src/lib/ai-client.ts</code></td><td>DeepSeek 客户端（AI 栈入口）</td></tr>
-    <tr><td><code>src/services/chatService.ts</code></td><td>主流程：streamText + SSE 转换 + 消息持久化 + 摘要触发</td></tr>
-    <tr><td><code>src/services/chatTools.ts</code></td><td>全部 Tool 定义（<strong>新增工具改这里</strong>）</td></tr>
-    <tr><td><code>src/config/agents.ts</code></td><td>Agent 配置（<strong>新增 Agent 改这里</strong>）</td></tr>
-    <tr><td><code>src/app/api/chat/route.ts</code></td><td>POST /api/chat — SSE endpoint</td></tr>
-  </table>
-
-  <h3>14.2 状态 & UI</h3>
-  <table>
-    <tr><th style="width:300px">文件</th><th>作用</th></tr>
-    <tr><td><code>src/stores/chat/chat-store.ts</code></td><td>Zustand store（SSE 消费、API 持久化）</td></tr>
-    <tr><td><code>src/stores/chat/chat-provider.tsx</code></td><td>React Context 包装器</td></tr>
-    <tr><td><code>src/types/chat/index.ts</code></td><td>Chat 相关 TypeScript 类型</td></tr>
-    <tr><td><code>src/components/chat/</code></td><td>共享 Chat UI 组件</td></tr>
-    <tr><td><code>src/app/chat/</code></td><td>主 Chat 路由和页面组件</td></tr>
-    <tr><td><code>src/app/(main)/demo/chat/</code></td><td>Demo Chat（新版 UI，含 ToolCall 可视化）</td></tr>
-  </table>
-
-  <h3>14.3 数据层</h3>
-  <table>
-    <tr><th style="width:300px">文件</th><th>作用</th></tr>
-    <tr><td><code>src/services/conversationService.ts</code></td><td>对话 CRUD</td></tr>
+    <tr><td><code>src/lib/ai-client.ts</code></td><td>DeepSeek 客户端（懒加载 + Proxy）</td></tr>
+    <tr><td><code>src/services/chatService.ts</code></td><td>streamText + SSE + 标题 + forced reply</td></tr>
+    <tr><td><code>src/services/chatTools.ts</code></td><td>Tool 定义（<strong>新增工具改这里</strong>）</td></tr>
     <tr><td><code>src/services/messageService.ts</code></td><td>消息 CRUD</td></tr>
-    <tr><td><code>src/services/summaryService.ts</code></td><td>对话摘要生成</td></tr>
-    <tr><td><code>src/services/searchService.ts</code></td><td>独立搜索服务</td></tr>
-  </table>
-
-  <h3>14.4 认证 & 数据库</h3>
-  <table>
-    <tr><th style="width:300px">文件</th><th>作用</th></tr>
-    <tr><td><code>src/lib/jwt.ts</code></td><td>JWT 签发/验证、requireAuth()</td></tr>
-    <tr><td><code>src/lib/auth.ts</code></td><td>密码哈希、认证辅助</td></tr>
-    <tr><td><code>src/middleware/auth-middleware.ts</code></td><td>路由保护中间件</td></tr>
-    <tr><td><code>supabase/init.sql</code></td><td>完整数据库 schema</td></tr>
-    <tr><td><code>supabase/migrations/</code></td><td>增量迁移脚本</td></tr>
+    <tr><td><code>src/services/conversationService.ts</code></td><td>对话 CRUD</td></tr>
+    <tr><td><code>src/config/agents.ts</code></td><td>Agent system prompt</td></tr>
+    <tr><td><code>src/stores/chat/chat-store.ts</code></td><td>Zustand store（SSE 消费 + API 持久化）</td></tr>
+    <tr><td><code>src/components/chat/chat-message.tsx</code></td><td>消息渲染（Markdown + ToolCallBubble）</td></tr>
+    <tr><td><code>src/components/chat/chat-sidebar.tsx</code></td><td>对话列表 + 新建按钮</td></tr>
+    <tr><td><code>src/components/chat/conversation-item.tsx</code></td><td>对话项（可编辑标题）</td></tr>
+    <tr><td><code>src/app/api/chat/route.ts</code></td><td>POST /api/chat — SSE endpoint</td></tr>
+    <tr><td><code>src/app/api/chat/conversations/[id]/route.ts</code></td><td>DELETE + PATCH 对话</td></tr>
+    <tr><td><code>src/app/api/chat/conversations/[id]/messages/route.ts</code></td><td>GET 消息列表</td></tr>
+    <tr><td><code>supabase/migrations/20260701_create_messages_table.sql</code></td><td>messages 表 migration</td></tr>
   </table>
 </div>
 
