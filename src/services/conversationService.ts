@@ -18,7 +18,7 @@ export async function createConversation(
       id: crypto.randomUUID(),
       user_id: userId,
       title: data.title ?? "新对话",
-      model: data.model ?? "deepseek-chat",
+      model: data.model ?? "deepseek-v4-flash",
       agent_id: data.agentId ?? "default",
     })
     .select()

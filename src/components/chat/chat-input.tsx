@@ -13,11 +13,11 @@ import { Send, Loader2 } from "lucide-react";
 export function ChatInput() {
   const [input, setInput] = useState("");
   const sendMessage = useChatStore((s) => s.sendMessage);
-  const isLoading = useChatStore((s) => s.isLoading);
+  const isSending = useChatStore((s) => s.isSending);
   const error = useChatStore((s) => s.error);
 
   const handleSubmit = async () => {
-    if (!input.trim() || isLoading) return;
+    if (!input.trim() || isSending) return;
 
     const messageToSend = input.trim();
     setInput("");
@@ -45,14 +45,14 @@ export function ChatInput() {
         onKeyDown={handleKeyDown}
         placeholder="输入消息... (Enter 发送, Shift+Enter 换行)"
         className="min-h-[50px] max-h-[120px] resize-none"
-        disabled={isLoading}
+        disabled={isSending}
       />
       <Button
         onClick={handleSubmit}
-        disabled={!input.trim() || isLoading}
+        disabled={!input.trim() || isSending}
         className="h-[50px] px-4"
       >
-        {isLoading ? (
+        {isSending ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : (
           <Send className="h-4 w-4" />

@@ -1,5 +1,5 @@
 /**
- * Agent 配置 — 不同 Agent 有独立的系统提示词和工具配置
+ * Agent 配置 — 所有对话默认联网搜索，无需手动选择
  */
 
 export interface AgentConfig {
@@ -17,32 +17,14 @@ export interface AgentConfig {
 const agents: AgentConfig[] = [
   {
     id: "default",
-    name: "默认助手",
-    description: "通用 AI 助手，日常对话和问题解答",
+    name: "Sapphire AI",
+    description: "默认 AI 助手，始终联网搜索",
     icon: "Bot",
     systemPrompt:
-      "你是一个乐于助人的 AI 助手。用简洁清晰的中文回答问题。如果问题需要实时信息（如天气、新闻、股票等），请诚实告知你无法获取实时数据。",
-    model: "deepseek-chat",
+      "你是 Sapphire Studio 的 AI 助手，具备联网搜索能力（webSearch）。\n\n## 规则\n1. 需要实时信息时立即调 webSearch，用精准关键词一次搜到位。\n2. 搜索结果返回后直接给出完整中文回答，不要等、不要反复搜。\n3. 绝不只调工具不回答，绝不输出半截句子。",
+    model: "deepseek-v4-flash",
     temperature: 0.7,
-    maxTokens: 2000,
-    enableWebSearch: false,
-  },
-  // TODO: MBTI 分析师 — 暂时隐藏，待想好执行方案后再启用
-  // {
-  //   id: "mbti",
-  //   name: "MBTI 分析师",
-  //   ...
-  // },
-  {
-    id: "search",
-    name: "联网搜索",
-    description: "带网络搜索能力的助手，可查询实时信息",
-    icon: "Search",
-    systemPrompt:
-      "你是一个具备网络搜索能力的 AI 助手。当用户询问实时信息（天气、新闻、事件等）时，你会调用搜索工具获取最新数据，然后基于搜索结果给出准确回答。回答时请注明信息来源（链接）。用简洁清晰的中文回答。",
-    model: "deepseek-chat",
-    temperature: 0.7,
-    maxTokens: 2000,
+    maxTokens: 8192,
     enableWebSearch: true,
   },
 ];

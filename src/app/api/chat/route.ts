@@ -39,6 +39,7 @@ export async function POST(request: NextRequest) {
 
     const stream = await streamChatResponse(
       conversationId,
+      user.id,
       message,
       agentId,
       conversationHistory

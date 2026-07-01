@@ -1,28 +1,24 @@
 /**
  * Chat service - integrates with DeepSeek via Vercel AI SDK v7
  * Supports streaming responses with tool calling (weather, time, calculate, etc.)
+ * Persists messages to Supabase (no localStorage dependency)
  */
 
-import { streamText, isStepCount, type ModelMessage } from "ai";
-import type { Message } from "@/types/chat";
+import { streamText, generateText, type ModelMessage } from "ai";
+import OpenAI from "openai";
+import type { Message, ToolCallRecord } from "@/types/chat";
 import { deepseek, CHAT_MODEL } from "@/lib/ai-client";
 import { chatTools } from "@/services/chatTools";
-import { getAgent } from "@/config/agents";
+import { getAgent, getDefaultAgent } from "@/config/agents";
 import {
   updateConversationTimestamp,
+  updateConversationTitle,
 } from "./conversationService";
 import { createSummary } from "./summaryService";
-
-const DEFAULT_SYSTEM_PROMPT = `你是 INFP-CMS 的 AI 助手。你拥有以下能力：
-- 联网搜索（webSearch）：获取实时最新信息，如近期活动、景点推荐、攻略、新闻等
-- 查询天气（getWeather）：查询全球城市的实时天气
-- 获取时间（getCurrentTime）：获取任意时区的当前时间
-- 数学计算（calculate）：执行复杂的数学运算
-
-## 重要规则
-1. **默认联网**：当用户询问的信息可能随时间变化（推荐、攻略、活动、新闻、实时数据等），必须先调用 webSearch 获取最新结果，再基于搜索结果回答。
-2. **关键词拆分**：如果搜索一个主题不够全面，可以多次调用 webSearch 用不同关键词搜索。
-3. 回答时请使用中文，保持简洁专业，引用搜索结果中的具体信息。`;
+import {
+  saveUserMessage,
+  saveAssistantMessage,
+} from "./messageService";
 
 /**
  * Convert app Message[] to AI SDK ModelMessage[]
@@ -55,37 +51,46 @@ function toModelMessages(messages: Message[], currentMessage: string): ModelMess
 }
 
 /**
- * Stream a chat response with tool calling support
- * Returns a ReadableStream of SSE events (text/event-stream)
+ * Stream a chat response with tool calling support.
+ * Server-side: saves user message before stream, assistant message after stream.
+ * Returns a ReadableStream of SSE events (text/event-stream).
  */
 export async function streamChatResponse(
   conversationId: string,
+  userId: string,
   userMessage: string,
   agentId: string,
   conversationHistory: Message[]
 ): Promise<ReadableStream<Uint8Array>> {
-  const agent = getAgent(agentId);
+  const agent = getAgent(agentId) ?? getDefaultAgent();
   const messages = toModelMessages(conversationHistory, userMessage);
 
-  const result = streamText({
-    model: deepseek.chat(agent?.model ?? CHAT_MODEL),
-    system: agent?.systemPrompt ?? DEFAULT_SYSTEM_PROMPT,
-    messages,
-    tools: chatTools,
-    temperature: agent?.temperature ?? 0.7,
-    stopWhen: isStepCount(5),
-  });
-
-  // Convert fullStream to SSE
   const encoder = new TextEncoder();
-  let streamFinished = false;
+
+  // ── 1. Save user message to Supabase (fire-and-forget) ──
+  saveUserMessage(conversationId, userMessage).catch((err) => {
+    console.error("Failed to save user message:", err);
+  });
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      let assistantContent = "";
+      const toolCallRecords: ToolCallRecord[] = [];
+      let streamFinished = false;
+
+      const result = streamText({
+        model: deepseek.chat(agent.model),
+        system: agent.systemPrompt,
+        messages,
+        tools: chatTools,
+        temperature: agent.temperature,
+      });
+
       try {
         for await (const chunk of result.fullStream) {
           switch (chunk.type) {
             case "text-delta":
+              assistantContent += chunk.text;
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify({ type: "text", content: chunk.text })}\n\n`
@@ -94,6 +99,12 @@ export async function streamChatResponse(
               break;
 
             case "tool-call":
+              toolCallRecords.push({
+                id: chunk.toolCallId,
+                toolName: chunk.toolName,
+                args: chunk.input as Record<string, unknown>,
+                status: "calling",
+              });
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify({
@@ -107,6 +118,17 @@ export async function streamChatResponse(
               break;
 
             case "tool-result":
+              // Update matching tool call record
+              const tcResultIdx = toolCallRecords.findIndex(
+                (tc) => tc.id === chunk.toolCallId
+              );
+              if (tcResultIdx !== -1) {
+                toolCallRecords[tcResultIdx] = {
+                  ...toolCallRecords[tcResultIdx],
+                  result: chunk.output,
+                  status: "done",
+                };
+              }
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify({
@@ -119,7 +141,27 @@ export async function streamChatResponse(
               );
               break;
 
-            case "tool-error":
+            case "tool-error": {
+              // Update matching tool-call record or create new one
+              const tcErrIdx = toolCallRecords.findIndex(
+                (tc) => tc.id === chunk.toolCallId
+              );
+              if (tcErrIdx !== -1) {
+                toolCallRecords[tcErrIdx] = {
+                  ...toolCallRecords[tcErrIdx],
+                  result: String(chunk.error),
+                  status: "error",
+                };
+              } else {
+                toolCallRecords.push({
+                  id: chunk.toolCallId,
+                  toolName: chunk.toolName,
+                  args: {},
+                  result: String(chunk.error),
+                  status: "error",
+                });
+              }
+            }
               controller.enqueue(
                 encoder.encode(
                   `data: ${JSON.stringify({
@@ -165,14 +207,59 @@ export async function streamChatResponse(
           );
         }
 
+        // ── 3. Adaptive fallback: if model answer is too short after tool calls, force a reply ──
+        const isTooShort =
+          assistantContent.length < 30 && toolCallRecords.length > 0;
+        if (!assistantContent || isTooShort) {
+          try {
+            const forcedReply = await generateForcedReply(
+              userMessage,
+              assistantContent
+            );
+            if (forcedReply) {
+              // Send as delta so client appends it to the existing message
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: "text", content: forcedReply })}\n\n`
+                )
+              );
+              assistantContent = (assistantContent || "") + forcedReply;
+            }
+          } catch {
+            if (!assistantContent) {
+              assistantContent =
+                "抱歉，未能生成有效回复。请尝试换个方式提问。";
+              controller.enqueue(
+                encoder.encode(
+                  `data: ${JSON.stringify({ type: "text", content: assistantContent })}\n\n`
+                )
+              );
+            }
+          }
+        }
+
+        // ── 4. Save assistant message to Supabase ──
+        if (assistantContent) {
+          saveAssistantMessage(conversationId, assistantContent, toolCallRecords).catch(
+            (err) => {
+              console.error("Failed to save assistant message:", err);
+            }
+          );
+        }
+
         controller.close();
 
-        // Post-stream side effects (non-blocking)
-        updateConversationTimestamp(conversationId).catch(() => {
-          // Supabase may be unreachable in some network environments (e.g. China),
-          // but this is non-critical — the conversation still works fine.
-        });
+        // ── 4. Generate title after stream fully ends (non-blocking) ──
+        if (conversationHistory.length === 0 && assistantContent) {
+          generateAndSaveTitle(conversationId, userMessage, assistantContent).catch(
+            (err) => {
+              console.error("Failed to generate conversation title:", err);
+            }
+          );
+        }
 
+        // ── 5. Post-stream side effects (non-blocking) ──
+        updateConversationTimestamp(conversationId).catch(() => {});
         checkAndSummarizeIfNeeded(conversationId, conversationHistory);
       } catch (error) {
         console.error("Stream error:", error);
@@ -190,6 +277,90 @@ export async function streamChatResponse(
   });
 
   return stream;
+}
+
+// ─── Title Generation ──────────────────────────────────────
+
+/**
+ * Generate a conversation title and save to DB.
+ * Called AFTER the stream is fully closed — never blocks the response.
+ */
+async function generateAndSaveTitle(
+  conversationId: string,
+  userMessage: string,
+  _assistantContent: string
+): Promise<void> {
+  try {
+    const result = await generateText({
+      model: deepseek.chat(CHAT_MODEL),
+      system:
+        "根据用户的提问生成一个简短的对话标题（5-15字），直接输出标题，不加任何前缀或引号。例：用户问「今天天气怎么样」→ 回复「天气查询」。绝不输出「新对话」。",
+      prompt: userMessage,
+      temperature: 0.8,
+    });
+
+    const title = result.text.replace(/["""'\n]/g, "").trim();
+    const finalTitle =
+      title && title !== "新对话" && title.length >= 2
+        ? title.slice(0, 20)
+        : userMessage.replace(/[？?！!。，,、\s]/g, "").slice(0, 20) || "新对话";
+
+    await updateConversationTitle(conversationId, finalTitle);
+    console.log(`Title set: "${finalTitle}"`);
+  } catch (err) {
+    console.error("Title generation failed:", err);
+    // Fallback: use user message
+    const fallback =
+      userMessage.replace(/[？?！!。，,、\s]/g, "").slice(0, 20) || "新对话";
+    await updateConversationTitle(conversationId, fallback).catch(() => {});
+  }
+}
+
+// ─── Forced Reply ──────────────────────────────────────────
+
+/**
+ * When the model's streaming response is too short or empty after tool calls,
+ * make a non-streaming follow-up call to force a complete answer.
+ */
+async function generateForcedReply(
+  userMessage: string,
+  partialContent: string
+): Promise<string | null> {
+  const client = new OpenAI({
+    apiKey: process.env.DEEPSEEK_API_KEY,
+    baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
+  });
+
+  const completion = await client.chat.completions.create({
+    model: CHAT_MODEL,
+    messages: [
+      {
+        role: "system",
+        content:
+          "用户刚刚问了问题，你已经搜索了相关信息。现在请基于搜索到的信息，用中文给出一个完整、详细的回答。",
+      },
+      {
+        role: "user",
+        content: `用户问题：${userMessage}`,
+      },
+      ...(partialContent
+        ? [
+            {
+              role: "assistant" as const,
+              content: partialContent,
+            },
+          ]
+        : []),
+      {
+        role: "user",
+        content: "请基于搜索结果给出完整回答：",
+      },
+    ],
+    temperature: 0.7,
+    max_tokens: 2048,
+  });
+
+  return completion.choices[0]?.message?.content?.trim() || null;
 }
 
 // ─── Summarization ─────────────────────────────────────────

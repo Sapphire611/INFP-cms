@@ -1,89 +1,52 @@
-# CLAUDE.md
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
-
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
-
-## 1. Think Before Coding
-
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
-
-Before implementing:
-
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
-
-## 2. Simplicity First
-
-**Minimum code that solves the problem. Nothing speculative.**
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
-
-## 3. Surgical Changes
-
-**Touch only what you must. Clean up only your own mess.**
-
-When editing existing code:
-
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
-
-When your changes create orphans:
-
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: Every changed line should trace directly to the user's request.
-
-## 4. Goal-Driven Execution
-
-**Define success criteria. Loop until verified.**
-
-Transform tasks into verifiable goals:
-
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-```
-
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
-
----
-
-**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
-
----
-
 ## Project Overview
 
-**INFP-CMS** is a content management system built with Next.js 15, Supabase, and Shadcn UI. It manages CMS users and WeChat users with a hybrid authentication system (custom JWT + Supabase Auth).
+**Sapphire Studio** is an AI workstation built on Next.js 15, Supabase, and Shadcn UI. It provides an AI chat interface with tool calling (weather, time, math, web search) powered by DeepSeek via the Vercel AI SDK v7. The CMS backend manages users, WeChat users, and dashboard data.
 
-**Status**: Recently migrated from Prisma + PostgreSQL to Supabase (see MIGRATION.md for details).
+**Branding**: "Sapphire Studio — AI 工作站"
+
+## AI Tech Stack
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    AI Tech Stack                        │
+├─────────────────────────────────────────────────────────┤
+│  Chat UI          │  Vercel AI SDK v7  +  SSE 流式     │
+│  (React + Zustand)│  @ai-sdk/openai  (DeepSeek 适配)   │
+├─────────────────────────────────────────────────────────┤
+│  Model            │  DeepSeek (deepseek-v4-flash)       │
+│                   │  通过 OpenAI 兼容 API               │
+├─────────────────────────────────────────────────────────┤
+│  Tools            │  getWeather   → wttr.in             │
+│                   │  getCurrentTime → Intl.DateTimeFormat│
+│                   │  calculate    → sandboxed new Function│
+│                   │  webSearch    → DuckDuckGo HTML 抓取 │
+├─────────────────────────────────────────────────────────┤
+│  Agent System     │  config/agents.ts                   │
+│                   │  每个 Agent 有独立的 system prompt  │
+│                   │  和工具开关 (enableWebSearch)       │
+├─────────────────────────────────────────────────────────┤
+│  Persistence      │  Supabase (对话元数据 + 消息历史)   │
+│                   │  Summarization (20条触发摘要)        │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Core AI Dependencies
+
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `ai` | ^7.0.8 | Vercel AI SDK v7 - `streamText()`, `tool()`, SSE streaming |
+| `@ai-sdk/openai` | ^4.0.4 | OpenAI-compatible provider, pointed at DeepSeek |
+| `openai` | ^6.32.0 | Raw OpenAI SDK (used only in `summaryService.ts`) |
+
+### Model / Provider
+
+**Only DeepSeek is used.** The app connects to DeepSeek's OpenAI-compatible API at `https://api.deepseek.com/v1` via the `@ai-sdk/openai` provider wrapper. 默认使用 `deepseek-v4-flash`，特定功能按需升级到 `deepseek-v4-pro`。不再使用已弃用的 `deepseek-chat`（2026/07/24 弃用）。
 
 ## Common Development Commands
 
 ```bash
 # Development
-npm run dev              # Start development server
+npm run dev              # Start development server (Turbopack)
 npm run build            # Build for production
 npm run start            # Start production server
 
@@ -95,69 +58,233 @@ npm run format:check     # Check code formatting
 # Database & Scripts
 npm run init-db          # Initialize database with test users
 npm run generate:presets # Generate theme presets
+
+# Testing
+npm run test:jest              # Backend unit/integration tests
+npm run test:playwright:smoke  # Frontend smoke tests
+npm run test:playwright:e2e    # Full E2E tests
+npm run test:all               # All test suites
 ```
 
 ## Architecture
-
-### Tech Stack
-
-- **Framework**: Next.js 15 with App Router
-- **Database**: Supabase (migrated from Prisma + PostgreSQL)
-- **UI**: Shadcn UI + Radix UI + Tailwind CSS
-- **State**: Zustand + React Query
-- **Forms**: React Hook Form + Zod
-- **Auth**: Custom JWT + Supabase Auth (hybrid approach)
 
 ### Directory Structure
 
 ```
 src/
-├── app/                    # Next.js App Router
-│   ├── (main)/            # Protected routes (requires auth)
-│   │   └── dashboard/     # Dashboard pages
-│   ├── (external)/        # Public routes
-│   └── api/               # API routes
-│       ├── auth/          # Authentication endpoints
-│       ├── users/         # User management
-│       ├── wechat-users/  # WeChat user management
-│       └── dashboard/     # Dashboard statistics
+├── app/
+│   ├── api/
+│   │   ├── auth/              # Authentication endpoints
+│   │   ├── users/             # CMS user management
+│   │   ├── wechat-users/      # WeChat user management
+│   │   ├── dashboard/         # Dashboard statistics
+│   │   └── chat/              # Chat API (SSE streaming)
+│   │       ├── route.ts       # POST /api/chat — SSE stream
+│   │       └── conversations/ # CRUD for conversations + messages
+│   ├── (main)/                # Protected CMS routes
+│   │   └── dashboard/         # CMS dashboard pages
+│   ├── (external)/            # Public routes
+│   └── chat/                  # Main chat app (/chat)
+│       ├── layout.tsx         # Chat layout with provider
+│       ├── page.tsx           # Chat page
+│       └── _components/       # Header, icon sidebar, search dialog
 ├── components/
-│   ├── ui/                # Shadcn UI components
-│   └── data-table/        # Reusable data table components
-├── config/                # App configuration
-├── hooks/                 # Custom React hooks
-├── lib/                   # Core utilities
-│   ├── supabase-client.ts
-│   ├── supabase-server.ts
-│   ├── supabase-admin.ts  # Bypasses RLS
-│   └── auth.ts            # Authentication helpers
-├── middleware/            # Auth middleware
-├── navigation/            # Navigation configuration
-├── services/              # Business logic layer
-│   ├── userService.ts
-│   └── wechatUserService.ts
-├── stores/                # Zustand stores
-└── types/                 # TypeScript types
+│   ├── ui/                    # Shadcn UI components
+│   ├── data-table/            # Reusable data table
+│   └── chat/                  # Shared chat components
+│       ├── chat-main.tsx      # Message list + input
+│       ├── chat-sidebar.tsx   # Agent selector + conversation list
+│       ├── chat-input.tsx     # Textarea + send button
+│       ├── chat-message.tsx   # Single message (basic version)
+│       └── conversation-item.tsx # Sidebar conversation row
+├── config/
+│   ├── agents.ts              # Agent definitions (system prompts, tools)
+│   └── app-config.ts          # App name, version, meta
+├── hooks/                     # Custom React hooks
+├── lib/
+│   ├── ai-client.ts           # DeepSeek client (createOpenAI wrapper)
+│   ├── supabase-client.ts     # Browser Supabase client
+│   ├── supabase-server.ts     # Server Supabase client
+│   ├── supabase-admin.ts      # Admin client (bypasses RLS)
+│   ├── auth.ts               # Auth helpers, bcrypt
+│   └── jwt.ts                 # JWT sign/verify, requireAuth()
+├── middleware/                 # Auth middleware
+├── navigation/                # Sidebar & search navigation
+├── services/
+│   ├── chatService.ts         # streamText() + SSE + message persistence
+│   ├── chatTools.ts           # Tool definitions (weather, time, calc, search)
+│   ├── messageService.ts      # Message CRUD (Supabase messages table)
+│   ├── searchService.ts       # Standalone DuckDuckGo search
+│   ├── summaryService.ts      # Conversation summarization (OpenAI SDK)
+│   ├── conversationService.ts # Conversation CRUD (Supabase)
+│   ├── userService.ts         # CMS user CRUD
+│   └── wechatUserService.ts   # WeChat user operations
+├── stores/
+│   └── chat/
+│       ├── chat-store.ts      # Zustand vanilla store (SSE consumption, API persistence)
+│       └── chat-provider.tsx   # React context provider
+└── types/
+    └── chat/
+        └── index.ts           # Message, Conversation, ToolCallRecord, SSE events
 ```
+
+## AI System Design
+
+### 1. Provider Layer (`src/lib/ai-client.ts`)
+
+```typescript
+// Creates the AI SDK model instance pointed at DeepSeek
+import { createOpenAI } from "@ai-sdk/openai";
+
+export const deepseek = createOpenAI({
+  apiKey: process.env.DEEPSEEK_API_KEY,
+  baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
+});
+
+export const CHAT_MODEL = "deepseek-v4-flash";
+```
+
+This is the **single AI client** used by `chatService.ts`. The `@ai-sdk/openai` package wraps DeepSeek's OpenAI-compatible API so the Vercel AI SDK v7 can use it transparently.
+
+### 2. Tools (`src/services/chatTools.ts`)
+
+Four tools are defined using the Vercel AI SDK v7 `tool()` helper. Each tool has a Zod `inputSchema` and an async `execute` function. **All tools run server-side** inside `streamText()`.
+
+| Tool | Source | Auth Required | Description |
+|------|--------|---------------|-------------|
+| `getWeather` | [wttr.in](https://wttr.in) | No | Free weather API, returns JSON (`?format=j1`). 8s timeout. |
+| `getCurrentTime` | `Intl.DateTimeFormat` | No | Built-in JS. Supports timezone parameter, defaults to `Asia/Shanghai`. |
+| `calculate` | Sandboxed `new Function()` | No | Math expression evaluator. Allowlist of Math functions (`sin`, `sqrt`, `log`, etc.). No global access. |
+| `webSearch` | DuckDuckGo HTML | No | Scrapes `html.duckduckgo.com/html/`. Parses result blocks for title/snippet/url. Max 8 results, 10s timeout. |
+
+**Adding a new tool:**
+
+1. Define it in `src/services/chatTools.ts` using `tool({...})`
+2. Add it to the `chatTools` export object
+3. Update the system prompt in `src/config/agents.ts` or `src/services/chatService.ts` to describe the new capability
+
+All tools are passed to `streamText()` via the `tools: chatTools` parameter. The model decides when to call them based on its system prompt.
+
+### 3. Agent System (`src/config/agents.ts`)
+
+Agents are **configuration objects** that customize the AI's behavior:
+
+```typescript
+interface AgentConfig {
+  id: string;
+  name: string;
+  description: string;
+  icon: string;          // Lucide icon name: "Bot", "Search"
+  systemPrompt: string;  // The system prompt sent to the model
+  model: string;         // Default "deepseek-v4-flash", upgrade to "deepseek-v4-pro" for specific features
+  temperature: number;   // Default 0.7
+  maxTokens: number;     // Default 2000
+  enableWebSearch: boolean; // Whether web search is mentioned in prompt
+}
+```
+
+**Active agents:**
+
+| ID | Name | Key Behavior |
+|----|------|-------------|
+| `default` | 默认助手 | General assistant, no web search emphasis |
+| `search` | 联网搜索 | Proactive web searcher — queries DuckDuckGo before answering time-sensitive questions |
+
+**Adding a new agent:**
+
+1. Add an entry to the `agents` array in `src/config/agents.ts`
+2. The new agent instantly appears in the chat sidebar's agent selector
+3. Create a new icon mapping if needed in `chat-sidebar.tsx`
+
+### 4. Streaming Flow (SSE)
+
+The complete data flow for a user message:
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  Browser                                                     │
+│  chat-store.ts.sendMessage()                                 │
+│    ├─ Creates conversation (if new)                          │
+│    ├─ Adds user message optimistically                       │
+│    ├─ POST /api/chat (SSE request)                           │
+│    │     ↓                                                   │
+│    │  Server: chatService.streamChatResponse()               │
+│    │     ├─ toModelMessages() — convert to AI SDK format     │
+│    │     ├─ streamText({ model, system, messages, tools })   │
+│    │     ├─ Iterate fullStream → SSE events:                 │
+│    │     │   "text-delta" → { type: "text", content }        │
+│    │     │   "tool-call"  → { type: "tool-call", ... }       │
+│    │     │   "tool-result"→ { type: "tool-result", ... }     │
+│    │     │   "finish"     → { type: "done" }                 │
+│    │     ↓                                                   │
+│    │  Client: read SSE stream                                │
+│    │     ├─ text: append to assistant message (in-place)    │
+│    │     ├─ tool-call: push to toolCallRecords[]             │
+│    │     ├─ tool-result: update matching toolCallRecord      │
+│    │     └─ done: mark isStreaming=false                     │
+│    │                                                         │
+│    │  Post-stream (server, non-blocking):                    │
+│    │     ├─ Save assistant message to Supabase               │
+│    │     ├─ Update conversation updated_at (Supabase)        │
+│    │     └─ Check if summarization needed (≥20 messages)     │
+│    └─────────────────────────────────────────────────────────┘
+│  Client: loadConversations() to refresh order                 │
+└──────────────────────────────────────────────────────────────┘
+```
+
+**Key design decisions:**
+- Messages are stored in **Supabase** (`messages` table). The server saves user message before streaming and assistant message after streaming completes.
+- When switching conversations, messages are fetched via `GET /api/chat/conversations/[id]/messages`.
+- Tool calls are limited to **5 steps** (`stopWhen: isStepCount(5)`) to prevent infinite loops.
+- Post-stream side effects (message save, timestamp update, summarization) fire-and-forget — they don't block the response.
+
+### 5. SSE Event Types
+
+Defined in `src/types/chat/index.ts` as `ChatStreamEvent`:
+
+| Event | Direction | Payload |
+|-------|-----------|---------|
+| `text` | Server → Client | `{ type: "text", content: string }` |
+| `tool-call` | Server → Client | `{ type: "tool-call", toolCallId, toolName, args }` |
+| `tool-result` | Server → Client | `{ type: "tool-result", toolCallId, toolName, result }` |
+| `tool-error` | Server → Client | `{ type: "tool-error", toolCallId, toolName, error }` |
+| `done` | Server → Client | `{ type: "done", finishReason }` |
+| `error` | Bidirectional | `{ type: "error", error: string }` |
+
+### 6. State Management (`src/stores/chat/`)
+
+Uses **Zustand vanilla store** (not React Zustand) wrapped in a React context provider. This allows accessing chat state outside React components.
+
+Key actions:
+- `sendMessage(content)` — full SSE lifecycle (see streaming flow above)
+- `loadConversations()` — fetch conversation list from API
+- `createConversation(title?)` — create new conversation via API
+- `deleteConversation(id)` — delete via API + cleanup localStorage
+- `syncToLocalStorage()` / `loadFromLocalStorage(id)` — persistence layer
+
+### 7. Summarization (`src/services/summaryService.ts`)
+
+- Triggers automatically after **20 messages** in a conversation.
+- Summarizes the first half of the conversation history.
+- Uses the **raw OpenAI SDK** (not the AI SDK) pointed at DeepSeek.
+- Stores summaries in Supabase `conversation_summaries` table.
+- Runs as a fire-and-forget side effect after streaming completes.
+
 
 ## Key Concepts
 
 ### Authentication System
 
-The app uses a **hybrid authentication approach**:
-
 - Custom JWT tokens for CMS user sessions
-- Supabase Auth available for integration
 - bcrypt for password hashing (strength: 10)
 - Cookie-based sessions with HttpOnly and SameSite=Strict
-- Middleware protects all `/dashboard` routes
-
-**Important**: Users must have `isActive: true` to login. Only `admin` and `user` types can access the CMS dashboard.
+- Chat API routes use `requireAuth()` from `src/lib/jwt.ts`
+- Middleware protects `/dashboard` routes
+- Users must have `isActive: true` to login. Only `admin` and `user` types can access the CMS.
 
 ### Database Operations
 
-- **Always use service layer functions** (`userService.ts`, `wechatUserService.ts`) instead of direct Supabase calls
-- Service functions maintain consistent interfaces and handle errors properly
+- **Always use service layer functions** instead of direct Supabase calls
 - Use `supabase-admin` (from `src/lib/supabase-admin.ts`) only when bypassing RLS is necessary
 - Database columns use snake_case in Supabase but camelCase in TypeScript interfaces
 
@@ -167,64 +294,106 @@ The app uses a **hybrid authentication approach**:
 - **User**: Basic CMS access (if account is active)
 - **WeChat Users**: Managed separately with openid/unionid authentication
 
-### Data Tables
-
-The app includes a sophisticated data table component with:
-
-- Drag-and-drop column reordering
-- Column visibility controls
-- Pagination and sorting
-- Search and filtering
-- See `src/components/data-table/` for implementation
-
 ## Development Patterns
 
-### Adding New Features
+### Adding a New AI Tool
 
-1. **Create API Route** in `src/app/api/`
-   - Use service layer for data operations
-   - Validate requests with Zod schemas
-   - Return consistent JSON responses
+1. **Define the tool** in `src/services/chatTools.ts`:
+   ```typescript
+   import { tool } from "ai";
+   import { z } from "zod";
 
-2. **Create Service Function** in `src/services/`
-   - Export async functions with clear names
-   - Use Supabase client for database operations
-   - Handle errors appropriately
+   export const myTool = tool({
+     description: "工具描述，告诉模型何时调用",
+     inputSchema: z.object({
+       param: z.string().describe("参数说明"),
+     }),
+     execute: async (input) => {
+       // Server-side execution logic
+       return { result: "..." };
+     },
+   });
 
-3. **Create Dashboard Page** in `src/app/(main)/dashboard/`
-   - Use "use client" directive for interactivity
-   - Import UI components from `src/components/ui/`
-   - Add navigation entry in `src/navigation/sidebar/sidebar-items.ts`
+   // Add to the export object
+   export const chatTools = { webSearch, getWeather, getCurrentTime, calculate, myTool };
+   ```
 
-### Adding Navigation Items
+2. **Update the system prompt** in `src/config/agents.ts` or `chatService.ts` to describe the new tool's capability.
 
-Edit `src/navigation/sidebar/sidebar-items.ts`:
+3. **Update types** if the tool returns novel data structures.
 
-```typescript
-{
-  title: "New Feature",
-  url: "/dashboard/new-feature",
-  icon: IconComponent,
-}
-```
+### Adding a New Agent
 
-### Environment Variables
+1. Add an entry to the `agents` array in `src/config/agents.ts`:
+   ```typescript
+   {
+     id: "my-agent",
+     name: "My Agent",
+     description: "What this agent does",
+     icon: "Bot",
+     systemPrompt: "You are a specialized agent that...",
+     model: "deepseek-v4-flash",
+     temperature: 0.7,
+     maxTokens: 2000,
+     enableWebSearch: false,
+   }
+   ```
 
-Required variables (see `.env.example`):
+2. The agent automatically appears in the chat sidebar — no UI changes needed.
 
-- `DATABASE_URL`: PostgreSQL connection string
-- `JWT_SECRET`: Secret key for JWT tokens
-- `NEXT_PUBLIC_SUPABASE_URL`: Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Supabase anonymous key
-- `SUPABASE_SERVICE_ROLE_KEY`: Supabase service role key (use carefully!)
+### Adding a New API Route
+
+1. Create route handler in `src/app/api/`
+2. Use `requireAuth()` for protected routes
+3. Validate requests with Zod schemas
+4. Return consistent JSON responses
+
+### Adding CMS Dashboard Pages
+
+1. Create page in `src/app/(main)/dashboard/`
+2. Use `"use client"` directive for interactivity
+3. Add navigation entry in `src/navigation/sidebar/sidebar-items.ts`
+
+## Environment Variables
+
+| Variable | Required | Purpose |
+|----------|----------|---------|
+| `DEEPSEEK_API_KEY` | Yes (for AI) | DeepSeek API key |
+| `DEEPSEEK_BASE_URL` | No | DeepSeek API base URL (default: `https://api.deepseek.com/v1`) |
+| `JWT_SECRET` | Yes | Secret key for JWT tokens |
+| `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous key |
+| `SUPABASE_SERVICE_ROLE_KEY` | Yes (admin ops) | Supabase service role key — bypasses RLS |
+
+**Note:** The AI tools (weather, search, time, calculate) require **no API keys** — they use free services (wttr.in, DuckDuckGo) or built-in JS APIs.
 
 ## Important Files
 
-- `src/lib/auth.ts`: Authentication helpers and password hashing
-- `src/middleware/auth-middleware.ts`: Route protection logic
-- `src/services/userService.ts`: User CRUD operations
-- `src/services/wechatUserService.ts`: WeChat user operations
-- `supabase-setup.sql`: Database schema for Supabase
+### AI Core
+- `src/lib/ai-client.ts` — DeepSeek client setup (entry point for the AI stack)
+- `src/services/chatService.ts` — Main streaming logic, SSE conversion, summarization trigger
+- `src/services/chatTools.ts` — All tool definitions (add new tools here)
+- `src/config/agents.ts` — Agent configurations (add new agents here)
+- `src/app/api/chat/route.ts` — SSE endpoint that pipes the stream to the client
+
+### State & UI
+- `src/stores/chat/chat-store.ts` — Zustand store (SSE consumption, localStorage sync)
+- `src/stores/chat/chat-provider.tsx` — React context wrapper
+- `src/types/chat/index.ts` — All chat-related TypeScript types
+- `src/components/chat/` — Shared chat UI components
+- `src/app/chat/` — Main chat route and page-specific components
+
+### Auth & Data
+- `src/lib/jwt.ts` — JWT utilities and `requireAuth()` middleware
+- `src/lib/auth.ts` — Password hashing and auth helpers
+- `src/middleware/auth-middleware.ts` — Route protection
+- `src/services/conversationService.ts` — Conversation CRUD
+- `src/services/summaryService.ts` — Conversation summarization
+
+### CMS
+- `src/services/userService.ts` — CMS user CRUD
+- `src/services/wechatUserService.ts` — WeChat user operations
+- `supabase-setup.sql` — Database schema
 
 ## Testing
 
@@ -235,7 +404,7 @@ Required variables (see `.env.example`):
 1. **Backend Unit/Integration Tests (Jest)**
    - Command: `npm run test:jest`
    - Location: `src/__tests__/`
-   - Cover: API routes, services, utilities
+   - Cover: API routes, services, utilities, tools
 
 2. **Frontend Smoke Tests (Playwright)**
    - Command: `npm run test:playwright:smoke`
@@ -258,63 +427,16 @@ npm run test:playwright:e2e    # Must pass
 # 3. Fix failures and re-run until ALL pass
 ```
 
-### Test File Naming
-
-- Jest: `*.test.ts` or `*.spec.ts`
-- Playwright: `*.spec.ts` with title tags
-
-### Example Test Structure
-
-```typescript
-// src/__tests__/api/auth/wechat-user-login.test.ts
-describe('POST /api/auth/wechat-user-login', () => {
-  it('should login with valid credentials', async () => {
-    // ...
-  });
-  
-  it('should reject invalid password', async () => {
-    // ...
-  });
-});
-
-// e2e/auth/login.spec.ts
-test('should login as admin @smoke', async ({ page }) => {
-  // ...
-});
-```
-
 ### Important
 
 - Run `npm run test:all` before committing
 - Fix ALL failures before marking task complete
 - Add `@smoke` tag to critical path tests
-- Use `ghp_` prefix for test data (e.g., `ghp_test_user`)
+- Use `ghp_` prefix for test data
 
+## Deployment
 
-## Deployment Notes
-
-- The project is deployed on Vercel
+- Deployed on Vercel
 - Environment variables must be configured in Vercel dashboard
-- Supabase connection requires valid credentials
 - Health check available at `/api/health`
-
-## Reminder
-
-**EVERY feature/fix must have:**
-1. ✅ Jest tests passing (`npm run test:jest`)
-2. ✅ Smoke tests passing (`npm run test:playwright:smoke`)
-3. ✅ E2E tests passing (`npm run test:playwright:e2e`)
-4. ✅ All tests passing (`npm run test:all`)
-
-**No exceptions. No "TODO: add tests later".**
-
-## Migration Notes
-
-The project was recently migrated from Prisma to Supabase. Key changes:
-
-- Prisma has been removed from dependencies
-- All database operations now use Supabase client
-- Existing authentication logic was preserved (JWT + bcrypt)
-- API interfaces remain backward compatible
-
-See `MIGRATION.md` for detailed migration documentation.
+- DeepSeek API must be accessible from the deployment environment

@@ -8,8 +8,14 @@ import type { ConversationSummary } from "@/types/chat";
 
 // Lazy initialization of DeepSeek client to avoid build errors
 function getDeepSeekClient() {
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "DEEPSEEK_API_KEY is not set. Please add it to your environment variables (Vercel dashboard or .env)."
+    );
+  }
   return new OpenAI({
-    apiKey: process.env.DEEPSEEK_API_KEY,
+    apiKey,
     baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
   });
 }
@@ -23,7 +29,7 @@ async function generateSummaryText(
   try {
     const client = getDeepSeekClient();
     const completion = await client.chat.completions.create({
-      model: "deepseek-chat",
+      model: "deepseek-v4-flash",
       messages: [
         {
           role: "system",

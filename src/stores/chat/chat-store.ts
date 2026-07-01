@@ -1,6 +1,7 @@
 /**
  * Chat store - manages chat state with Zustand
  * Supports streaming responses with tool call visibility
+ * Persistence: messages stored in Supabase (not localStorage)
  */
 
 import { createStore } from "zustand/vanilla";
@@ -11,21 +12,22 @@ export type ChatState = {
   conversations: Conversation[];
   currentConversationId: string | null;
   currentMessages: Message[];
-  currentAgentId: string;
-  isLoading: boolean;
+  isLoading: boolean;       // Loading conversation list
+  isCreating: boolean;      // Creating new conversation
+  isDeleting: boolean;      // Deleting a conversation (per-item state)
+  isLoadingMessages: boolean; // Loading messages from API
+  isSending: boolean;       // AI is generating a response (SSE streaming)
   error: string | null;
 
-  setCurrentAgent: (agentId: string) => void;
   setCurrentConversation: (id: string | null) => void;
   createConversation: (title?: string) => Promise<Conversation>;
   deleteConversation: (id: string) => Promise<void>;
   sendMessage: (content: string) => Promise<void>;
   loadConversations: () => Promise<void>;
+  loadMessages: (conversationId: string) => Promise<void>;
+  updateConversationTitle: (id: string, title: string) => Promise<void>;
   clearCurrentConversation: () => void;
   setError: (error: string | null) => void;
-
-  syncToLocalStorage: () => void;
-  loadFromLocalStorage: (conversationId: string) => void;
 };
 
 export const createChatStore = (init?: Partial<ChatState>) =>
@@ -33,31 +35,55 @@ export const createChatStore = (init?: Partial<ChatState>) =>
     conversations: init?.conversations ?? [],
     currentConversationId: init?.currentConversationId ?? null,
     currentMessages: init?.currentMessages ?? [],
-    currentAgentId: init?.currentAgentId ?? "default",
     isLoading: false,
+    isCreating: false,
+    isDeleting: false,
+    isLoadingMessages: false,
+    isSending: false,
     error: null,
-
-    setCurrentAgent: (agentId: string) => {
-      set({ currentAgentId: agentId, currentConversationId: null, currentMessages: [] });
-    },
 
     setCurrentConversation: (id: string | null) => {
       set({ currentConversationId: id, error: null });
       if (id) {
-        get().loadFromLocalStorage(id);
+        get().loadMessages(id);
       } else {
         set({ currentMessages: [] });
       }
     },
 
+    loadMessages: async (conversationId: string) => {
+      set({ isLoadingMessages: true });
+      try {
+        const response = await fetch(
+          `/api/chat/conversations/${conversationId}/messages?limit=100`
+        );
+        if (!response.ok) {
+          set({ currentMessages: [], isLoadingMessages: false });
+          return;
+        }
+
+        const data = await response.json();
+        const messages: Message[] = (data.messages ?? []).map(
+          (m: Message & { timestamp?: string }) => ({
+            ...m,
+            timestamp: m.timestamp ? new Date(m.timestamp) : new Date(),
+            toolCalls: m.toolCalls ?? [],
+          })
+        );
+
+        set({ currentMessages: messages, isLoadingMessages: false });
+      } catch {
+        set({ currentMessages: [], isLoadingMessages: false });
+      }
+    },
+
     createConversation: async (title = "新对话") => {
-      const { currentAgentId } = get();
-      set({ isLoading: true, error: null });
+      set({ isCreating: true, error: null });
       try {
         const response = await fetch("/api/chat/conversations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ title, agentId: currentAgentId }),
+          body: JSON.stringify({ title }),
         });
 
         if (!response.ok) {
@@ -71,25 +97,20 @@ export const createChatStore = (init?: Partial<ChatState>) =>
           conversations: [conversation, ...state.conversations],
           currentConversationId: conversation.id,
           currentMessages: [],
-          isLoading: false,
+          isCreating: false,
         }));
-
-        localStorage.setItem(
-          `chat_messages_${conversation.id}`,
-          JSON.stringify([])
-        );
 
         return conversation;
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Failed to create conversation";
-        set({ error: message, isLoading: false });
+        set({ error: message, isCreating: false });
         throw error;
       }
     },
 
     deleteConversation: async (id: string) => {
-      set({ isLoading: true, error: null });
+      set({ isDeleting: true, error: null });
       try {
         await fetch(`/api/chat/conversations/${id}`, { method: "DELETE" });
 
@@ -99,20 +120,18 @@ export const createChatStore = (init?: Partial<ChatState>) =>
             state.currentConversationId === id ? null : state.currentConversationId,
           currentMessages:
             state.currentConversationId === id ? [] : state.currentMessages,
-          isLoading: false,
+          isDeleting: false,
         }));
-
-        localStorage.removeItem(`chat_messages_${id}`);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Failed to delete conversation";
-        set({ error: message, isLoading: false });
+        set({ error: message, isDeleting: false });
         throw error;
       }
     },
 
     sendMessage: async (content: string) => {
-      const { currentConversationId, currentMessages, currentAgentId } = get();
+      const { currentConversationId, currentMessages } = get();
 
       if (!currentConversationId) {
         await get().createConversation();
@@ -134,7 +153,7 @@ export const createChatStore = (init?: Partial<ChatState>) =>
 
       set((state) => ({
         currentMessages: [...state.currentMessages, userMessage],
-        isLoading: true,
+        isSending: true,
         error: null,
       }));
 
@@ -148,7 +167,7 @@ export const createChatStore = (init?: Partial<ChatState>) =>
           body: JSON.stringify({
             conversationId: newConversationId,
             message: content,
-            agentId: currentAgentId,
+            agentId: "default",
             conversationHistory: messagesBeforeSend,
           }),
         });
@@ -191,7 +210,6 @@ export const createChatStore = (init?: Partial<ChatState>) =>
                 case "text":
                   assistantContent += event.content;
                   if (!hasAssistantMessage) {
-                    // Create assistant message (first text chunk)
                     set((state) => ({
                       currentMessages: [
                         ...state.currentMessages,
@@ -207,7 +225,6 @@ export const createChatStore = (init?: Partial<ChatState>) =>
                     }));
                     hasAssistantMessage = true;
                   } else {
-                    // Update existing assistant message in-place
                     set((state) => ({
                       currentMessages: state.currentMessages.map((m) =>
                         m.id === assistantId
@@ -225,7 +242,6 @@ export const createChatStore = (init?: Partial<ChatState>) =>
                     args: event.args,
                     status: "calling",
                   });
-                  // If assistant message exists, update toolCalls
                   if (hasAssistantMessage) {
                     set((state) => ({
                       currentMessages: state.currentMessages.map((m) =>
@@ -238,7 +254,6 @@ export const createChatStore = (init?: Partial<ChatState>) =>
                   break;
 
                 case "tool-result":
-                  // Update the matching tool call record
                   const tcIndex = toolCallRecords.findIndex(
                     (tc) => tc.id === event.toolCallId
                   );
@@ -288,7 +303,7 @@ export const createChatStore = (init?: Partial<ChatState>) =>
                   break;
 
                 case "done":
-                  // Streaming complete
+                  // Server saves the complete message to Supabase
                   break;
 
                 case "error":
@@ -296,7 +311,6 @@ export const createChatStore = (init?: Partial<ChatState>) =>
                   break;
               }
             } catch {
-              // Skip malformed SSE events
               console.warn("Malformed SSE event:", jsonStr);
             }
           }
@@ -309,14 +323,41 @@ export const createChatStore = (init?: Partial<ChatState>) =>
               ? { ...m, content: assistantContent, toolCalls: toolCallRecords, isStreaming: false }
               : m
           ),
-          isLoading: false,
+          isSending: false,
         }));
 
-        get().syncToLocalStorage();
+        // Move current conversation to top immediately (instant feedback)
+        set((state) => {
+          const idx = state.conversations.findIndex(
+            (c) => c.id === newConversationId
+          );
+          if (idx > 0) {
+            const convos = [...state.conversations];
+            const [moved] = convos.splice(idx, 1);
+            convos.unshift({ ...moved, updatedAt: new Date() });
+            return { conversations: convos };
+          }
+          if (idx === 0) {
+            return {
+              conversations: state.conversations.map((c, i) =>
+                i === 0 ? { ...c, updatedAt: new Date() } : c
+              ),
+            };
+          }
+          return {};
+        });
+
+        // After a delay, refresh conversation list to pick up server-generated title
+        // (SSE title event gives instant feedback; this is the safety net)
+        // Refresh after a delay to pick up server-generated title
+        // (title is generated asynchronously after stream closes)
+        setTimeout(() => {
+          get().loadConversations();
+        }, 5000);
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "Failed to send message";
-        set({ error: message, isLoading: false });
+        set({ error: message, isSending: false });
 
         set((state) => ({
           currentMessages: state.currentMessages.filter((m) => m.id !== userMessage.id),
@@ -344,33 +385,30 @@ export const createChatStore = (init?: Partial<ChatState>) =>
       }
     },
 
+    updateConversationTitle: async (id: string, title: string) => {
+      // Optimistic update
+      set((state) => ({
+        conversations: state.conversations.map((c) =>
+          c.id === id ? { ...c, title } : c
+        ),
+      }));
+
+      try {
+        await fetch(`/api/chat/conversations/${id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title }),
+        });
+      } catch (error) {
+        console.error("Failed to update conversation title:", error);
+      }
+    },
+
     clearCurrentConversation: () => {
       set({ currentConversationId: null, currentMessages: [] });
     },
 
     setError: (error: string | null) => {
       set({ error });
-    },
-
-    syncToLocalStorage: () => {
-      const { currentConversationId, currentMessages } = get();
-      if (currentConversationId) {
-        // Strip isStreaming flag before saving
-        const toSave = currentMessages.map(({ isStreaming, ...rest }) => rest);
-        localStorage.setItem(
-          `chat_messages_${currentConversationId}`,
-          JSON.stringify(toSave)
-        );
-      }
-    },
-
-    loadFromLocalStorage: (conversationId: string) => {
-      try {
-        const stored = localStorage.getItem(`chat_messages_${conversationId}`);
-        const messages: Message[] = stored ? JSON.parse(stored) : [];
-        set({ currentMessages: messages });
-      } catch {
-        set({ currentMessages: [] });
-      }
     },
   }));

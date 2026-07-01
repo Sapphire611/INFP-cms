@@ -126,7 +126,7 @@ GRANT ALL ON sessions TO service_role;
 -- PART 2: AI Chat Tables
 -- ============================================
 
--- Conversations table (metadata only, messages in localStorage)
+-- Conversations table (metadata only, messages in separate messages table)
 CREATE TABLE IF NOT EXISTS conversations (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,
@@ -136,6 +136,16 @@ CREATE TABLE IF NOT EXISTS conversations (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW(),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Messages table (persisted to Supabase, no localStorage dependency)
+CREATE TABLE IF NOT EXISTS messages (
+  id TEXT PRIMARY KEY,
+  conversation_id TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+  role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'system')),
+  content TEXT NOT NULL DEFAULT '',
+  tool_calls JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Conversation summaries table
@@ -152,11 +162,14 @@ CREATE TABLE IF NOT EXISTS conversation_summaries (
 CREATE INDEX IF NOT EXISTS idx_conversations_user_id ON conversations(user_id);
 CREATE INDEX IF NOT EXISTS idx_conversations_created_at ON conversations(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_conversations_updated_at ON conversations(updated_at DESC);
+CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
+CREATE INDEX IF NOT EXISTS idx_messages_created_at ON messages(conversation_id, created_at ASC);
 CREATE INDEX IF NOT EXISTS idx_summaries_conversation_id ON conversation_summaries(conversation_id);
 CREATE INDEX IF NOT EXISTS idx_summaries_created_at ON conversation_summaries(created_at DESC);
 
 -- Enable RLS for chat tables
 ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE conversation_summaries ENABLE ROW LEVEL SECURITY;
 
 -- Policies for conversations
@@ -177,6 +190,10 @@ CREATE POLICY "Users can update own conversations" ON conversations
 CREATE POLICY "Users can delete own conversations" ON conversations
   FOR DELETE TO authenticated USING (user_id = auth.uid()::TEXT);
 
+-- Policies for messages
+CREATE POLICY "Service role can do everything on messages" ON messages
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+
 -- Policies for conversation_summaries
 CREATE POLICY "Service role can do everything on summaries" ON conversation_summaries
   FOR ALL TO service_role USING (true) WITH CHECK (true);
@@ -194,6 +211,8 @@ CREATE POLICY "Users can view own conversation summaries" ON conversation_summar
 -- Grant permissions for chat tables
 GRANT USAGE ON SCHEMA public TO authenticated;
 GRANT ALL ON conversations TO authenticated;
+GRANT ALL ON messages TO authenticated;
+GRANT ALL ON messages TO service_role;
 GRANT ALL ON conversation_summaries TO authenticated;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 
