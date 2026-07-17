@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { updateThemeMode, updateThemePreset } from "@/lib/theme-utils";
-import { setValueToCookie } from "@/server/server-actions";
+import { setCookie } from "@/lib/cookie-actions";
 import { usePreferencesStore } from "@/stores/preferences/preferences-provider";
 import { THEME_PRESET_OPTIONS, type ThemePreset, type ThemeMode } from "@/types/preferences/theme";
 
@@ -20,13 +20,13 @@ export function ThemeSettings() {
     if (!value) return;
     updateThemeMode(value as "light" | "dark");
     setThemeMode(value as ThemeMode);
-    await setValueToCookie("theme_mode", value);
+    await setCookie("theme_mode", value);
   };
 
   const handlePreset = async (value: string) => {
     updateThemePreset(value);
     setThemePreset(value as ThemePreset);
-    await setValueToCookie("theme_preset", value);
+    await setCookie("theme_preset", value);
   };
 
   return (

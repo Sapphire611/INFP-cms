@@ -57,7 +57,7 @@ npm run format:check     # Check code formatting
 
 # Database & Scripts
 npm run init-db          # Initialize database with test users
-npm run generate:presets # Generate theme presets
+
 
 # Testing
 npm run test:jest              # Backend unit/integration tests
@@ -187,8 +187,8 @@ interface AgentConfig {
 
 | ID | Name | Key Behavior |
 |----|------|-------------|
-| `default` | 默认助手 | General assistant, no web search emphasis |
-| `search` | 联网搜索 | Proactive web searcher — queries DuckDuckGo before answering time-sensitive questions |
+| `default` | Sapphire AI | 专业精准，始终联网；结构化输出（Markdown + 来源标注），搜索后必须总结分析 |
+| `deep-think` | 深度思考 | 逐步推理，深度分析；使用 deepseek-v4-pro，展示「分析→推导→结论」过程 |
 
 **Adding a new agent:**
 

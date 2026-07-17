@@ -214,7 +214,8 @@ export async function streamChatResponse(
           try {
             const forcedReply = await generateForcedReply(
               userMessage,
-              assistantContent
+              assistantContent,
+              toolCallRecords
             );
             if (forcedReply) {
               // Send as delta so client appends it to the existing message
@@ -293,8 +294,22 @@ async function generateAndSaveTitle(
   try {
     const result = await generateText({
       model: deepseek.chat(CHAT_MODEL),
-      system:
-        "根据用户的提问生成一个简短的对话标题（5-15字），直接输出标题，不加任何前缀或引号。例：用户问「今天天气怎么样」→ 回复「天气查询」。绝不输出「新对话」。",
+      system: [
+        "根据用户提问生成对话标题（5-15字）。直接输出标题，不加引号或前缀。",
+        "",
+        "示例：",
+        '"今天天气怎么样" → 天气查询',
+        '"Python如何读取CSV文件" → Python读取CSV',
+        '"帮我算一下投资收益" → 投资收益计算',
+        '"最近AI行业有什么新闻" → AI行业动态',
+        '"你好" → 打个招呼',
+        '"这段代码为什么报错" → 代码调试',
+        "",
+        "规则：",
+        `- 提取核心话题，去掉“帮我”、“请问”等礼貌用语`,
+        `- 绝不要输出“新对话”、“未命名”或空标题`,
+        `- 纯闲聊用简短描述，如“闲聊”或“打个招呼”`,
+      ].join("\n"),
       prompt: userMessage,
       temperature: 0.8,
     });
@@ -321,41 +336,63 @@ async function generateAndSaveTitle(
 /**
  * When the model's streaming response is too short or empty after tool calls,
  * make a non-streaming follow-up call to force a complete answer.
+ * Now passes the actual tool results so the model has proper context.
  */
 async function generateForcedReply(
   userMessage: string,
-  partialContent: string
+  partialContent: string,
+  toolCallRecords: ToolCallRecord[]
 ): Promise<string | null> {
   const client = new OpenAI({
     apiKey: process.env.DEEPSEEK_API_KEY,
     baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
   });
 
+  // Format tool results for context injection
+  const toolResultsText = toolCallRecords
+    .filter((tc) => tc.status === "done" && tc.result)
+    .map((tc) => {
+      const resultStr =
+        typeof tc.result === "string" ? tc.result : JSON.stringify(tc.result);
+      return `[${tc.toolName} 返回结果]:\n${resultStr}`;
+    })
+    .join("\n\n");
+
+  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+    {
+      role: "system",
+      content: [
+        "你已通过工具获取了信息。现在请基于这些信息，用中文给出一个完整、详细、有见解的回答。",
+        "",
+        "要求：",
+        "- 用 Markdown 组织内容（标题、列表、表格）",
+        "- 总结关键信息，不要罗列原始数据",
+        "- 给出你的分析和建议",
+        "- 标注信息来源 [来源](url)",
+        "- 回答要完整，不能只有一两句话",
+      ].join("\n"),
+    },
+    { role: "user", content: `用户问题：${userMessage}` },
+  ];
+
+  // Inject tool results as context
+  if (toolResultsText) {
+    messages.push({
+      role: "user",
+      content: `以下是工具返回的数据：\n\n${toolResultsText}\n\n请基于以上数据回答用户的问题。`,
+    });
+  }
+
+  // Include partial content if any (so the model can build on it)
+  if (partialContent) {
+    messages.push({ role: "assistant", content: partialContent });
+  }
+
+  messages.push({ role: "user", content: "请给出完整回答：" });
+
   const completion = await client.chat.completions.create({
     model: CHAT_MODEL,
-    messages: [
-      {
-        role: "system",
-        content:
-          "用户刚刚问了问题，你已经搜索了相关信息。现在请基于搜索到的信息，用中文给出一个完整、详细的回答。",
-      },
-      {
-        role: "user",
-        content: `用户问题：${userMessage}`,
-      },
-      ...(partialContent
-        ? [
-            {
-              role: "assistant" as const,
-              content: partialContent,
-            },
-          ]
-        : []),
-      {
-        role: "user",
-        content: "请基于搜索结果给出完整回答：",
-      },
-    ],
+    messages,
     temperature: 0.7,
     max_tokens: 2048,
   });

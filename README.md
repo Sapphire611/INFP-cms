@@ -89,7 +89,7 @@ npm run lint             # 运行 ESLint
 npm run format           # 格式化代码（Prettier）
 npm run format:check     # 检查代码格式
 
-npm run generate:presets # 生成主题预设
+
 ```
 
 ## 🔐 认证与权限

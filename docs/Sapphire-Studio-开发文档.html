@@ -61,11 +61,13 @@
     <li><a href="#arch">目录结构</a></li>
     <li><a href="#model">模型接入</a></li>
     <li><a href="#tools">AI 工具集</a></li>
+    <li><a href="#agents">Agent 系统</a></li>
     <li><a href="#streaming">流式数据流</a></li>
     <li><a href="#state">状态管理</a></li>
-    <li><a href="#title">标题生成</a></li>
+    <li><a href="#title">标题生成 & 摘要</a></li>
     <li><a href="#env">环境变量</a></li>
     <li><a href="#patterns">开发模式</a></li>
+    <li><a href="#testing">测试</a></li>
     <li><a href="#files">核心文件</a></li>
   </ul>
 </nav>
@@ -73,7 +75,7 @@
 <!-- ========== 1. Overview ========== -->
 <div class="card" id="overview">
   <h2><span>📖</span>一、项目概述</h2>
-  <p><strong>Sapphire Studio</strong> 是一个 AI 工作站，提供流式 AI 对话、Tool Calling（天气/时间/计算/联网搜索）、Markdown 富文本渲染。</p>
+  <p><strong>Sapphire Studio</strong> 是一个 AI 工作站，提供流式 AI 对话、Tool Calling（天气/时间/计算/联网搜索）、Markdown 富文本渲染。内置双 Agent 系统：快速应答 + 深度推理。</p>
 
   <h3>1.1 技术栈</h3>
   <table>
@@ -83,7 +85,7 @@
     <tr><td>UI</td><td>Shadcn UI + Radix UI + Tailwind CSS</td></tr>
     <tr><td>状态管理</td><td>Zustand (vanilla) + React Query</td></tr>
     <tr><td>AI SDK</td><td>Vercel AI SDK v7 (<code>ai</code> + <code>@ai-sdk/openai</code>)</td></tr>
-    <tr><td>模型</td><td>DeepSeek (<code>deepseek-v4-flash</code>，8192 tokens)</td></tr>
+    <tr><td>模型</td><td>DeepSeek (<code>deepseek-v4-flash</code> / <code>deepseek-v4-pro</code>)</td></tr>
     <tr><td>Markdown</td><td><code>react-markdown</code> + <code>remark-gfm</code></td></tr>
   </table>
 </div>
@@ -103,12 +105,16 @@
 ├─────────────────────────────────────────────────────────┤
 │  SSE Transport    │  text/event-stream                  │
 │                   │  text | tool-call | tool-result     │
-│                   │  tool-error | done | error           │
+│                   │  tool-error | done | error          │
 ├─────────────────────────────────────────────────────────┤
 │  AI SDK v7        │  streamText() + generateText()      │
 │                   │  @ai-sdk/openai (DeepSeek 适配)     │
 ├─────────────────────────────────────────────────────────┤
-│  Model            │  DeepSeek (deepseek-v4-flash)       │
+│  Model            │  deepseek-v4-flash (默认)           │
+│                   │  deepseek-v4-pro (深度思考)         │
+├─────────────────────────────────────────────────────────┤
+│  Agent System     │  Sapphire AI (v4-flash, 始终联网)   │
+│                   │  深度思考 (v4-pro, 逐步推理)        │
 ├─────────────────────────────────────────────────────────┤
 │  Tools (server)   │  webSearch  → Bing HTML + DDG 降级  │
 │                   │  getWeather → wttr.in               │
@@ -117,7 +123,8 @@
 ├─────────────────────────────────────────────────────────┤
 │  Persistence      │  Supabase: conversations + messages │
 │                   │  标题自动生成 (generateText)         │
-│                   │  Forced Reply 兜底                   │
+│                   │  长对话摘要 (20 条触发)              │
+│                   │  Forced Reply 兜底                  │
 └─────────────────────────────────────────────────────────┘
   </div>
 
@@ -146,6 +153,7 @@
     <tr><td><code>npm run test:jest</code></td><td>后端单元/集成测试</td></tr>
     <tr><td><code>npm run test:playwright:smoke</code></td><td>前端冒烟测试</td></tr>
     <tr><td><code>npm run test:playwright:e2e</code></td><td>E2E 测试</td></tr>
+    <tr><td><code>npm run test:all</code></td><td>运行全部测试套件</td></tr>
   </table>
 </div>
 
@@ -167,20 +175,21 @@
 │   ├── ui/                    # Shadcn UI
 │   └── chat/                  # Chat 组件
 │       ├── chat-main.tsx      # 消息列表 + 输入框
-│       ├── chat-sidebar.tsx   # 对话列表 + 新建按钮
+│       ├── chat-sidebar.tsx   # 对话列表 + Agent 选择器
 │       ├── chat-input.tsx     # 输入框
 │       ├── chat-message.tsx   # 消息气泡 (Markdown + ToolCallBubble)
 │       └── conversation-item.tsx # 对话项 (可编辑标题)
 ├── config/
-│   └── agents.ts              # Agent 配置 (单 Agent，始终联网)
+│   └── agents.ts              # Agent 配置 (Sapphire AI + 深度思考)
 ├── lib/
 │   └── ai-client.ts           # DeepSeek 客户端 (懒加载 + Proxy)
 ├── services/
 │   ├── chatService.ts         # streamText + SSE + 标题生成 + forced reply
-│   ├── chatTools.ts           # Tool 定义 (Bing 搜索等)
+│   ├── chatTools.ts           # Tool 定义 (Bing → DuckDuckGo 搜索等)
+│   ├── searchService.ts       # 搜索服务 (Bing HTML 抓取 + DuckDuckGo 降级)
 │   ├── messageService.ts      # 消息 CRUD (Supabase)
 │   ├── conversationService.ts # 对话 CRUD
-│   └── summaryService.ts      # 长对话摘要
+│   └── summaryService.ts      # 长对话摘要 (20 条触发)
 ├── stores/chat/
 │   ├── chat-store.ts          # Zustand store
 │   └── chat-provider.tsx      # Context provider
@@ -209,16 +218,16 @@ export const CHAT_MODEL = "deepseek-v4-flash";</code></pre>
 
   <table>
     <tr><th style="width:200px">模型</th><th style="width:100px">状态</th><th>说明</th></tr>
-    <tr><td><code>deepseek-v4-flash</code></td><td><span class="badge badge-core">当前</span></td><td>默认，8192 tokens</td></tr>
-    <tr><td><code>deepseek-v4-pro</code></td><td><span class="badge badge-free">待启用</span></td><td>特定功能需要更强推理时升级</td></tr>
-    <tr><td><code>deepseek-chat</code></td><td><span class="badge badge-deprecated">2026/07/24 弃用</span></td><td>已全部替换</td></tr>
+    <tr><td><code>deepseek-v4-flash</code></td><td><span class="badge badge-core">默认</span></td><td>Sapphire AI 默认模型，8192 tokens</td></tr>
+    <tr><td><code>deepseek-v4-pro</code></td><td><span class="badge badge-core">深度思考</span></td><td>深度思考 Agent 专用，16384 tokens，更强推理</td></tr>
+    <tr><td><code>deepseek-chat</code></td><td><span class="badge badge-deprecated">已弃用</span></td><td>2026/07/24 起不再使用</td></tr>
   </table>
 </div>
 
 <!-- ========== 6. Tools ========== -->
 <div class="card" id="tools">
   <h2><span>🧰</span>六、AI 工具集</h2>
-  <p>文件：<code>src/services/chatTools.ts</code>。四个工具均在服务端执行，失败时 throw error（AI SDK 发 tool-error 事件，UI 显示红标❌）。</p>
+  <p>文件：<code>src/services/chatTools.ts</code>。四个工具均在服务端执行，失败时 throw error（AI SDK 发 tool-error 事件，UI 显示红标❌）。最多 5 步工具调用链。</p>
 
   <table>
     <tr><th style="width:120px">工具</th><th style="width:150px">数据源</th><th style="width:60px">Key</th><th>说明</th></tr>
@@ -240,9 +249,52 @@ export const CHAT_MODEL = "deepseek-v4-flash";</code></pre>
   <div class="tip green"><strong>全部免费，零 API Key。</strong>只要配好 DEEPSEEK_API_KEY，AI 系统即用。</div>
 </div>
 
-<!-- ========== 7. Streaming ========== -->
+<!-- ========== 7. Agents ========== -->
+<div class="card" id="agents">
+  <h2><span>🤖</span>七、Agent 系统</h2>
+  <p>文件：<code>src/config/agents.ts</code>。Agent 是配置对象，通过不同的 system prompt 和模型参数定义 AI 的行为模式。用户在侧栏可随时切换。</p>
+
+  <table>
+    <tr><th style="width:120px">Agent</th><th style="width:80px">图标</th><th style="width:140px">模型</th><th style="width:60px">Tokens</th><th>说明</th></tr>
+    <tr>
+      <td><strong>Sapphire AI</strong></td>
+      <td>Bot</td>
+      <td><code>deepseek-v4-flash</code></td>
+      <td>8192</td>
+      <td>默认助手，专业精准，始终联网。<br>Markdown 结构化输出 + 来源标注，搜索后必须总结分析。</td>
+    </tr>
+    <tr>
+      <td><strong>深度思考</strong></td>
+      <td>Brain</td>
+      <td><code>deepseek-v4-pro</code></td>
+      <td>16384</td>
+      <td>逐步推理，深度分析复杂问题。<br>展示「分析→推导→结论」过程，温度 0.5（更确定性），适合复杂推理场景。</td>
+    </tr>
+  </table>
+
+  <h3>Agent 配置结构</h3>
+<pre><code>interface AgentConfig {
+  id: string;              // 唯一标识
+  name: string;            // 显示名称
+  description: string;     // 简短描述
+  icon: string;            // Lucide 图标名: "Bot" | "Brain" | "Search"
+  systemPrompt: string;    // System prompt
+  model: string;           // 默认 "deepseek-v4-flash"
+  temperature: number;     // 默认 0.7
+  maxTokens: number;       // 默认 8192
+  enableWebSearch: boolean;// 联网搜索开关
+}</code></pre>
+
+  <h3>添加新 Agent</h3>
+  <ol class="steps">
+    <li>在 <code>src/config/agents.ts</code> 的 <code>agents</code> 数组中添加配置对象</li>
+    <li>新 Agent 自动出现在侧栏选择器中 — 无需 UI 改动</li>
+  </ol>
+</div>
+
+<!-- ========== 8. Streaming ========== -->
 <div class="card" id="streaming">
-  <h2><span>🌊</span>七、流式数据流</h2>
+  <h2><span>🌊</span>八、流式数据流</h2>
   <div class="arch-box">
 POST /api/chat
   │
@@ -250,7 +302,7 @@ POST /api/chat
   │
   └─ ReadableStream.start()
        │
-       ├─ streamText({ model, system, messages, tools })
+       ├─ streamText({ model, system, messages, tools, stopWhen: isStepCount(5) })
        │    │
        │    ├─ text-delta → SSE { type: "text", content }
        │    ├─ tool-call  → SSE { type: "tool-call", toolCallId, toolName, args }
@@ -262,7 +314,7 @@ POST /api/chat
        ├─ saveAssistantMessage() → Supabase
        ├─ controller.close()
        ├─ generateAndSaveTitle() → generateText() → Supabase
-       └─ updateConversationTimestamp() + summarization check
+       └─ updateConversationTimestamp() + summarization check (≥20 条触发)
 
 Client (chat-store.ts):
   ├─ SSE 事件消费 → 更新 currentMessages state
@@ -282,10 +334,10 @@ Client (chat-store.ts):
   </table>
 </div>
 
-<!-- ========== 8. State ========== -->
+<!-- ========== 9. State ========== -->
 <div class="card" id="state">
-  <h2><span>🗄️</span>八、状态管理</h2>
-  <p>使用 <strong>Zustand vanilla store</strong>，通过 React Context 注入。四种加载状态各自独立，互不干扰：</p>
+  <h2><span>🗄️</span>九、状态管理</h2>
+  <p>使用 <strong>Zustand vanilla store</strong>，通过 React Context 注入。五种加载状态各自独立，互不干扰：</p>
 
   <table>
     <tr><th style="width:180px">状态</th><th>谁设置</th><th>影响范围</th></tr>
@@ -298,7 +350,7 @@ Client (chat-store.ts):
 
   <h3>消息存储</h3>
   <table>
-    <tr><th style="width:160px">表</th><th>内容</th></tr>
+    <tr><th style="width:200px">表</th><th>内容</th></tr>
     <tr><td><code>conversations</code></td><td>对话元数据：id, user_id, title, model, agent_id, 时间戳</td></tr>
     <tr><td><code>messages</code></td><td>消息：id, conversation_id, role, content, tool_calls (JSONB), created_at</td></tr>
     <tr><td><code>conversation_summaries</code></td><td>摘要：id, conversation_id, summary_text, message_count</td></tr>
@@ -306,20 +358,26 @@ Client (chat-store.ts):
   <div class="tip green">消息存储在 Supabase，dev/prod 共用同一数据库时自动同步。</div>
 </div>
 
-<!-- ========== 9. Title ========== -->
+<!-- ========== 10. Title & Summary ========== -->
 <div class="card" id="title">
-  <h2><span>✏️</span>九、标题生成</h2>
-  <p><strong>自动生成</strong>：首次对话流结束后，调用 <code>generateText()</code>（共享 deepseek 客户端）根据用户问题生成 5-20 字标题，存入 Supabase。客户端 5 秒后 <code>loadConversations()</code> 拿到。</p>
-  <p><strong>兜底</strong>：API 失败时用用户问题前 20 字。确保标题不会是"新对话"。</p>
-  <p><strong>手动编辑</strong>：hover 对话项时标题右边出现 ✏️ 图标，点击 inline 编辑，Enter 保存 / Escape 取消，<code>PATCH /api/chat/conversations/[id]</code> 持久化。</p>
+  <h2><span>✏️</span>十、标题生成 & 摘要</h2>
+
+  <h3>标题自动生成</h3>
+  <p>首次对话流结束后，调用 <code>generateText()</code>（共享 deepseek 客户端）根据用户问题生成 5-20 字标题，存入 Supabase。客户端 5 秒后 <code>loadConversations()</code> 拿到。<strong>兜底</strong>：API 失败时用用户问题前 20 字。</p>
+
+  <h3>手动编辑标题</h3>
+  <p>hover 对话项时标题右边出现 ✏️ 图标，点击 inline 编辑，Enter 保存 / Escape 取消，<code>PATCH /api/chat/conversations/[id]</code> 持久化。</p>
 
   <h3>Forced Reply</h3>
   <p>流结束后如果 assistantContent 太短（&lt; 30 字符）且有 tool 调用，自动调 <code>generateText</code> 补一发完整回答，确保用户不会看到空白或残缺回复。</p>
+
+  <h3>长对话摘要</h3>
+  <p><strong>触发条件：</strong>对话消息数达到 20 条时自动触发。使用 <code>summaryService.ts</code>（原始 OpenAI SDK 指向 DeepSeek）摘要前半段历史，存入 <code>conversation_summaries</code> 表。fire-and-forget 执行，不阻塞流式响应。</p>
 </div>
 
-<!-- ========== 10. Env ========== -->
+<!-- ========== 11. Env ========== -->
 <div class="card" id="env">
-  <h2><span>🔧</span>十、环境变量</h2>
+  <h2><span>🔧</span>十一、环境变量</h2>
   <table>
     <tr><th style="width:280px">变量</th><th style="width:60px">必须</th><th>用途</th></tr>
     <tr><td><code>DEEPSEEK_API_KEY</code></td><td><span class="badge badge-core">是</span></td><td>DeepSeek API 密钥</td></tr>
@@ -331,15 +389,21 @@ Client (chat-store.ts):
   </table>
 </div>
 
-<!-- ========== 11. Patterns ========== -->
+<!-- ========== 12. Patterns ========== -->
 <div class="card" id="patterns">
-  <h2><span>📐</span>十一、开发模式</h2>
+  <h2><span>📐</span>十二、开发模式</h2>
 
   <h3>添加新 Tool</h3>
   <ol class="steps">
     <li>在 <code>src/services/chatTools.ts</code> 用 <code>tool({...})</code> 定义</li>
-    <li>加入 <code>chatTools</code> 导出</li>
+    <li>加入 <code>chatTools</code> 导出对象</li>
     <li>更新 system prompt（<code>src/config/agents.ts</code>）</li>
+  </ol>
+
+  <h3>添加新 Agent</h3>
+  <ol class="steps">
+    <li>在 <code>src/config/agents.ts</code> 的 <code>agents</code> 数组中添加配置</li>
+    <li>Agent 自动出现在侧栏 — 无需 UI 改动</li>
   </ol>
 
   <h3>添加新 API 路由</h3>
@@ -357,25 +421,70 @@ Client (chat-store.ts):
   </ul>
 </div>
 
-<!-- ========== 12. Files ========== -->
-<div class="card" id="files">
-  <h2><span>🗂️</span>十二、核心文件</h2>
+<!-- ========== 13. Testing ========== -->
+<div class="card" id="testing">
+  <h2><span>🧪</span>十三、测试</h2>
+  <p><strong>关键要求：每个新功能或修复必须有通过测试后才能标记完成。</strong></p>
+
+  <h3>测试套件</h3>
   <table>
-    <tr><th style="width:300px">文件</th><th>作用</th></tr>
+    <tr><th style="width:200px">套件</th><th style="width:180px">命令</th><th>覆盖范围</th></tr>
+    <tr>
+      <td>后端单元/集成测试</td>
+      <td><code>npm run test:jest</code></td>
+      <td>API 路由、服务层、工具函数（<code>src/__tests__/</code>）</td>
+    </tr>
+    <tr>
+      <td>前端冒烟测试</td>
+      <td><code>npm run test:playwright:smoke</code></td>
+      <td>核心页面加载、基本导航（@smoke 标签）</td>
+    </tr>
+    <tr>
+      <td>E2E 测试</td>
+      <td><code>npm run test:playwright:e2e</code></td>
+      <td>完整业务流程、用户操作链路</td>
+    </tr>
+    <tr>
+      <td>全部测试</td>
+      <td><code>npm run test:all</code></td>
+      <td>提交前运行以上全部</td>
+    </tr>
+  </table>
+
+  <h3>测试工作流</h3>
+  <ol class="steps">
+    <li>为新代码编写/更新测试</li>
+    <li>运行 <code>npm run test:jest</code> — 必须通过</li>
+    <li>运行 <code>npm run test:playwright:smoke</code> — 必须通过</li>
+    <li>运行 <code>npm run test:playwright:e2e</code> — 必须通过</li>
+    <li>修复所有失败后重新运行，直到全部通过</li>
+  </ol>
+
+  <div class="tip important">
+    <strong>提交前必须运行 <code>npm run test:all</code></strong>，全部通过才能提交。
+  </div>
+</div>
+
+<!-- ========== 14. Core Files ========== -->
+<div class="card" id="files">
+  <h2><span>🗂️</span>十四、核心文件</h2>
+  <table>
+    <tr><th style="width:320px">文件</th><th>作用</th></tr>
     <tr><td><code>src/lib/ai-client.ts</code></td><td>DeepSeek 客户端（懒加载 + Proxy）</td></tr>
-    <tr><td><code>src/services/chatService.ts</code></td><td>streamText + SSE + 标题 + forced reply</td></tr>
+    <tr><td><code>src/services/chatService.ts</code></td><td>streamText + SSE + 标题 + forced reply + 摘要触发</td></tr>
     <tr><td><code>src/services/chatTools.ts</code></td><td>Tool 定义（<strong>新增工具改这里</strong>）</td></tr>
+    <tr><td><code>src/services/searchService.ts</code></td><td>Bing + DuckDuckGo 搜索实现</td></tr>
     <tr><td><code>src/services/messageService.ts</code></td><td>消息 CRUD</td></tr>
     <tr><td><code>src/services/conversationService.ts</code></td><td>对话 CRUD</td></tr>
-    <tr><td><code>src/config/agents.ts</code></td><td>Agent system prompt</td></tr>
+    <tr><td><code>src/services/summaryService.ts</code></td><td>长对话摘要 (20 条触发)</td></tr>
+    <tr><td><code>src/config/agents.ts</code></td><td>Agent 配置（<strong>新增 Agent 改这里</strong>）</td></tr>
     <tr><td><code>src/stores/chat/chat-store.ts</code></td><td>Zustand store（SSE 消费 + API 持久化）</td></tr>
     <tr><td><code>src/components/chat/chat-message.tsx</code></td><td>消息渲染（Markdown + ToolCallBubble）</td></tr>
-    <tr><td><code>src/components/chat/chat-sidebar.tsx</code></td><td>对话列表 + 新建按钮</td></tr>
+    <tr><td><code>src/components/chat/chat-sidebar.tsx</code></td><td>对话列表 + Agent 选择器</td></tr>
     <tr><td><code>src/components/chat/conversation-item.tsx</code></td><td>对话项（可编辑标题）</td></tr>
     <tr><td><code>src/app/api/chat/route.ts</code></td><td>POST /api/chat — SSE endpoint</td></tr>
     <tr><td><code>src/app/api/chat/conversations/[id]/route.ts</code></td><td>DELETE + PATCH 对话</td></tr>
     <tr><td><code>src/app/api/chat/conversations/[id]/messages/route.ts</code></td><td>GET 消息列表</td></tr>
-    <tr><td><code>supabase/migrations/20260701_create_messages_table.sql</code></td><td>messages 表 migration</td></tr>
   </table>
 </div>
 

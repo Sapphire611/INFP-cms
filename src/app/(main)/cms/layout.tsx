@@ -5,7 +5,6 @@ import { cookies } from "next/headers";
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { getPreference } from "@/server/server-actions";
 import {
   SIDEBAR_VARIANT_VALUES,
   SIDEBAR_COLLAPSIBLE_VALUES,
@@ -25,11 +24,12 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
 
-  const [sidebarVariant, sidebarCollapsible, contentLayout] = await Promise.all([
-    getPreference<SidebarVariant>("sidebar_variant", SIDEBAR_VARIANT_VALUES, "inset"),
-    getPreference<SidebarCollapsible>("sidebar_collapsible", SIDEBAR_COLLAPSIBLE_VALUES, "icon"),
-    getPreference<ContentLayout>("content_layout", CONTENT_LAYOUT_VALUES, "centered"),
-  ]);
+  const rawVariant = cookieStore.get("sidebar_variant")?.value;
+  const rawCollapsible = cookieStore.get("sidebar_collapsible")?.value;
+  const rawContentLayout = cookieStore.get("content_layout")?.value;
+  const sidebarVariant = SIDEBAR_VARIANT_VALUES.includes(rawVariant as SidebarVariant) ? (rawVariant as SidebarVariant) : "inset";
+  const sidebarCollapsible = SIDEBAR_COLLAPSIBLE_VALUES.includes(rawCollapsible as SidebarCollapsible) ? (rawCollapsible as SidebarCollapsible) : "icon";
+  const contentLayout = CONTENT_LAYOUT_VALUES.includes(rawContentLayout as ContentLayout) ? (rawContentLayout as ContentLayout) : "centered";
 
   const layoutPreferences = {
     contentLayout,
