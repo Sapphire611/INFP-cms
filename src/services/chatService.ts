@@ -5,10 +5,9 @@
  */
 
 import { streamText, generateText, type ModelMessage } from "ai";
-import OpenAI from "openai";
 import type { Message, ToolCallRecord } from "@/types/chat";
 import { deepseek, CHAT_MODEL } from "@/lib/ai-client";
-import { chatTools } from "@/services/chatTools";
+import { tools } from "@/tools";
 import { getAgent, getDefaultAgent } from "@/config/agents";
 import {
   updateConversationTimestamp,
@@ -82,8 +81,9 @@ export async function streamChatResponse(
         model: deepseek.chat(agent.model),
         system: agent.systemPrompt,
         messages,
-        tools: chatTools,
+        tools,
         temperature: agent.temperature,
+        maxOutputTokens: agent.maxTokens,
       });
 
       try {
@@ -207,24 +207,22 @@ export async function streamChatResponse(
           );
         }
 
-        // ── 3. Adaptive fallback: if model answer is too short after tool calls, force a reply ──
+        // ── 3. Adaptive fallback: if model answer is too short after tool calls, force a streaming reply ──
         const isTooShort =
           assistantContent.length < 30 && toolCallRecords.length > 0;
         if (!assistantContent || isTooShort) {
           try {
-            const forcedReply = await generateForcedReply(
+            const forcedContent = await generateForcedReply(
+              controller,
+              encoder,
               userMessage,
               assistantContent,
               toolCallRecords
             );
-            if (forcedReply) {
-              // Send as delta so client appends it to the existing message
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ type: "text", content: forcedReply })}\n\n`
-                )
-              );
-              assistantContent = (assistantContent || "") + forcedReply;
+            // generateForcedReply streams deltas directly via controller,
+            // so we just accumulate the full text here for saving
+            if (forcedContent) {
+              assistantContent = (assistantContent || "") + forcedContent;
             }
           } catch {
             if (!assistantContent) {
@@ -331,23 +329,20 @@ async function generateAndSaveTitle(
   }
 }
 
-// ─── Forced Reply ──────────────────────────────────────────
+// ─── Forced Reply (now streaming) ──────────────────────────
 
 /**
  * When the model's streaming response is too short or empty after tool calls,
- * make a non-streaming follow-up call to force a complete answer.
- * Now passes the actual tool results so the model has proper context.
+ * make a streaming follow-up call to force a complete answer.
+ * Uses streamText (without tools) so the reply streams word-by-word.
  */
 async function generateForcedReply(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  encoder: TextEncoder,
   userMessage: string,
   partialContent: string,
   toolCallRecords: ToolCallRecord[]
-): Promise<string | null> {
-  const client = new OpenAI({
-    apiKey: process.env.DEEPSEEK_API_KEY,
-    baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
-  });
-
+): Promise<string> {
   // Format tool results for context injection
   const toolResultsText = toolCallRecords
     .filter((tc) => tc.status === "done" && tc.result)
@@ -358,26 +353,22 @@ async function generateForcedReply(
     })
     .join("\n\n");
 
-  const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-    {
-      role: "system",
-      content: [
-        "你已通过工具获取了信息。现在请基于这些信息，用中文给出一个完整、详细、有见解的回答。",
-        "",
-        "要求：",
-        "- 用 Markdown 组织内容（标题、列表、表格）",
-        "- 总结关键信息，不要罗列原始数据",
-        "- 给出你的分析和建议",
-        "- 标注信息来源 [来源](url)",
-        "- 回答要完整，不能只有一两句话",
-      ].join("\n"),
-    },
+  const systemPrompt = [
+    "你已通过工具获取了信息。现在请基于这些信息回答用户的问题。",
+    "",
+    "重要规则：",
+    "- 如果工具返回的数据与用户问题相关，用 Markdown 组织回答（标题、列表、表格），标注来源 [来源](url)",
+    "- 如果工具返回的数据与用户问题不相关或无效，必须诚实告知用户，然后用自己的知识给出有用建议",
+    "- 不要强行解读不相关的搜索结果",
+  ].join("\n");
+
+  const modelMessages: ModelMessage[] = [
     { role: "user", content: `用户问题：${userMessage}` },
   ];
 
   // Inject tool results as context
   if (toolResultsText) {
-    messages.push({
+    modelMessages.push({
       role: "user",
       content: `以下是工具返回的数据：\n\n${toolResultsText}\n\n请基于以上数据回答用户的问题。`,
     });
@@ -385,19 +376,34 @@ async function generateForcedReply(
 
   // Include partial content if any (so the model can build on it)
   if (partialContent) {
-    messages.push({ role: "assistant", content: partialContent });
+    modelMessages.push({ role: "assistant", content: partialContent });
   }
 
-  messages.push({ role: "user", content: "请给出完整回答：" });
+  modelMessages.push({ role: "user", content: "请给出完整回答：" });
 
-  const completion = await client.chat.completions.create({
-    model: CHAT_MODEL,
-    messages,
+  // Stream using AI SDK — no tools to avoid infinite loop
+  const result = streamText({
+    model: deepseek.chat(CHAT_MODEL),
+    system: systemPrompt,
+    messages: modelMessages,
     temperature: 0.7,
-    max_tokens: 2048,
+    maxOutputTokens: 2048,
   });
 
-  return completion.choices[0]?.message?.content?.trim() || null;
+  let fullContent = "";
+
+  for await (const chunk of result.fullStream) {
+    if (chunk.type === "text-delta") {
+      fullContent += chunk.text;
+      controller.enqueue(
+        encoder.encode(
+          `data: ${JSON.stringify({ type: "text", content: chunk.text })}\n\n`
+        )
+      );
+    }
+  }
+
+  return fullContent;
 }
 
 // ─── Summarization ─────────────────────────────────────────

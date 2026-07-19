@@ -6,6 +6,10 @@ const createJestConfig = nextJest({ dir: "./" });
 const customJestConfig: Config = {
   clearMocks: true,
 
+  transformIgnorePatterns: [
+    "node_modules/(?!(ai|@ai-sdk|cheerio)/)",
+  ],
+
   collectCoverage: true,
   coverageDirectory: "coverage",
   coverageProvider: "v8",

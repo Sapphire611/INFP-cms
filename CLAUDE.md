@@ -114,7 +114,6 @@ src/
 │   ├── chatService.ts         # streamText() + SSE + message persistence
 │   ├── chatTools.ts           # Tool definitions (weather, time, calc, search)
 │   ├── messageService.ts      # Message CRUD (Supabase messages table)
-│   ├── searchService.ts       # Standalone DuckDuckGo search
 │   ├── summaryService.ts      # Conversation summarization (OpenAI SDK)
 │   ├── conversationService.ts # Conversation CRUD (Supabase)
 │   ├── userService.ts         # CMS user CRUD
