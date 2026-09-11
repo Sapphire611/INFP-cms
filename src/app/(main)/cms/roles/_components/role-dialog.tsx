@@ -41,6 +41,7 @@ const MODULE_LABELS: Record<string, string> = {
   users: "用户管理",
   wechat_users: "微信用户",
   chat: "AI对话",
+  models: "模型管理",
 };
 
 const ACTION_LABELS: Record<string, string> = {

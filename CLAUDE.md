@@ -13,8 +13,9 @@
 │  Chat UI          │  Vercel AI SDK v7  +  SSE 流式     │
 │  (React + Zustand)│  @ai-sdk/openai  (DeepSeek 适配)   │
 ├─────────────────────────────────────────────────────────┤
-│  Model            │  DeepSeek (deepseek-v4-flash)       │
-│                   │  通过 OpenAI 兼容 API               │
+│  Model            │  CMS「模型管理」里启用的平台         │
+│                   │  DeepSeek / 智谱 GLM（OpenAI 兼容）  │
+│                   │  未配置时回退 DEEPSEEK_* 环境变量    │
 ├─────────────────────────────────────────────────────────┤
 │  Tools            │  getWeather   → wttr.in             │
 │                   │  getCurrentTime → Intl.DateTimeFormat│
@@ -40,7 +41,23 @@
 
 ### Model / Provider
 
-**Only DeepSeek is used.** The app connects to DeepSeek's OpenAI-compatible API at `https://api.deepseek.com/v1` via the `@ai-sdk/openai` provider wrapper. 默认使用 `deepseek-v4-flash`，特定功能按需升级到 `deepseek-v4-pro`。不再使用已弃用的 `deepseek-chat`（2026/07/24 弃用）。
+聊天用的平台和密钥在 **CMS「模型管理」（`/cms/models`）** 里配置，不再只依赖环境变量。支持两个平台：
+
+| 平台 | Base URL | 模型示例 | 凭证 |
+|------|----------|----------|------|
+| DeepSeek | `https://api.deepseek.com/v1` | `deepseek-v4-flash`、`deepseek-v4-pro` | `apiKey` |
+| 智谱 GLM | `https://open.bigmodel.cn/api/paas/v4` | `glm-4.6`、`glm-4.5`、`glm-4-flash` | `apiKey` + 可选 `apiSecret`（拼成 `{key}.{secret}`） |
+
+**解析顺序**（`aiProviderService.resolveApiConfig()`）：
+
+1. 数据库 `ai_providers` 表里 `is_active = true` 的平台（全局最多一个，有 partial unique index 兜底）
+2. Agent 声明的 `model` 在该平台的 `models` 列表里就用它，否则用平台的 `default_model`
+3. 一个平台都没配 → 回退 `DEEPSEEK_API_KEY` / `DEEPSEEK_BASE_URL` 环境变量
+
+所以 `config/agents.ts` 里的 `model` 字段是「偏好」，最终用哪个模型由当前启用的平台决定。
+不再使用已弃用的 `deepseek-chat`（2026/07/24 弃用）。
+
+**密钥安全**：`api_key` / `api_secret` 只经 `supabase-admin`（service_role）读写，接口返回前一律 `maskProvider()` 打码成 `****9d23`；编辑时留空表示保持原密钥不变。
 
 ## Common Development Commands
 
@@ -102,7 +119,8 @@ src/
 │   └── app-config.ts          # App name, version, meta
 ├── hooks/                     # Custom React hooks
 ├── lib/
-│   ├── ai-client.ts           # DeepSeek client (createOpenAI wrapper)
+│   ├── ai-client.ts           # createModelClient(apiKey, baseURL) — AI SDK 客户端工厂
+│   ├── ai-config.ts           # 环境变量兜底配置（未配置任何平台时使用）
 │   ├── supabase-client.ts     # Browser Supabase client
 │   ├── supabase-server.ts     # Server Supabase client
 │   ├── supabase-admin.ts      # Admin client (bypasses RLS)
@@ -112,7 +130,7 @@ src/
 ├── navigation/                # Sidebar & search navigation
 ├── services/
 │   ├── chatService.ts         # streamText() + SSE + message persistence
-│   ├── chatTools.ts           # Tool definitions (weather, time, calc, search)
+│   ├── aiProviderService.ts   # 模型平台 CRUD + resolveApiConfig() 运行时解析
 │   ├── messageService.ts      # Message CRUD (Supabase messages table)
 │   ├── summaryService.ts      # Conversation summarization (OpenAI SDK)
 │   ├── conversationService.ts # Conversation CRUD (Supabase)
@@ -122,28 +140,32 @@ src/
 │   └── chat/
 │       ├── chat-store.ts      # Zustand vanilla store (SSE consumption, API persistence)
 │       └── chat-provider.tsx   # React context provider
+├── tools/                     # AI 工具实现（webSearch / calculate / getWeather ...）
 └── types/
+    ├── ai-provider.ts         # AiProvider、平台预设、密钥打码
     └── chat/
         └── index.ts           # Message, Conversation, ToolCallRecord, SSE events
 ```
 
+### CMS Pages
+
+`/cms/dashboard` 数据概览 · `/cms/users` 用户管理 · `/cms/wechat-users` 微信用户 · `/cms/roles` 权限管理 · `/cms/models` 模型管理（平台 API Key）
+
 ## AI System Design
 
-### 1. Provider Layer (`src/lib/ai-client.ts`)
+### 1. Provider Layer (`src/lib/ai-client.ts` + `src/services/aiProviderService.ts`)
+
+凭证来自 CMS「模型管理」（`ai_providers` 表），不再写死在环境变量里：
 
 ```typescript
-// Creates the AI SDK model instance pointed at DeepSeek
-import { createOpenAI } from "@ai-sdk/openai";
-
-export const deepseek = createOpenAI({
-  apiKey: process.env.DEEPSEEK_API_KEY,
-  baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
-});
-
-export const CHAT_MODEL = "deepseek-v4-flash";
+// chatService.ts —— 每次请求开流前解析一次
+const apiConfig = await resolveApiConfig(agent.model); // aiProviderService
+const model = createModelClient(apiConfig.apiKey, apiConfig.baseURL).chat(apiConfig.model);
 ```
 
-This is the **single AI client** used by `chatService.ts`. The `@ai-sdk/openai` package wraps DeepSeek's OpenAI-compatible API so the Vercel AI SDK v7 can use it transparently.
+`createModelClient()` 只是 `createOpenAI()` 的薄封装（DeepSeek 与 GLM 都是 OpenAI 兼容接口，同一个 SDK 走通）；`resolveApiConfig()` 决定用哪个平台的哪把 key、哪个模型。`summaryService.ts`（用原始 OpenAI SDK）走同一个 `resolveApiConfig()`，所以摘要也跟随当前平台。
+
+新增平台只需在 CMS 里加一条记录；要支持第三个平台（如 OpenAI、通义）则改 `src/types/ai-provider.ts` 的 `ProviderKind` 与 `PROVIDER_PRESETS`。
 
 ### 2. Tools (`src/services/chatTools.ts`)
 
@@ -357,8 +379,8 @@ Key actions:
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `DEEPSEEK_API_KEY` | Yes (for AI) | DeepSeek API key |
-| `DEEPSEEK_BASE_URL` | No | DeepSeek API base URL (default: `https://api.deepseek.com/v1`) |
+| `DEEPSEEK_API_KEY` | No | 仅作兜底：CMS「模型管理」里没启用任何平台时才用 |
+| `DEEPSEEK_BASE_URL` | No | 同上（default: `https://api.deepseek.com/v1`） |
 | `JWT_SECRET` | Yes | Secret key for JWT tokens |
 | `NEXT_PUBLIC_SUPABASE_URL` | Yes | Supabase project URL |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous key |
@@ -369,9 +391,12 @@ Key actions:
 ## Important Files
 
 ### AI Core
-- `src/lib/ai-client.ts` — DeepSeek client setup (entry point for the AI stack)
+- `src/lib/ai-client.ts` — `createModelClient()`，AI SDK 客户端工厂（入口）
+- `src/services/aiProviderService.ts` — 模型平台 CRUD + `resolveApiConfig()`（改平台解析逻辑看这里）
+- `src/app/(main)/cms/models/` — 模型管理页面 + 表单弹窗
+- `src/app/api/ai-providers/` — 平台增删改查 + `[id]/test` 连通性测试
+- `src/types/ai-provider.ts` — 平台类型、预设、密钥打码
 - `src/services/chatService.ts` — Main streaming logic, SSE conversion, summarization trigger
-- `src/services/chatTools.ts` — All tool definitions (add new tools here)
 - `src/config/agents.ts` — Agent configurations (add new agents here)
 - `src/app/api/chat/route.ts` — SSE endpoint that pipes the stream to the client
 

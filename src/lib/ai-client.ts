@@ -1,41 +1,15 @@
 /**
- * AI SDK client configured for DeepSeek API
- * Uses OpenAI-compatible provider with DeepSeek's base URL
+ * AI SDK client factory.
  *
- * Lazy-loaded to avoid crashing on module import when DEEPSEEK_API_KEY is not set.
- * Throws a clear error at call time if the key is missing.
+ * 平台凭证不再只来自环境变量 —— 聊天运行时由
+ * aiProviderService.resolveApiConfig() 解析：CMS「模型管理」里启用的平台优先，
+ * 一个都没配时回退到 DEEPSEEK_* 环境变量（见 ai-config.ts）。
+ *
+ * 这个文件只负责「拿凭证造客户端」，不碰数据库。
  */
 
 import { createOpenAI } from "@ai-sdk/openai";
 
-let _deepseek: ReturnType<typeof createOpenAI> | null = null;
-
-function getDeepSeekClient() {
-  if (!_deepseek) {
-    const apiKey = process.env.DEEPSEEK_API_KEY;
-    if (!apiKey) {
-      throw new Error(
-        "DEEPSEEK_API_KEY is not set. Please add it to your environment variables (Vercel dashboard or .env)."
-      );
-    }
-    _deepseek = createOpenAI({
-      apiKey,
-      baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
-    });
-  }
-  return _deepseek;
+export function createModelClient(apiKey: string, baseURL: string) {
+  return createOpenAI({ apiKey, baseURL });
 }
-
-// Proxy that lazily initializes and delegates all property access
-export const deepseek = new Proxy({} as ReturnType<typeof createOpenAI>, {
-  get(_target, prop) {
-    const client = getDeepSeekClient();
-    const value = (client as any)[prop];
-    if (typeof value === "function") {
-      return value.bind(client);
-    }
-    return value;
-  },
-});
-
-export const CHAT_MODEL = "deepseek-v4-flash" as const;

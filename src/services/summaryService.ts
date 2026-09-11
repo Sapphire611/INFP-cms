@@ -4,32 +4,21 @@
 
 import OpenAI from "openai";
 import { supabaseAdmin } from "@/lib/supabase-admin";
+import { resolveApiConfig } from "./aiProviderService";
 import type { ConversationSummary } from "@/types/chat";
 
-// Lazy initialization of DeepSeek client to avoid build errors
-function getDeepSeekClient() {
-  const apiKey = process.env.DEEPSEEK_API_KEY;
-  if (!apiKey) {
-    throw new Error(
-      "DEEPSEEK_API_KEY is not set. Please add it to your environment variables (Vercel dashboard or .env)."
-    );
-  }
-  return new OpenAI({
-    apiKey,
-    baseURL: process.env.DEEPSEEK_BASE_URL || "https://api.deepseek.com/v1",
-  });
-}
-
 /**
- * Generate a summary using DeepSeek
+ * Generate a summary using the currently enabled model platform
+ * (CMS「模型管理」里启用的平台，没配置时回退 DEEPSEEK_* 环境变量)
  */
 async function generateSummaryText(
   messages: Array<{ role: string; content: string }>
 ): Promise<string> {
   try {
-    const client = getDeepSeekClient();
+    const config = await resolveApiConfig();
+    const client = new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL });
     const completion = await client.chat.completions.create({
-      model: "deepseek-v4-flash",
+      model: config.model,
       messages: [
         {
           role: "system",

@@ -4,11 +4,12 @@
  * Persists messages to Supabase (no localStorage dependency)
  */
 
-import { streamText, generateText, type ModelMessage } from "ai";
+import { streamText, generateText, type ModelMessage, type LanguageModel } from "ai";
 import type { Message, ToolCallRecord } from "@/types/chat";
-import { deepseek, CHAT_MODEL } from "@/lib/ai-client";
+import { createModelClient } from "@/lib/ai-client";
 import { tools } from "@/tools";
 import { getAgent, getDefaultAgent } from "@/config/agents";
+import { resolveApiConfig } from "./aiProviderService";
 import {
   updateConversationTimestamp,
   updateConversationTitle,
@@ -64,6 +65,13 @@ export async function streamChatResponse(
   const agent = getAgent(agentId) ?? getDefaultAgent();
   const messages = toModelMessages(conversationHistory, userMessage);
 
+  // ── 0. 解析当前启用的模型平台（CMS「模型管理」优先，未配置时回退环境变量）──
+  // 放在开流之前：凭证有问题时直接返回错误，不会推到流里才失败。
+  const apiConfig = await resolveApiConfig(agent.model);
+  const model = createModelClient(apiConfig.apiKey, apiConfig.baseURL).chat(
+    apiConfig.model
+  );
+
   const encoder = new TextEncoder();
 
   // ── 1. Save user message to Supabase (fire-and-forget) ──
@@ -78,7 +86,7 @@ export async function streamChatResponse(
       let streamFinished = false;
 
       const result = streamText({
-        model: deepseek.chat(agent.model),
+        model,
         system: agent.systemPrompt,
         messages,
         tools,
@@ -215,6 +223,7 @@ export async function streamChatResponse(
             const forcedContent = await generateForcedReply(
               controller,
               encoder,
+              model,
               userMessage,
               assistantContent,
               toolCallRecords
@@ -250,11 +259,14 @@ export async function streamChatResponse(
 
         // ── 4. Generate title after stream fully ends (non-blocking) ──
         if (conversationHistory.length === 0 && assistantContent) {
-          generateAndSaveTitle(conversationId, userMessage, assistantContent).catch(
-            (err) => {
-              console.error("Failed to generate conversation title:", err);
-            }
-          );
+          generateAndSaveTitle(
+            conversationId,
+            model,
+            userMessage,
+            assistantContent
+          ).catch((err) => {
+            console.error("Failed to generate conversation title:", err);
+          });
         }
 
         // ── 5. Post-stream side effects (non-blocking) ──
@@ -286,12 +298,13 @@ export async function streamChatResponse(
  */
 async function generateAndSaveTitle(
   conversationId: string,
+  model: LanguageModel,
   userMessage: string,
   _assistantContent: string
 ): Promise<void> {
   try {
     const result = await generateText({
-      model: deepseek.chat(CHAT_MODEL),
+      model,
       system: [
         "根据用户提问生成对话标题（5-15字）。直接输出标题，不加引号或前缀。",
         "",
@@ -339,6 +352,7 @@ async function generateAndSaveTitle(
 async function generateForcedReply(
   controller: ReadableStreamDefaultController<Uint8Array>,
   encoder: TextEncoder,
+  model: LanguageModel,
   userMessage: string,
   partialContent: string,
   toolCallRecords: ToolCallRecord[]
@@ -383,7 +397,7 @@ async function generateForcedReply(
 
   // Stream using AI SDK — no tools to avoid infinite loop
   const result = streamText({
-    model: deepseek.chat(CHAT_MODEL),
+    model,
     system: systemPrompt,
     messages: modelMessages,
     temperature: 0.7,

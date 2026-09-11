@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
+import { fetchWithTimeout } from './fetch-with-timeout'
 
 /**
  * Creates a Supabase client for server-side operations.
@@ -28,6 +29,9 @@ export const createClient = async () => {
             // user sessions.
           }
         },
+      },
+      global: {
+        fetch: fetchWithTimeout,
       },
     }
   )

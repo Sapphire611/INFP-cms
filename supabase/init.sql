@@ -217,6 +217,39 @@ GRANT ALL ON conversation_summaries TO authenticated;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO authenticated;
 
 -- ============================================
+-- PART 2.5: AI Provider (模型管理)
+-- ============================================
+
+-- 模型平台配置：/chat 使用 is_active 为真的那一个平台
+CREATE TABLE IF NOT EXISTS ai_providers (
+  id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+  name VARCHAR(50) NOT NULL,
+  provider VARCHAR(20) NOT NULL,
+  base_url TEXT NOT NULL,
+  api_key TEXT NOT NULL,
+  api_secret TEXT,
+  models TEXT[] NOT NULL DEFAULT '{}',
+  default_model TEXT NOT NULL,
+  is_active BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 全局最多一个平台处于启用状态
+CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_providers_single_active
+  ON ai_providers (is_active) WHERE is_active;
+
+ALTER TABLE ai_providers ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Service role can do everything on ai_providers" ON ai_providers
+  FOR ALL TO service_role USING (true) WITH CHECK (true);
+
+GRANT ALL ON ai_providers TO service_role;
+
+CREATE TRIGGER update_ai_providers_updated_at BEFORE UPDATE ON ai_providers
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================
 -- PART 3: RBAC Tables
 -- ============================================
 
@@ -324,6 +357,14 @@ ON CONFLICT (module, action) DO NOTHING;
 -- Chat module (view-only)
 INSERT INTO permissions (module, action, description) VALUES
   ('chat', 'view', '使用 AI 对话功能')
+ON CONFLICT (module, action) DO NOTHING;
+
+-- Models module (模型管理)
+INSERT INTO permissions (module, action, description) VALUES
+  ('models', 'view', '查看模型平台'),
+  ('models', 'create', '新增模型平台'),
+  ('models', 'update', '修改模型平台'),
+  ('models', 'delete', '删除模型平台')
 ON CONFLICT (module, action) DO NOTHING;
 
 -- Three.js module (view-only)

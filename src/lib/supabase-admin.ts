@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { fetchWithTimeout } from './fetch-with-timeout'
 
 /**
  * Creates a Supabase admin client with service role privileges.
@@ -15,6 +16,9 @@ export const supabaseAdmin = createClient(
     auth: {
       autoRefreshToken: false,
       persistSession: false
+    },
+    global: {
+      fetch: fetchWithTimeout
     }
   }
 )

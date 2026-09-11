@@ -2,7 +2,8 @@ export type PermissionModule =
   | 'dashboard'
   | 'users'
   | 'wechat_users'
-  | 'chat';
+  | 'chat'
+  | 'models';
 
 export type PermissionAction = 'view' | 'create' | 'update' | 'delete';
 
@@ -39,4 +40,5 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionKey> = {
   '/cms/users': 'users:view',
   '/cms/wechat-users': 'wechat_users:view',
   '/cms/roles': 'users:view', // Roles management requires users:view permission
+  '/cms/models': 'models:view',
 };

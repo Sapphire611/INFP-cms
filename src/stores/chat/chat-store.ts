@@ -112,7 +112,22 @@ export const createChatStore = (init?: Partial<ChatState>) =>
     deleteConversation: async (id: string) => {
       set({ isDeleting: true, error: null });
       try {
-        await fetch(`/api/chat/conversations/${id}`, { method: "DELETE" });
+        const res = await fetch(`/api/chat/conversations/${id}`, {
+          method: "DELETE",
+        });
+
+        // 接口失败时不能假装删掉了：以前不看 res.ok，列表照样把对话抹掉，
+        // 刷新之后又冒出来，看起来就是「删不掉」，报错还被吞了。
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          const message = data.error ?? `删除失败（HTTP ${res.status}）`;
+          console.error(
+            `[chat] DELETE /api/chat/conversations/${id} → ${res.status}`,
+            data
+          );
+          set({ error: message, isDeleting: false });
+          return;
+        }
 
         set((state) => ({
           conversations: state.conversations.filter((c) => c.id !== id),
@@ -123,10 +138,10 @@ export const createChatStore = (init?: Partial<ChatState>) =>
           isDeleting: false,
         }));
       } catch (error) {
+        // 不要 throw：调用方（sidebar）没有 catch，会变成 unhandled rejection
         const message =
           error instanceof Error ? error.message : "Failed to delete conversation";
         set({ error: message, isDeleting: false });
-        throw error;
       }
     },
 

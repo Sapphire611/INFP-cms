@@ -57,6 +57,9 @@ export async function DELETE(
     // Verify conversation ownership
     const conversation = await getConversationById(id);
     if (!conversation) {
+      console.warn(
+        `[chat] DELETE conversation ${id} → 404 库里查不到这行 (requested by ${user.id})`
+      );
       return NextResponse.json(
         { error: "Conversation not found" },
         { status: 404 }
@@ -64,11 +67,16 @@ export async function DELETE(
     }
 
     if (conversation.userId !== user.id) {
+      console.warn(
+        `[chat] DELETE conversation ${id} → 403 owner=${conversation.userId} requester=${user.id}`
+      );
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Delete conversation
     await deleteConversationService(id);
+
+    console.log(`[chat] DELETE conversation ${id} → 200 (owner ${user.id})`);
 
     return NextResponse.json({ success: true }, { status: 200 });
   } catch (error: unknown) {
