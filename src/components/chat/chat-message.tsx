@@ -8,12 +8,24 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
-import { Bot, User, ExternalLink, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  Bot,
+  User,
+  ExternalLink,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Brain,
+  ShieldAlert,
+} from "lucide-react";
 import type { Message, ToolCallRecord } from "@/types/chat";
 
 interface ChatMessageProps {
   message: Message;
 }
+
+/** 与 agentReflection 的阈值保持一致：低于此值前端也标出来 */
+const CONFIDENCE_FLOOR = 0.8;
 
 /** Human-readable tool name */
 const TOOL_LABELS: Record<string, string> = {
@@ -21,6 +33,7 @@ const TOOL_LABELS: Record<string, string> = {
   getCurrentTime: "获取时间",
   calculate: "数学计算",
   webSearch: "联网搜索",
+  fetchWebPage: "读取网页",
 };
 
 /** Format tool args for display */
@@ -34,15 +47,61 @@ function formatToolArgs(toolName: string, args: Record<string, unknown>): string
       return `表达式: ${args.expression}`;
     case "webSearch":
       return `搜索: ${args.query}`;
+    case "fetchWebPage":
+      return `页面: ${args.url}`;
     default:
       return JSON.stringify(args);
   }
+}
+
+/**
+ * 把散落的工具调用按 Agent 轮次分组 —— 同一轮里的并行调用归到一组。
+ * 循环每一轮就是 ReAct 的一步，分组之后过程才读得出来。
+ */
+function groupByStep(records: ToolCallRecord[]) {
+  const groups: Array<{ step: number; records: ToolCallRecord[] }> = [];
+
+  for (const record of records) {
+    const step = record.step ?? 1;
+    const last = groups[groups.length - 1];
+    if (last && last.step === step) last.records.push(record);
+    else groups.push({ step, records: [record] });
+  }
+
+  return groups;
+}
+
+/** 工具自报的可信度 / 耗时。可信度过低时标黄，和右侧的反思告示呼应 */
+function ToolMeta({
+  confidence,
+  latencyMs,
+}: {
+  confidence?: number;
+  latencyMs?: number;
+}) {
+  const hasConfidence = typeof confidence === "number";
+  if (!hasConfidence && !latencyMs) return null;
+
+  const low = hasConfidence && confidence < CONFIDENCE_FLOOR;
+
+  return (
+    <div
+      className={`mt-0.5 text-[10px] ${
+        low ? "text-amber-600 dark:text-amber-500" : "text-muted-foreground/60"
+      }`}
+    >
+      {hasConfidence && `可信度 ${(confidence * 100).toFixed(0)}%`}
+      {hasConfidence && latencyMs ? " · " : ""}
+      {latencyMs ? `${latencyMs}ms` : ""}
+    </div>
+  );
 }
 
 function ToolCallBubble({ tc }: { tc: ToolCallRecord }) {
   const label = TOOL_LABELS[tc.toolName] || tc.toolName;
   const isCalling = tc.status === "calling";
   const isError = tc.status === "error";
+  const hasArgs = tc.args && Object.keys(tc.args).length > 0;
 
   return (
     <div
@@ -60,16 +119,74 @@ function ToolCallBubble({ tc }: { tc: ToolCallRecord }) {
         <CheckCircle2 className="h-3.5 w-3.5 mt-0.5 text-green-500 shrink-0" />
       )}
       <div className="flex-1 min-w-0">
-        <span className="font-medium text-muted-foreground">
-          {isCalling ? "正在" : isError ? "失败" : "已"}
-          {label}
-        </span>
-        {tc.args && Object.keys(tc.args).length > 0 && (
-          <span className="text-muted-foreground/70 ml-1">
-            {formatToolArgs(tc.toolName, tc.args)}
+        <div>
+          <span className="font-medium text-muted-foreground">
+            {isCalling ? "正在" : isError ? "失败" : "已"}
+            {label}
           </span>
+          {hasArgs && (
+            <span className="text-muted-foreground/70 ml-1">
+              {formatToolArgs(tc.toolName, tc.args)}
+            </span>
+          )}
+        </div>
+        {!isCalling && (
+          <ToolMeta confidence={tc.confidence} latencyMs={tc.latencyMs} />
         )}
       </div>
+    </div>
+  );
+}
+
+/** 结果自检发现问题时，Agent 自己贴出来的告示 */
+function ReflectionNote({ content }: { content: string }) {
+  const [headline, ...detail] = content.split("\n");
+
+  return (
+    <div className="rounded-md border border-amber-200/60 bg-amber-50/60 px-2 py-1.5 text-xs dark:border-amber-900/40 dark:bg-amber-950/20">
+      <div className="flex items-start gap-1.5 font-medium text-amber-700 dark:text-amber-400">
+        <ShieldAlert className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+        <span>{headline}</span>
+      </div>
+      {detail.length > 0 && (
+        <div className="mt-1 pl-5 whitespace-pre-wrap text-muted-foreground">
+          {detail.join("\n").trim()}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Agent 循环的一轮：思考 → 行动 → 观察 → 反思 */
+function AgentStepGroup({
+  step,
+  records,
+  showHeader,
+}: {
+  step: number;
+  records: ToolCallRecord[];
+  showHeader: boolean;
+}) {
+  const thought = records.find((r) => r.thought)?.thought;
+  const reflection = records.find((r) => r.reflection)?.reflection;
+
+  return (
+    <div className="flex flex-col gap-1 rounded-md border border-dashed border-border/70 p-1.5">
+      {showHeader && (
+        <div className="px-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground/60">
+          第 {step} 轮
+        </div>
+      )}
+      {thought && (
+        <div className="flex items-start gap-1.5 px-1 text-xs italic text-muted-foreground/80">
+          <Brain className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span>{thought}</span>
+        </div>
+      )}
+      {records.map((tc) => (
+        <ToolCallBubble key={tc.id} tc={tc} />
+      ))}
+      {reflection && <ReflectionNote content={reflection} />}
     </div>
   );
 }
@@ -77,6 +194,9 @@ function ToolCallBubble({ tc }: { tc: ToolCallRecord }) {
 export function ChatMessage({ message }: ChatMessageProps) {
   const isUser = message.role === "user";
   const hasToolCalls = message.toolCalls && message.toolCalls.length > 0;
+  const stepGroups = hasToolCalls ? groupByStep(message.toolCalls!) : [];
+  // 只有一轮时不显示"第 1 轮"——那是噪声，不是信息
+  const showStepHeaders = stepGroups.length > 1;
 
   return (
     <div className={`flex gap-2 ${isUser ? "flex-row-reverse" : ""}`}>
@@ -89,11 +209,16 @@ export function ChatMessage({ message }: ChatMessageProps) {
       </Avatar>
 
       <div className="flex flex-col max-w-[80%] gap-1.5">
-        {/* Tool call indicators (assistant only) */}
+        {/* Agent 执行过程（按轮次分组，assistant only） */}
         {hasToolCalls && (
-          <div className="flex flex-col gap-1">
-            {message.toolCalls!.map((tc) => (
-              <ToolCallBubble key={tc.id} tc={tc} />
+          <div className="flex flex-col gap-1.5">
+            {stepGroups.map((group) => (
+              <AgentStepGroup
+                key={`${group.step}-${group.records[0].id}`}
+                step={group.step}
+                records={group.records}
+                showHeader={showStepHeaders}
+              />
             ))}
           </div>
         )}

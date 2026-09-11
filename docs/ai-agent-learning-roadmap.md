@@ -1,126 +1,47 @@
 # Node.js 全栈 → AI Agent 工程师 学习路线图
 
 > 基于 Sapphire Studio 项目现状，结合已有技术栈的务实进阶路径。
-> 最后更新：2026-07-17
+> 最后更新：2026-09-11（按代码核对，已实现的环节已删除，只留待办）
 
 ---
 
-## 你已经掌握的基础（比大部分人起点高）
+## 进度总览
 
-Sapphire Studio 项目已经实现了 AI Agent 的雏形：
-
-| 你已经会的 | 在项目里的体现 | 文件 |
+| 环节 | 状态 | 代码位置 |
 |---|---|---|
-| LLM 调用 | DeepSeek via OpenAI 兼容 API | `src/lib/ai-client.ts` |
-| Tool Calling | 4 个工具，Zod schema + execute | `src/services/chatTools.ts` |
-| SSE 流式输出 | `streamText()` + fullStream 逐事件推送 | `src/services/chatService.ts` |
-| Agent 配置化 | system prompt / model / temperature 可切换 | `src/config/agents.ts` |
-| 对话持久化 | Supabase messages + summaries 表 | `src/services/messageService.ts` |
-| 历史摘要 | 20 条触发自动摘要 | `src/services/summaryService.ts` |
-| 状态管理 | Zustand + SSE 消费 + localStorage 同步 | `src/stores/chat/chat-store.ts` |
+| 1.1 提示词工程 | ✅ 已完成 | `src/config/agents.ts` |
+| 1.2 Tool Design 进阶 | ✅ 已完成 | `src/tools/` |
+| **2.1 Agentic Loop** | ✅ **已完成**（含反思） | `src/services/chatService.ts` + `agentReflection.ts` |
+| 2.2 工具组合与编排 | ⚠️ 结果验证已做，编排未做 | `src/services/agentReflection.ts` |
+| 2.3 结构化输出 | ✅ 已做（trace 落在 `ToolCallRecord` 上） | `src/types/chat/index.ts` |
+| 3.1 Memory | ⚠️ Working ✅ / Episodic ❌ | `src/services/summaryService.ts` |
+| 3.2 Multi-Agent | ❌ 未实现（只有手动切换） | `src/config/agents.ts` |
+| 3.3 可观测性与评估 | ❌ 未实现 | — |
+| 3.4 MCP | ❌ 未实现 | — |
+| 3.5 安全与护栏 | ⚠️ 仅基础（JWT + 工具超时 + calculate 沙箱） | `src/lib/jwt.ts` |
+| 3.6 Provider 抽象与多模型路由 | ✅ 已完成 | `src/services/aiProviderService.ts` |
 
-**这些是一个生产级 AI 应用的核心骨架。** 从这出发，需要补的是三个层次的能力。
+### 已删除的环节（已实现，不再需要学）
 
----
+- **1.1 提示词工程** —— `agents.ts` 里两个 Agent 的 system prompt 已是完整结构（角色 → 可用工具 → 工作流程 → 决策规则 → 输出标准 → 行为底线），含防幻觉约束（禁止编造引用、标注来源）、工具调用状态反馈、搜索关键词策略的 few-shot 示例。
+- **1.2 Tool Design 进阶** —— `src/tools/types.ts` 的 `ToolResult<T>` 就是本节要求的设计：`metadata { source, confidence, latencyMs }` + `error { code, retryable, fallback }`。`webSearch` 已实现错误分级（主源失败 → retryable → 降级另一个源；空结果 → 低 confidence）。本节建议的 `fetchWebPage` 工具（cheerio 解析正文）也已建好，`search → fetch → summarize` 链在 prompt 里已描述。
+  **⚠️ 但有个当时没意识到的坑**：`confidence` 全是手写常数，不是算出来的 —— 详见 2.2 末尾。这个认知影响了整个反思机制的可信度。
+- **2.1 Agentic Loop 全部** —— `chatService.ts` 手写 ReAct 循环 + `agentReflection.ts` 的反思步骤。详见下方 2.1。
+- **3.1 的 Working Memory** —— 对话历史（`toModelMessages()`）+ 20 条触发摘要（`summaryService.ts`）已满足。
+- **3.6 Provider 抽象** —— `aiProviderService.resolveApiConfig()`：CMS「模型管理」的平台优先，未配置回退 `DEEPSEEK_*` 环境变量；支持 DeepSeek / 智谱 GLM，密钥打码、连通性测试齐全。（**剩余未做**：按任务复杂度自动选模型的 `selectModel()` 路由，见第三层末尾。）
 
-## 第一层：加深单 Agent 能力（立即可在项目里练手）
+### 你的起点
 
-### 1.1 提示词工程（Prompt Engineering）— 最被低估
-
-当前 system prompt 很简短：
-
-```typescript
-// src/config/agents.ts — 当前
-systemPrompt: "你是 Sapphire Studio 的 AI 助手...需要实时信息时立即调 webSearch..."
-```
-
-**需要学：**
-
-| 技巧 | 说明 | 示例 |
-|---|---|---|
-| **结构化 System Prompt** | 角色定义 → 能力边界 → 输出格式 → 约束条件 → 示例 | 见下方模板 |
-| **Chain-of-Thought 强制** | 让模型在调用工具前先输出推理过程 | `"在回答前，先分析问题类型和所需信息"` |
-| **输出格式控制** | 用 structured output 约束模型输出 | `json_schema` 模式 |
-| **防幻觉策略** | 要求模型引用来源、标注不确定度 | `"如果信息来自搜索结果，请标注来源"` |
-| **Few-shot 示例** | 给模型 2-3 个对话示例 | 用户问 → 你调什么工具 → 怎么回答 |
-
-**结构化 System Prompt 模板：**
-
-```markdown
-## 角色
-你是 Sapphire Studio 的 AI 助手，一个具备工具调用能力的智能代理。
-
-## 核心能力
-1. 联网搜索 (webSearch) — 获取实时信息
-2. 天气查询 (getWeather) — 查询全球城市天气
-3. 时间查询 (getCurrentTime) — 获取任意时区当前时间
-4. 数学计算 (calculate) — 执行复杂数学表达式
-
-## 行为准则
-- 遇到需要实时/最新信息的问题，必须先调 webSearch
-- 搜索结果不足时，换关键词重试（最多 2 次）
-- 基于搜索结果给出完整中文回答，不要只复述搜索片段
-- 如果信息不确定，明确告知用户"根据搜索结果，XX 可能不准确"
-
-## 输出格式
-- 使用 Markdown 格式化回答
-- 如有搜索来源，在末尾列出引用链接
-- 如涉及计算，展示计算过程
-
-## 示例
-用户："北京今天天气怎么样？"
-你：调用 getWeather({ city: "Beijing" }) → 基于结果给出完整天气描述
-
-用户："2024 年诺贝尔物理学奖得主是谁？"
-你：调用 webSearch({ query: "2024 诺贝尔物理学奖" }) → 整理结果给出完整回答
-```
-
-**在你的项目里练手：** 把 `agents.ts` 里的 system prompt 重构成 200+ 行的模板。
-
-### 1.2 Tool Design 进阶
-
-当前工具是"请求-响应"式的：
-
-```typescript
-// 当前：单一工具，独立执行
-export const webSearch = tool({
-  execute: async (input) => {
-    const results = await searchBing(input.query);
-    return { source: "Bing", query, totalResults: results.length, results };
-  },
-});
-```
-
-**需要学：**
-
-| 进阶点 | 说明 |
+| 已经会的 | 在项目里的体现 |
 |---|---|
-| **工具返回值设计** | 不仅返回 data，还要包含 metadata（来源、置信度、耗时） |
-| **工具错误分级** | 可重试错误 vs 致命错误 vs 降级结果 |
-| **长运行工具（Long-running tools）** | 需要轮询状态的任务（如"帮我生成一份报表"） |
-| **工具描述工程** | `description` 是给模型看的，写得不好模型就不会调用 |
-
-**改进后的工具返回值设计：**
-
-```typescript
-interface ToolResult {
-  success: boolean;
-  data: unknown;
-  metadata: {
-    source: string;       // 数据来源
-    confidence: number;   // 置信度 0-1
-    latencyMs: number;    // 耗时
-    cachedResult: boolean; // 是否缓存命中
-  };
-  error?: {
-    code: string;         // 错误码
-    retryable: boolean;   // 是否可重试
-    fallback?: unknown;   // 降级结果
-  };
-}
-```
-
-**在你的项目里练手：** 添加一个 `fetchWebPage` 工具（fetch → cheerio 解析 → 提取正文），练习工具链式调用（search → fetch → summarize）。
+| LLM 调用 | DeepSeek / GLM via OpenAI 兼容 API |
+| Tool Calling | 5 个工具，Zod schema + `ToolResult` 统一返回 |
+| SSE 流式输出 | `streamText()` + fullStream 逐事件推送 |
+| Agent 配置化 | system prompt / model / temperature 可切换 |
+| 对话持久化 | Supabase messages + summaries 表 |
+| 历史摘要 | 20 条触发自动摘要 |
+| **手写 Agent 循环** | 自己转 ReAct 循环，不依赖 SDK 隐式行为 |
+| 多平台凭证管理 | CMS 模型管理（DB 优先 + env 兜底） |
 
 ---
 
@@ -130,7 +51,60 @@ interface ToolResult {
 
 ### 2.1 Agentic Loop（ReAct / Plan-Execute）
 
-当前是**单次 `streamText` 调用**，AI SDK 帮你处理了 tool-call → tool-result → 继续生成的内部循环。真正的 Agent 需要**显式控制循环**：
+#### 已完成：循环本身（2026-09-11）
+
+**之前坏在哪**：`streamText()` 没传 `stopWhen`，吃到 AI SDK v7 的默认值
+`isStepCount(1)` —— 只跑一轮就退出：
+
+```
+1. 模型输出「正在搜索…」+ tool-call
+2. 工具执行完，tool-result 返回
+3. 循环结束 —— 模型根本没机会看到工具结果
+```
+
+工具结果永远进不到第二轮生成。当时靠 `generateForcedReply()`
+（第二次不带工具的调用 + 手写 prompt 注入结果）打补丁。
+
+**现在的实现**（`src/services/chatService.ts`）：
+
+```ts
+const STEP_STOP = isStepCount(1);        // 每轮只跑一步；循环是我们自己的
+const workingMessages = [...messages];
+
+for (let step = 1; step <= MAX_STEPS; step++) {
+  const result = streamText({
+    model, system, messages: workingMessages, tools, stopWhen: STEP_STOP,
+  });
+
+  for await (const chunk of result.fullStream) handleChunk(chunk, state, send);
+
+  const calls = await result.toolCalls;
+  if (calls.length === 0) break;                  // ← 正常出口：模型自己说完了
+
+  workingMessages.push(...(await result.responseMessages));  // ← observation 回填
+}
+```
+
+关键设计：
+
+- **循环由我们转**，SDK 只负责"一步"。每步之间都是可以插手的代码位置。
+- **正常出口是模型不再调工具**，不是步数。`MAX_STEPS`(12) 只是失控安全网 ——
+  触发时才用一次无工具的 `streamText` 强制收尾。
+- **`done` 整圈只发一次**（不是每轮），否则前端会在中间轮次就结束流。
+- 每轮打 `[agent] 第 N 轮：<工具名>` 日志。
+- 旧的 `generateForcedReply()` 已删除 —— 它是给转不起来的循环打的补丁。
+
+回归测试：`src/__tests__/services/chatService.test.ts`（6 个用例，锁住轮次、
+observation 回填、正常出口、安全网、done 只发一次）。
+
+> ⚠️ **通用教训**：AI SDK v7 的 `streamText` 默认 `stopWhen: isStepCount(1)`。
+> 不传 `stopWhen` 不等于"5 步"也不等于"无限"，而是**一轮**。文档里没写清楚的东西，
+> 去 `node_modules/ai/dist/index.js` 里搜默认值。
+
+#### 已完成：反思（Reflect）步骤（2026-09-11）
+
+循环的第一版里"反思"是隐式的 —— 模型看到 observation 后自己决定继续还是收尾。
+现在补上了独立的一步（`src/services/agentReflection.ts`），ReAct 的闭环完整了：
 
 ```
 ┌──────────────────────────────────────────┐
@@ -140,12 +114,30 @@ interface ToolResult {
 │  2. 规划 (Plan)   → 决定下一步做什么      │
 │  3. 行动 (Act)    → 调用工具             │
 │  4. 观察 (Observe)→ 解析工具结果          │
-│  5. 反思 (Reflect)→ 结果是否正确          │
+│  5. 反思 (Reflect)→ 结果是否正确   ✅ 已补 │
 │  6. 判断是否完成   → 是则输出，否则回 1   │
 └──────────────────────────────────────────┘
 ```
 
-**核心模式：**
+**实现方式**：循环里 `workingMessages.push(...responseMessages)` 之后调用
+`appendReflectionIfNeeded()`，它读 `result.toolResults` 的 `output`，检查：
+
+- `success === false` → 报出错误码，并按 `error.retryable` 区分「换参数重试可能有帮助」
+  还是「同样的参数重试不会有帮助」
+- `metadata.confidence < 0.75` → 报出「可信度低，可能不相关或信息不足」
+
+**关键设计：这不是一次额外的 LLM 调用。** 每轮都调一次模型做自检，token 成本会翻倍；
+而工具早就把判断依据放进了 `metadata`，代码层直接读就行。
+模型拿到这条提示后自己决定是换关键词重试，还是诚实收尾。
+
+阈值 0.75 是照着工具的**实际取值**定的：calculate/getCurrentTime 0.99、getWeather 0.92、
+fetchWebPage 0.85、webSearch 0.85（结果充足）/ 0.75（降级）/ 0.7（结果偏少）/ 0.6（降级且结果少）
+—— 0.75 这条线正好卡在「webSearch 没拿到足够结果」这个真实场景上，不是拍脑袋的数字。
+
+> 到这里，1.2 里设计的 `ToolResult.metadata` 终于**有人消费**了 ——
+> 在此之前它只是写给模型看的装饰。
+
+**核心模式**（选型参考）：
 
 | 模式 | 描述 | 适用场景 |
 |---|---|---|
@@ -154,89 +146,128 @@ interface ToolResult {
 | **Reflection** | 执行后自检结果是否正确 | 需要高准确率的场景 |
 | **ReWOO** | Reason Without Observation | 减少工具调用次数，提高效率 |
 
-**在你的项目里练手：** 用 AI SDK 的 `generateText` + 手动循环实现一个真正的 ReAct Agent：
-
-```typescript
-// 伪代码：ReAct Loop
-async function reactAgent(userQuery: string) {
-  const maxSteps = 5;
-  let context = userQuery;
-
-  for (let step = 0; step < maxSteps; step++) {
-    // 1. Think + Act
-    const { thought, action, actionInput } = await generateText({
-      model: deepseek.chat("deepseek-v4-flash"),
-      system: `你是 ReAct Agent。输出 JSON:
-        { "thought": "分析当前情况", "action": "工具名或 FINAL_ANSWER", "actionInput": {...} }`,
-      prompt: context,
-    });
-
-    // 2. 如果是最终答案，返回
-    if (action === "FINAL_ANSWER") return actionInput.answer;
-
-    // 3. 否则执行工具
-    const observation = await executeTool(action, actionInput);
-
-    // 4. 将观察结果加入上下文
-    context += `\n工具结果: ${JSON.stringify(observation)}`;
-    context += `\n请检查结果是否足够回答用户问题，不够则继续调用工具。`;
-  }
-
-  // 达到最大步数，强制生成最终答案
-  return await forceFinalAnswer(context);
-}
-```
-
 ### 2.2 工具组合与编排
 
 当前工具是扁平的：
 
 ```typescript
-export const chatTools = { webSearch, getWeather, getCurrentTime, calculate };
+export const tools = { webSearch, getWeather, getCurrentTime, calculate, fetchWebPage };
 ```
 
 Agent 需要：
 
-| 能力 | 说明 |
-|---|---|
-| **工具依赖图** | search → fetch_page → extract → analyze |
-| **并行工具调用** | 同时查天气和搜索新闻 |
-| **条件工具路由** | 根据上一步结果决定下一步用什么工具 |
-| **工具结果验证** | 检查工具返回是否有效，无效则重试或换方案 |
+| 能力 | 说明 | 现状 |
+|---|---|---|
+| **工具依赖图** | search → fetch_page → extract → analyze | 循环已支持，但靠 prompt 引导，无代码层编排 |
+| **并行工具调用** | 同时查天气和搜索新闻 | 靠 SDK 默认行为，无显式控制 |
+| **条件工具路由** | 根据上一步结果决定下一步用什么工具 | ❌ 无代码层逻辑 |
+| **工具结果验证** | 检查工具返回是否有效，无效则重试或换方案 | ✅ 已做（`agentReflection.ts` 消费 `confidence` / `retryable`） |
 
-### 2.3 结构化输出（Structured Output）
+**注意**：结果验证（`metadata.confidence` / `error.retryable`）已经在 2.1 的反思步骤里做了 ——
+但**只做到了"告诉模型"**。真正让代码层主导重试（自动换关键词重跑一次，而不是提示模型去跑）
+还没做，那属于本节的编排范畴。
 
-当前 SSE 事件是自由文本。Agent 需要结构化的中间状态：
+#### ⚠️ 更根本的问题：confidence 是手写的，不是算出来的（2026-09-11）
+
+反思整个建立在 `metadata.confidence` 上，但那个数字的真相是：
+
+| 工具 | confidence | 怎么来的 |
+|---|---|---|
+| `calculate` / `getCurrentTime` | 0.99 | 写死的常数 |
+| `getWeather` | 0.92 | 写死的常数 |
+| `fetchWebPage` | 0.85 | 写死的常数 |
+| `webSearch` | 0.85 / 0.7 / 0.75 / 0.6 | **唯一有逻辑的**：`结果条数 ≥3 ? 高 : 低`，再按主源/降级分档 |
+
+**它是"来源可信度"的先验，不是"与问题相关性"的测量。** 搜到 10 条结果但完全答非所问，
+照样拿 0.85——反思永远不会对"自信的跑题"报警。
+
+而且阈值（`agentReflection.ts` 的 `CONFIDENCE_FLOOR = 0.8`）和这些取值分处两个文件，
+**耦合关系没有任何机制保证**。曾经就因为「降级恰好等于 0.75 阈值」导致主源超时永远静默——
+那不是巧合，是这个结构的必然产物。
+
+**更真实的可信度可以加什么**（前两个基本免费）：
+
+| 信号 | 怎么算 | 成本 |
+|---|---|---|
+| 关键词重合度 | query 词与标题/摘要的词重合比例 | 免费 |
+| 域名多样性 | 结果来自几个不同域名 | 免费 |
+| 跨源一致性 | Bing 和 DDG 是否返回重叠 URL | 一次额外请求 |
+| LLM 判定 | 让模型给"这批结果和问题相关吗"打分 | 一次调用 |
+
+> 注意最后一行是陷阱：**反思的整个设计前提就是"不做额外 LLM 调用"**，
+> 再用一次调用去算可信度就本末倒置了。
+
+**便宜的防线**：加个测试把两个文件钉在一起 ——
+`expect(主源正常的 confidence).toBeGreaterThan(CONFIDENCE_FLOOR)`。
+谁改了数字测试立刻红，而不是等用户看到满屏琥珀色告警。
+
+### 2.3 结构化输出（Structured Output）—— ✅ 已完成（2026-09-11）
+
+**实现方式：没有新建 `AgentTrace` 类型，而是把 trace 字段挂在了 `ToolCallRecord` 上**
+（`src/types/chat/index.ts`）：
 
 ```typescript
-// Agent 的思考过程需要结构化
-interface AgentStep {
-  stepNumber: number;
-  thought: string;       // 我在想什么
-  action: string;        // 我决定做什么（工具名或 FINAL_ANSWER）
-  actionInput: unknown;  // 工具参数
-  observation: string;   // 观察到的工具结果
-  reflection?: string;   // 对结果的反思
-  isFinal: boolean;      // 是否完成
-}
+export interface ToolCallRecord {
+  id: string;
+  toolName: string;
+  args: Record<string, unknown>;
+  result?: unknown;
+  status: "calling" | "done" | "error";
 
-interface AgentTrace {
-  query: string;
-  steps: AgentStep[];
-  finalAnswer: string;
-  totalSteps: number;
-  totalDurationMs: number;
-  tokensUsed: number;
+  // ── Agent trace 字段 ──
+  step?: number;        // 第几轮（同轮并行调用共享）
+  confidence?: number;  // 工具自报可信度
+  latencyMs?: number;   // 工具自报耗时
+  thought?: string;     // 调这个工具之前模型说了什么
+  reflection?: string;  // 这一轮结果自检的结论
 }
 ```
+
+**为什么这么做**：`messages.tool_calls` 本来就是 JSONB，`ToolCallRecord[]` 原样落库、
+原样通过 API 回给前端。挂在这上面意味着**零迁移、零新增列**，trace 自动获得了
+持久化和前端渲染——凭空多出一个 `AgentTrace` 类型反而要新建表、改
+`messageService`、改 API、改 store 一路铺过去。
+
+代价是语义上略微不纯（`reflection` 是"轮"级别的，却重复挂在该轮的每条记录上）。
+考虑到反思只在有工具调用的轮次产生、且提示里本来就点名了具体工具，
+这个代价是可接受的。
+
+**落地后能看到什么**（`chat-message.tsx` 按 `step` 分组渲染）：
+
+```
+┌ 第 1 轮 ────────────────────────────┐
+│ 🧠 我需要先查一下天气…               │  ← thought
+│ ✓ 已查询天气 城市: Beijing           │
+│   可信度 92% · 320ms                 │  ← confidence / latency
+│ ⚠️ 【结果自检】…（琥珀色告示）        │  ← reflection
+└─────────────────────────────────────┘
+┌ 第 2 轮 ────────────────────────────┐
+│ ✓ 已数学计算 表达式: 22*9/5+32       │
+└─────────────────────────────────────┘
+```
+
+只有一轮时不显示「第 1 轮」标题——那是噪声。服务端同时打一份 trace 汇总日志：
+
+```
+[agent] 完成：2 轮，2 次工具调用，8.5s
+[agent]   step1 getWeather done confidence=0.92 320ms
+[agent]   step2 calculate done confidence=0.99 1ms
+[agent]   反思：未触发（所有结果自检通过）
+```
+
+**这一段修掉的真 bug**：反思阈值原本是 0.75，而 webSearch 降级（主源超时、
+fallback 成功且结果充足）恰好返回 0.75 —— `0.75 < 0.75` 为假，
+**主源挂掉这种最该知会用户的情况永远静默**。阈值改到 0.8，正好落在
+工具取值表里"主源成功(0.85) / 降级(0.75)"的天然分界上。
+
+**还没做的**：token 用量没进 trace（`streamText` 的 `usage` 没采集），
+跨对话的 trace 查询/聚合也没有——那些属于 3.3。
 
 ---
 
 ## 第三层：进阶 Agent 系统（职业级）
 
-### 3.1 Memory 系统
-
-当前的"记忆"是对话历史 + 摘要。真正的 Agent 记忆有三层：
+### 3.1 Memory 系统（仅剩 Episodic / Semantic）
 
 | 层级 | 含义 | 技术 | 你已有？ |
 |---|---|---|---|
@@ -267,6 +298,11 @@ CREATE OR REPLACE FUNCTION search_similar_conversations(
 $$ LANGUAGE sql STABLE;
 ```
 
+> **已有铺垫**：`docs/langchain-rag-integration-plan.md` 里已写了完整方案
+> （百炼 `text-embedding-v3` + LangChain + pgvector），依赖
+> `@langchain/core` / `@langchain/openai` / `@langchain/textsplitters` / `langchain` / `cheerio`
+> 都已装好，但 `src/lib/embeddings.ts` 和迁移文件都还没建 —— **规划有了，代码没写。**
+
 **在你的项目里练手：** 给 `conversations` 表加 embedding 列，实现"搜索历史对话"功能。
 
 ### 3.2 Multi-Agent 系统
@@ -293,6 +329,9 @@ $$ LANGUAGE sql STABLE;
 | **Orchestrator** | 一个主控 Agent 调遣子 Agent | 复杂任务拆解 |
 | **Debate/Review** | 多个 Agent 互相审查输出 | 需要高准确率 |
 | **Swarm** | 多个同质 Agent 并行处理 | 大量相似任务 |
+
+**现状**：`agents.ts` 有 2 个 Agent（`default` / `deep-think`），但靠用户在侧边栏**手动切换**
+—— 这是"手动路由"，不是 Router Agent。真正的 Router 得让模型自己判断该用哪个。
 
 **在你的项目里练手：** 把现有 `agents.ts` 扩展为多 Agent，做一个 Router：
 
@@ -340,6 +379,10 @@ const agents: AgentConfig[] = [
 └─────────────────────────────────────────────────────┘
 ```
 
+**现状**：唯一的可观测性是 `ToolResult.metadata`（source / confidence / latencyMs）、
+`[agent] 第 N 轮` 的 console 日志，和 `console.error`。
+工具跑了几毫秒、花了多少 token、哪一步失败了，都没有落盘。
+
 **推荐工具：**
 
 | 工具 | 说明 | 部署方式 |
@@ -348,6 +391,8 @@ const agents: AgentConfig[] = [
 | **LangSmith** | LangChain 官方的可观测平台 | SaaS |
 | **Braintrust** | Eval 框架 + 可观测 | SaaS / 自部署 |
 | **Helicone** | 轻量级 API 网关 + 可观测 | SaaS |
+
+> 和 2.3 的 `AgentTrace` 一起做最划算：先把 trace 结构化落库，再接 Langfuse。
 
 ### 3.4 MCP (Model Context Protocol)
 
@@ -365,26 +410,32 @@ AI SDK v7 已支持 MCP tools 集成。在你的项目里接入一个 MCP server
 
 ### 3.5 安全与护栏（Guardrails）
 
-当前项目在安全方面只做了基础的 JWT 认证。Agent 需要：
+**现状**：只有 JWT 认证 + 各工具的 `AbortSignal.timeout` + `calculate` 的沙箱
+（allowlist Math 函数，无全局访问）。其余全缺。
 
-| 层面 | 防护措施 |
-|---|---|
-| **输入层** | Prompt injection 检测、敏感词过滤 |
-| **执行层** | 工具调用权限控制、速率限制、超时 |
-| **输出层** | 内容安全过滤、PII 脱敏、事实性检查 |
-| **审计层** | 完整操作日志、异常行为告警 |
+| 层面 | 防护措施 | 现状 |
+|---|---|---|
+| **输入层** | Prompt injection 检测、敏感词过滤 | ❌ |
+| **执行层** | 工具调用权限控制、速率限制、超时 | ⚠️ 仅超时 |
+| **输出层** | 内容安全过滤、PII 脱敏、事实性检查 | ❌ |
+| **审计层** | 完整操作日志、异常行为告警 | ❌ |
 
-### 3.6 Provider 抽象与多模型路由
+> `webSearch` / `fetchWebPage` 会抓取任意外部网页内容并喂给模型 —— 这是最典型的
+> prompt injection 入口（网页里写"忽略之前的指令"）。**循环修好之后，这个风险变大了**：
+> 以前模型只跑一轮、看到工具结果的路径有限；现在工具结果会实打实地回填进上下文并
+> 影响后续所有轮次的决策。做这一层时优先堵这里。
 
-当前只用了 DeepSeek。生产环境需要：
+### 3.6 剩余部分：自动模型路由
+
+Provider 抽象（多平台 + 凭证管理 + 解析顺序）已完成。**剩下的是本节后半段 ——
+按任务特征自动选模型**：
 
 ```typescript
-// 多模型路由
 const modelRouter = {
   "deepseek-v4-flash": deepseek.chat("deepseek-v4-flash"),    // 日常对话
   "deepseek-v4-pro": deepseek.chat("deepseek-v4-pro"),        // 复杂推理
-  "claude-fable-5": anthropic("claude-fable-5"),                // 长文本/代码
-  "gpt-5-mini": openai("gpt-5-mini"),                           // 简单任务
+  "claude-fable-5": anthropic("claude-fable-5"),              // 长文本/代码
+  "gpt-5-mini": openai("gpt-5-mini"),                         // 简单任务
 };
 
 function selectModel(task: Task): Model {
@@ -394,40 +445,45 @@ function selectModel(task: Task): Model {
 }
 ```
 
+**现状**：模型选择是"用户选 Agent → Agent 声明偏好 model → 当前平台决定最终 model"，
+没有基于任务复杂度/成本的自动路由，也没有跨平台 fallback。
+
 ---
 
-## 推荐学习顺序（Timeline）
+## 推荐学习顺序（Timeline，已按实际进度重排）
 
 ```
-第 1-2 周：Prompt Engineering 深化
-  ├── 重写 system prompt（200+ 行，含 few-shot 示例）
-  ├── 给每个工具写更精准的 description
-  ├── 在你的项目里 A/B 测试不同 prompt 效果
-  └── 阅读：Anthropic Prompt Engineering Guide
+现在 → 第 2 周：用起来 + 攒数据 ★ 最高优先级
+  ├── 拿真实对话检验：反思触发后模型到底换没换关键词？
+  ├── 0.8 这个阈值吵不吵？（DDG 抽风时每轮都提示，可能反而浪费轮次）
+  ├── 把 token 用量也记进 trace（现在是空白）
+  └── 阅读：ReAct 论文 / Reflexion 论文（对照自己的实现看）
 
-第 3-4 周：Agent Loop 手写
-  ├── 用 AI SDK 的 generateText + 手动循环实现 ReAct
-  ├── 添加 2-3 个新工具（网页抓取、文件读写、JSON 解析）
-  ├── 实现工具链式调用 (search → fetch → summarize)
-  └── 阅读：ReAct 论文 (Yao et al., 2022)
+第 3-4 周：工具编排
+  ├── 代码层主导重试：confidence 低时自动换关键词重跑，而不是提示模型去跑
+  ├── 实现工具链式调用 (search → fetch → summarize) 的显式编排
+  ├── 条件路由：根据上一步结果决定下一步用哪个工具
+  └── webSearch 的两个源目前是"主源失败才降级"，可以考虑并行竞速
 
 第 5-6 周：Memory & RAG
-  ├── Supabase pgvector 集成
+  ├── 按 docs/langchain-rag-integration-plan.md 走（依赖已装，写代码即可）
+  ├── Supabase pgvector 集成 + 百炼 text-embedding-v3
   ├── 对话 embedding 生成 + 相似搜索
   ├── 实现"根据历史对话回答问题"
   └── 阅读：RAG 相关论文和最佳实践
 
 第 7-8 周：Multi-Agent & Eval
-  ├── Router Agent + 多 Agent 配置
-  ├── 接入 Langfuse tracing
+  ├── Router Agent + 多 Agent 配置（从手动切换 → 模型自动分发）
+  ├── 接入 Langfuse tracing（喂 AgentTrace）
   ├── 写 eval 脚本自动评估 Agent 输出
   └── 阅读：AutoGen / CrewAI 架构设计文档
 
 第 9-12 周：生产化
-  ├── 安全护栏（prompt injection 防护）
-  ├── 多模型路由 + fallback
+  ├── 安全护栏（prompt injection 防护，优先 webSearch/fetchWebPage 入口）
+  ├── 速率限制 + 审计日志
+  ├── 自动模型路由 + 跨平台 fallback
   ├── MCP 协议集成
-  ├── 性能优化（caching, batching, 并行工具调用）
+  ├── 性能优化（caching, batching）
   └── 部署监控（token 消耗、延迟、错误率）
 
 持续：读论文 & 关注前沿
@@ -446,7 +502,7 @@ function selectModel(task: Task): Model {
 |---|---|
 | [ReAct: Synergizing Reasoning and Acting in Language Models](https://arxiv.org/abs/2210.03629) | 奠定了 Reasoning + Acting 交替的 Agent 范式 |
 | [Plan-and-Solve Prompting](https://arxiv.org/abs/2305.04091) | 先规划再执行的提示策略 |
-| [Reflexion: Language Agents with Verbal Reinforcement Learning](https://arxiv.org/abs/2303.11366) | Agent 自我反思和改进 |
+| [Reflexion: Language Agents with Verbal Reinforcement Learning](https://arxiv.org/abs/2303.11366) | Agent 自我反思和改进 ← **下一步做反思时读这篇** |
 | [Tree of Thoughts](https://arxiv.org/abs/2305.10601) | 树状搜索推理空间 |
 | [Generative Agents: Interactive Simulacra of Human Behavior](https://arxiv.org/abs/2304.03442) | Agent 记忆和行为的经典 |
 
@@ -454,7 +510,7 @@ function selectModel(task: Task): Model {
 
 | 名称 | 用途 |
 |---|---|
-| [Vercel AI SDK](https://sdk.vercel.ai/) | 你已在用 — 继续深入 `generateText`、`streamText`、`tool()` |
+| [Vercel AI SDK](https://sdk.vercel.ai/) | 你已在用 — 继续深入 `generateText`、`streamText`、`stopWhen`、`tool()` |
 | [LangGraph](https://langchain-ai.github.io/langgraph/) | Agent 工作流编排（Python/JS） |
 | [OpenAI Agents SDK](https://platform.openai.com/docs/guides/agents) | Agent 循环、工具、多 Agent 的参考实现 |
 | [Langfuse](https://langfuse.com/) | 开源 LLM 可观测平台（tracing + eval + prompt mgmt） |
@@ -477,19 +533,31 @@ function selectModel(task: Task): Model {
 - ❌ 不需要从头学 Python（Node.js/TypeScript 生态已足够成熟）
 - ❌ 不需要换框架（AI SDK + DeepSeek + Supabase 是完整的技术栈）
 - ❌ 不需要从零写 Agent（已有 streaming、tool calling、persistence 基础设施）
+- ❌ 不需要再练 提示词工程 / 工具设计 / 多平台凭证管理 / Agent 循环与反思（已完成，见进度总览）
 
 ### 你需要重点突破的
 
-1. **思维模型转变**：从"请求-响应"变成"感知-规划-行动-反思"的自主循环
-2. **Prompt Engineering**：这是 Agent 的"编程语言"，投入产出比最高
-3. **Agent Loop 手写**：理解 AI SDK 底层发生了什么
-4. **可观测性**：没有 tracing 的 Agent 是黑盒，无法调试和优化
-5. **评估体系**：没有 eval 的 Agent 质量无法保证
+1. **可观测性**：过程能在界面上回放了，但数据只跟着单条消息走 ——
+   没法回答"最近 100 次对话里反思触发了多少次、模型照做了几次"
+2. **评估体系**：没有 eval 的 Agent 质量无法保证
+3. **代码层编排**：现在重试的决策权交给了模型（我们只提示）；下一步是让代码自己重跑
+4. **阈值需要数据才能调**：0.8 是照着工具取值表推出来的，不是测出来的
 
 ### 第一步建议
 
-在你的 Sapphire Studio 项目中：
+ReAct 闭环完整了，过程也能在界面上一步步看到。下一步最有价值的是**攒数据评估自己**：
 
-> **手动实现一个 ReAct Loop**：让模型在给出最终答案前，能自己决定"我需要再搜一次"、"这个结果不够好，换个关键词"、"让我先计算再判断"——而不是一次 `streamText` 调完就结束。
+现在反思触发了多少次、模型有没有照做、0.8 这个阈值吵不吵 —— 全都是靠感觉。
+trace 已经落在 `messages.tool_calls` 里了，写个查询就能统计：
 
-这比学任何新框架都更重要。
+```sql
+-- 反思触发率
+SELECT
+  COUNT(*) FILTER (WHERE tc->>'reflection' IS NOT NULL) AS reflected,
+  COUNT(*) AS total
+FROM messages m, jsonb_array_elements(m.tool_calls) tc
+WHERE m.created_at > now() - interval '7 days';
+```
+
+跑上一周，再决定阈值要不要调、反思提示词要不要改。
+**没有数据的调参就是瞎猜**——这正好把你推向 3.3（Langfuse tracing + eval）。

@@ -4,11 +4,20 @@
  * Persists messages to Supabase (no localStorage dependency)
  */
 
-import { streamText, generateText, type ModelMessage, type LanguageModel } from "ai";
+import {
+  streamText,
+  generateText,
+  isStepCount,
+  type ModelMessage,
+  type LanguageModel,
+  type TextStreamPart,
+  type ToolSet,
+} from "ai";
 import type { Message, ToolCallRecord } from "@/types/chat";
 import { createModelClient } from "@/lib/ai-client";
 import { tools } from "@/tools";
 import { getAgent, getDefaultAgent } from "@/config/agents";
+import { appendReflectionIfNeeded, readToolOutcome } from "./agentReflection";
 import { resolveApiConfig } from "./aiProviderService";
 import {
   updateConversationTimestamp,
@@ -19,6 +28,14 @@ import {
   saveUserMessage,
   saveAssistantMessage,
 } from "./messageService";
+
+/**
+ * 失控安全网 —— 这不是"调用次数上限"。
+ *
+ * 循环的正常出口是模型不再调用工具（模型自己决定答完了），
+ * 这个数字只在模型陷入"搜了又搜"停不下来时才会碰到。
+ */
+const MAX_STEPS = 12;
 
 /**
  * Convert app Message[] to AI SDK ModelMessage[]
@@ -48,6 +65,164 @@ function toModelMessages(messages: Message[], currentMessage: string): ModelMess
   });
 
   return modelMessages;
+}
+
+// ─── SSE plumbing ──────────────────────────────────────────
+
+/** 把一个结构化事件编码成 SSE 帧推给前端 */
+function makeEnqueue(
+  controller: ReadableStreamDefaultController<Uint8Array>,
+  encoder: TextEncoder
+) {
+  return (event: unknown): void => {
+    controller.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+  };
+}
+
+/** 一次对话里跨轮次累积的状态 */
+interface StreamState {
+  assistantContent: string;
+  toolCallRecords: ToolCallRecord[];
+  finishReason: string;
+  /** 当前这一轮模型输出的文字。用来给同轮的工具调用盖上"思考" */
+  roundText: string;
+}
+
+/**
+ * 处理一轮 streamText 里的单个 chunk：更新累积状态 + 转发 SSE 事件。
+ *
+ * 这里刻意不发 done —— done 只在整圈跑完后发一次，
+ * 否则前端会在中间轮次就把消息标记成"已完成"。
+ *
+ * @param step 当前是 Agent 循环的第几轮，写进 trace 用于事后回放
+ */
+function handleChunk(
+  chunk: TextStreamPart<ToolSet>,
+  state: StreamState,
+  send: (event: unknown) => void,
+  step: number
+): void {
+  switch (chunk.type) {
+    case "text-delta":
+      state.assistantContent += chunk.text;
+      state.roundText += chunk.text;
+      send({ type: "text", content: chunk.text });
+      break;
+
+    case "tool-call": {
+      const thought = state.roundText.trim() || undefined;
+      state.toolCallRecords.push({
+        id: chunk.toolCallId,
+        toolName: chunk.toolName,
+        args: chunk.input as Record<string, unknown>,
+        status: "calling",
+        step,
+        thought,
+      });
+      send({
+        type: "tool-call",
+        toolCallId: chunk.toolCallId,
+        toolName: chunk.toolName,
+        args: chunk.input,
+        step,
+        thought,
+      });
+      break;
+    }
+
+    case "tool-result": {
+      const idx = state.toolCallRecords.findIndex(
+        (tc) => tc.id === chunk.toolCallId
+      );
+      const outcome = readToolOutcome(chunk.toolName, chunk.output);
+      if (idx !== -1) {
+        state.toolCallRecords[idx] = {
+          ...state.toolCallRecords[idx],
+          result: chunk.output,
+          status: "done",
+          confidence: outcome?.confidence,
+          latencyMs: outcome?.latencyMs,
+        };
+      }
+      send({
+        type: "tool-result",
+        toolCallId: chunk.toolCallId,
+        toolName: chunk.toolName,
+        result: chunk.output,
+        confidence: outcome?.confidence,
+        latencyMs: outcome?.latencyMs,
+      });
+      break;
+    }
+
+    case "tool-error": {
+      const idx = state.toolCallRecords.findIndex(
+        (tc) => tc.id === chunk.toolCallId
+      );
+      if (idx !== -1) {
+        state.toolCallRecords[idx] = {
+          ...state.toolCallRecords[idx],
+          result: String(chunk.error),
+          status: "error",
+        };
+      } else {
+        state.toolCallRecords.push({
+          id: chunk.toolCallId,
+          toolName: chunk.toolName,
+          args: {},
+          result: String(chunk.error),
+          status: "error",
+          step,
+        });
+      }
+      send({
+        type: "tool-error",
+        toolCallId: chunk.toolCallId,
+        toolName: chunk.toolName,
+        error: String(chunk.error),
+        step,
+      });
+      break;
+    }
+
+    case "error":
+      send({ type: "error", error: String(chunk.error) });
+      break;
+
+    case "finish":
+      state.finishReason = chunk.finishReason;
+      break;
+  }
+}
+
+/**
+ * 一次 Agent 运行的 trace 汇总，打到日志里。
+ *
+ * 存在的理由：光看「第 N 轮：webSearch」回答不了
+ * "结果到底好不好 / 反思为什么没触发"这类问题 —— 关键是 confidence。
+ */
+function logTrace(records: ToolCallRecord[], steps: number, elapsedMs: number): void {
+  console.log(
+    `[agent] 完成：${steps} 轮，${records.length} 次工具调用，${(elapsedMs / 1000).toFixed(1)}s`
+  );
+
+  for (const r of records) {
+    const bits = [`step${r.step ?? "?"}`, r.toolName, r.status];
+    if (typeof r.confidence === "number") {
+      bits.push(`confidence=${r.confidence.toFixed(2)}`);
+    }
+    if (typeof r.latencyMs === "number" && r.latencyMs > 0) {
+      bits.push(`${r.latencyMs}ms`);
+    }
+    console.log(`[agent]   ${bits.join(" ")}`);
+  }
+
+  const reflected = records.filter((r) => r.reflection).length;
+  console.log(
+    reflected > 0
+      ? `[agent]   反思：${reflected} 条记录被标记`
+      : "[agent]   反思：未触发（所有结果自检通过）"
+  );
 }
 
 /**
@@ -81,207 +256,126 @@ export async function streamChatResponse(
 
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
-      let assistantContent = "";
-      const toolCallRecords: ToolCallRecord[] = [];
-      let streamFinished = false;
+      const send = makeEnqueue(controller, encoder);
+      const startedAt = Date.now();
+      const state: StreamState = {
+        assistantContent: "",
+        toolCallRecords: [],
+        finishReason: "unknown",
+        roundText: "",
+      };
 
-      const result = streamText({
-        model,
-        system: agent.systemPrompt,
-        messages,
-        tools,
-        temperature: agent.temperature,
-        maxOutputTokens: agent.maxTokens,
-      });
+      // 累积的对话上下文。每一轮的 assistant 消息 + 工具结果都追加进来，
+      // 下一轮 streamText 带着它们再问模型一次 —— 这就是 ReAct 的 observation 回填。
+      const workingMessages: ModelMessage[] = [...messages];
+
+      // 每轮只让 SDK 跑一步（一次生成 + 它触发的工具执行），循环由我们自己转。
+      const STEP_STOP = isStepCount(1);
+
+      let executedSteps = 0;
 
       try {
-        for await (const chunk of result.fullStream) {
-          switch (chunk.type) {
-            case "text-delta":
-              assistantContent += chunk.text;
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ type: "text", content: chunk.text })}\n\n`
-                )
-              );
-              break;
+        for (let step = 1; step <= MAX_STEPS; step++) {
+          executedSteps = step;
+          const result = streamText({
+            model,
+            system: agent.systemPrompt,
+            messages: workingMessages,
+            tools,
+            temperature: agent.temperature,
+            maxOutputTokens: agent.maxTokens,
+            stopWhen: STEP_STOP,
+          });
 
-            case "tool-call":
-              toolCallRecords.push({
-                id: chunk.toolCallId,
-                toolName: chunk.toolName,
-                args: chunk.input as Record<string, unknown>,
-                status: "calling",
-              });
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({
-                    type: "tool-call",
-                    toolCallId: chunk.toolCallId,
-                    toolName: chunk.toolName,
-                    args: chunk.input,
-                  })}\n\n`
-                )
-              );
-              break;
+          // 新一轮开始，"思考"重新累积
+          state.roundText = "";
 
-            case "tool-result":
-              // Update matching tool call record
-              const tcResultIdx = toolCallRecords.findIndex(
-                (tc) => tc.id === chunk.toolCallId
-              );
-              if (tcResultIdx !== -1) {
-                toolCallRecords[tcResultIdx] = {
-                  ...toolCallRecords[tcResultIdx],
-                  result: chunk.output,
-                  status: "done",
-                };
-              }
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({
-                    type: "tool-result",
-                    toolCallId: chunk.toolCallId,
-                    toolName: chunk.toolName,
-                    result: chunk.output,
-                  })}\n\n`
-                )
-              );
-              break;
-
-            case "tool-error": {
-              // Update matching tool-call record or create new one
-              const tcErrIdx = toolCallRecords.findIndex(
-                (tc) => tc.id === chunk.toolCallId
-              );
-              if (tcErrIdx !== -1) {
-                toolCallRecords[tcErrIdx] = {
-                  ...toolCallRecords[tcErrIdx],
-                  result: String(chunk.error),
-                  status: "error",
-                };
-              } else {
-                toolCallRecords.push({
-                  id: chunk.toolCallId,
-                  toolName: chunk.toolName,
-                  args: {},
-                  result: String(chunk.error),
-                  status: "error",
-                });
-              }
-            }
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({
-                    type: "tool-error",
-                    toolCallId: chunk.toolCallId,
-                    toolName: chunk.toolName,
-                    error: String(chunk.error),
-                  })}\n\n`
-                )
-              );
-              break;
-
-            case "error":
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({
-                    type: "error",
-                    error: String(chunk.error),
-                  })}\n\n`
-                )
-              );
-              break;
-
-            case "finish":
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({
-                    type: "done",
-                    finishReason: chunk.finishReason,
-                  })}\n\n`
-                )
-              );
-              streamFinished = true;
-              break;
+          for await (const chunk of result.fullStream) {
+            handleChunk(chunk, state, send, step);
           }
-        }
 
-        if (!streamFinished) {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({ type: "done", finishReason: "unknown" })}\n\n`
-            )
+          const calls = await result.toolCalls;
+
+          // ── 正常出口：模型这一轮没调工具，说明它认为可以作答了 ──
+          // 步数不由我们规定，由模型自己决定什么时候停下来。
+          if (calls.length === 0) {
+            console.log(`[agent] 第 ${step} 轮：模型不再调用工具，循环结束`);
+            break;
+          }
+
+          console.log(
+            `[agent] 第 ${step} 轮：${calls.map((c) => c.toolName).join(", ")}`
           );
-        }
 
-        // ── 3. Adaptive fallback: if model answer is too short after tool calls, force a streaming reply ──
-        const isTooShort =
-          assistantContent.length < 30 && toolCallRecords.length > 0;
-        if (!assistantContent || isTooShort) {
-          try {
-            const forcedContent = await generateForcedReply(
-              controller,
-              encoder,
+          // 把本轮的 assistant 消息和工具结果喂回上下文，进入下一轮
+          workingMessages.push(...(await result.responseMessages));
+
+          // ── Reflect：结果回填之后自检质量 ──
+          // 不做额外 LLM 调用，只读工具早就返回的 metadata（confidence/retryable）。
+          // 有问题就显式提示模型，而不是把烂结果原样丢回去让它自己猜。
+          appendReflectionIfNeeded(
+            workingMessages,
+            await result.toolResults,
+            step,
+            state.toolCallRecords,
+            send
+          );
+
+          // ── 安全网：模型反复搜不收敛，步数用尽 ──
+          // 此时上下文里已经有工具结果，逼它不带工具给出最终答案，
+          // 而不是让用户对着一堆工具卡片干等。
+          if (step === MAX_STEPS) {
+            console.warn(`[agent] 达到安全网上限 ${MAX_STEPS} 步，强制收尾`);
+            state.assistantContent += await streamFinalAnswer(
               model,
-              userMessage,
-              assistantContent,
-              toolCallRecords
+              workingMessages,
+              send
             );
-            // generateForcedReply streams deltas directly via controller,
-            // so we just accumulate the full text here for saving
-            if (forcedContent) {
-              assistantContent = (assistantContent || "") + forcedContent;
-            }
-          } catch {
-            if (!assistantContent) {
-              assistantContent =
-                "抱歉，未能生成有效回复。请尝试换个方式提问。";
-              controller.enqueue(
-                encoder.encode(
-                  `data: ${JSON.stringify({ type: "text", content: assistantContent })}\n\n`
-                )
-              );
-            }
           }
         }
 
-        // ── 4. Save assistant message to Supabase ──
-        if (assistantContent) {
-          saveAssistantMessage(conversationId, assistantContent, toolCallRecords).catch(
-            (err) => {
-              console.error("Failed to save assistant message:", err);
-            }
-          );
+        logTrace(state.toolCallRecords, executedSteps, Date.now() - startedAt);
+
+        // 极端兜底：模型一个字都没产出
+        if (!state.assistantContent) {
+          state.assistantContent = "抱歉，未能生成有效回复。请尝试换个方式提问。";
+          send({ type: "text", content: state.assistantContent });
         }
+
+        send({ type: "done", finishReason: state.finishReason });
+
+        // ── Save assistant message to Supabase ──
+        saveAssistantMessage(
+          conversationId,
+          state.assistantContent,
+          state.toolCallRecords
+        ).catch((err) => {
+          console.error("Failed to save assistant message:", err);
+        });
 
         controller.close();
 
-        // ── 4. Generate title after stream fully ends (non-blocking) ──
-        if (conversationHistory.length === 0 && assistantContent) {
+        // ── Generate title after stream fully ends (non-blocking) ──
+        if (conversationHistory.length === 0 && state.assistantContent) {
           generateAndSaveTitle(
             conversationId,
             model,
             userMessage,
-            assistantContent
+            state.assistantContent
           ).catch((err) => {
             console.error("Failed to generate conversation title:", err);
           });
         }
 
-        // ── 5. Post-stream side effects (non-blocking) ──
+        // ── Post-stream side effects (non-blocking) ──
         updateConversationTimestamp(conversationId).catch(() => {});
         checkAndSummarizeIfNeeded(conversationId, conversationHistory);
       } catch (error) {
         console.error("Stream error:", error);
-        controller.enqueue(
-          encoder.encode(
-            `data: ${JSON.stringify({
-              type: "error",
-              error: error instanceof Error ? error.message : "Stream error",
-            })}\n\n`
-          )
-        );
+        send({
+          type: "error",
+          error: error instanceof Error ? error.message : "Stream error",
+        });
         controller.close();
       }
     },
@@ -342,64 +436,28 @@ async function generateAndSaveTitle(
   }
 }
 
-// ─── Forced Reply (now streaming) ──────────────────────────
+// ─── Safety-net Final Answer ───────────────────────────────
 
 /**
- * When the model's streaming response is too short or empty after tool calls,
- * make a streaming follow-up call to force a complete answer.
- * Uses streamText (without tools) so the reply streams word-by-word.
+ * 只在安全网触发时调用：模型耗尽了步数仍在调工具。
+ *
+ * 此时 workingMessages 里已经带着完整的工具结果（是标准的 tool-result 消息，
+ * 不需要像以前那样手动把结果拼成字符串塞进 prompt），所以这里只要
+ * 关掉工具、明确要求收尾即可。
  */
-async function generateForcedReply(
-  controller: ReadableStreamDefaultController<Uint8Array>,
-  encoder: TextEncoder,
+async function streamFinalAnswer(
   model: LanguageModel,
-  userMessage: string,
-  partialContent: string,
-  toolCallRecords: ToolCallRecord[]
+  workingMessages: ModelMessage[],
+  send: (event: unknown) => void
 ): Promise<string> {
-  // Format tool results for context injection
-  const toolResultsText = toolCallRecords
-    .filter((tc) => tc.status === "done" && tc.result)
-    .map((tc) => {
-      const resultStr =
-        typeof tc.result === "string" ? tc.result : JSON.stringify(tc.result);
-      return `[${tc.toolName} 返回结果]:\n${resultStr}`;
-    })
-    .join("\n\n");
-
-  const systemPrompt = [
-    "你已通过工具获取了信息。现在请基于这些信息回答用户的问题。",
-    "",
-    "重要规则：",
-    "- 如果工具返回的数据与用户问题相关，用 Markdown 组织回答（标题、列表、表格），标注来源 [来源](url)",
-    "- 如果工具返回的数据与用户问题不相关或无效，必须诚实告知用户，然后用自己的知识给出有用建议",
-    "- 不要强行解读不相关的搜索结果",
-  ].join("\n");
-
-  const modelMessages: ModelMessage[] = [
-    { role: "user", content: `用户问题：${userMessage}` },
-  ];
-
-  // Inject tool results as context
-  if (toolResultsText) {
-    modelMessages.push({
-      role: "user",
-      content: `以下是工具返回的数据：\n\n${toolResultsText}\n\n请基于以上数据回答用户的问题。`,
-    });
-  }
-
-  // Include partial content if any (so the model can build on it)
-  if (partialContent) {
-    modelMessages.push({ role: "assistant", content: partialContent });
-  }
-
-  modelMessages.push({ role: "user", content: "请给出完整回答：" });
-
-  // Stream using AI SDK — no tools to avoid infinite loop
   const result = streamText({
     model,
-    system: systemPrompt,
-    messages: modelMessages,
+    system: [
+      "你已经用完了可用的工具调用预算，现在必须直接作答。",
+      "请基于上面的对话和工具结果，用 Markdown 给出最终回答。",
+      "如果拿到的信息不足以完整回答，诚实地说明哪部分没有查到，不要编造。",
+    ].join("\n"),
+    messages: workingMessages,
     temperature: 0.7,
     maxOutputTokens: 2048,
   });
@@ -409,11 +467,7 @@ async function generateForcedReply(
   for await (const chunk of result.fullStream) {
     if (chunk.type === "text-delta") {
       fullContent += chunk.text;
-      controller.enqueue(
-        encoder.encode(
-          `data: ${JSON.stringify({ type: "text", content: chunk.text })}\n\n`
-        )
-      );
+      send({ type: "text", content: chunk.text });
     }
   }
 

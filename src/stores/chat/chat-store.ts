@@ -8,6 +8,20 @@ import { createStore } from "zustand/vanilla";
 import type { Message, ToolCallRecord, ChatStreamEvent } from "@/types/chat";
 import type { Conversation } from "@/types/chat";
 
+/**
+ * 把结果自检的结论盖章到对应轮次的工具记录上。
+ * 抽成独立函数纯粹是因为 sendMessage 里的 switch 已经嵌得太深了。
+ */
+function stampReflection(
+  records: ToolCallRecord[],
+  step: number,
+  content: string
+): void {
+  for (const record of records) {
+    if (record.step === step) record.reflection = content;
+  }
+}
+
 export type ChatState = {
   conversations: Conversation[];
   currentConversationId: string | null;
@@ -256,6 +270,8 @@ export const createChatStore = (init?: Partial<ChatState>) =>
                     toolName: event.toolName,
                     args: event.args,
                     status: "calling",
+                    step: event.step,
+                    thought: event.thought,
                   });
                   if (hasAssistantMessage) {
                     set((state) => ({
@@ -277,6 +293,8 @@ export const createChatStore = (init?: Partial<ChatState>) =>
                       ...toolCallRecords[tcIndex],
                       result: event.result,
                       status: "done",
+                      confidence: event.confidence,
+                      latencyMs: event.latencyMs,
                     };
                   } else {
                     toolCallRecords.push({
@@ -285,6 +303,8 @@ export const createChatStore = (init?: Partial<ChatState>) =>
                       args: {},
                       result: event.result,
                       status: "done",
+                      confidence: event.confidence,
+                      latencyMs: event.latencyMs,
                     });
                   }
                   if (hasAssistantMessage) {
@@ -305,7 +325,27 @@ export const createChatStore = (init?: Partial<ChatState>) =>
                     args: {},
                     result: event.error,
                     status: "error",
+                    step: event.step,
                   });
+                  if (hasAssistantMessage) {
+                    set((state) => ({
+                      currentMessages: state.currentMessages.map((m) =>
+                        m.id === assistantId
+                          ? { ...m, toolCalls: [...toolCallRecords] }
+                          : m
+                      ),
+                    }));
+                  }
+                  break;
+
+                case "reflection":
+                  // 把自检结论盖章到这一轮的工具记录上，界面上就能看到
+                  // "Agent 自己发现结果有问题"
+                  stampReflection(
+                    toolCallRecords,
+                    event.step,
+                    event.content
+                  );
                   if (hasAssistantMessage) {
                     set((state) => ({
                       currentMessages: state.currentMessages.map((m) =>

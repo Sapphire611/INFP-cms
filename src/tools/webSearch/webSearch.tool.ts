@@ -1,11 +1,14 @@
 /**
- * webSearch tool — Bing primary + DuckDuckGo fallback, zero API key.
+ * webSearch tool — Bing / DuckDuckGo 双源，零 API key。
  * HTML parsing via cheerio (jQuery-like DOM API), replacing fragile regex.
  *
+ * 主源按环境选（见 pickPrimarySource）：开发用 Bing，生产用 DuckDuckGo，
+ * 另一个自动作为降级源。
+ *
  * Error grading:
- *   - Bing TIMEOUT → retryable, fall back to DuckDuckGo
- *   - DuckDuckGo TIMEOUT → fatal (both sources exhausted)
- *   - EMPTY_RESULTS → low confidence, model should try different keywords
+ *   - 主源 TIMEOUT → retryable, 降级到另一个源
+ *   - 两个源都 TIMEOUT → fatal (ALL_SOURCES_FAILED)
+ *   - EMPTY_RESULTS → 低 confidence，模型该换关键词
  */
 import { tool } from "ai";
 import { z } from "zod";
@@ -187,14 +190,29 @@ async function searchBing(query: string): Promise<SearchResultItem[]> {
 // Tool Definition
 // ═══════════════════════════════════════════════════════════════
 
-/** 检测查询是否包含中文 */
-function isChineseQuery(query: string): boolean {
-  return /[一-鿿]/.test(query);
+interface SearchProvider {
+  name: string;
+  fn: (query: string) => Promise<SearchResultItem[]>;
+}
+
+const BING: SearchProvider = { name: "Bing", fn: searchBing };
+const DUCKDUCKGO: SearchProvider = { name: "DuckDuckGo", fn: searchDuckDuckGo };
+
+/**
+ * 主搜索源按环境选：
+ *   - 开发：Bing。本地网络到 DuckDuckGo 经常超时（实测 8s+ 才降级），Bing 快得多
+ *   - 生产：DuckDuckGo。部署机 IP 更容易被 Bing 拦
+ *
+ * ⚠️ 这里不再看查询语言。改动前是「中文 → Bing，英文 → DuckDuckGo」，
+ * 那条规则被环境优先级取代了。
+ */
+function pickPrimarySource(): SearchProvider {
+  return process.env.NODE_ENV === "production" ? DUCKDUCKGO : BING;
 }
 
 export const webSearch = tool({
   description: [
-    "联网搜索，获取实时最新信息。中文查询优先用 Bing，英文查询优先用 DuckDuckGo，一个失败自动切换另一个。",
+    "联网搜索，获取实时最新信息。两个搜索源互为备份，一个失败自动切换另一个。",
     "何时调用：用户询问近期事件、新闻、具体攻略、产品价格、评测对比、",
     "最新动态、活动信息等需要联网获取数据的场景。",
     "返回结果包含标题、摘要、URL — 基于这些信息给出完整分析，标注来源。",
@@ -210,15 +228,9 @@ export const webSearch = tool({
   execute: async (input): Promise<ToolResult<SearchData>> => {
     const { query } = input;
     const start = Date.now();
-    const chinese = isChineseQuery(query);
 
-    // 中文 → Bing 优先, 英文 → DuckDuckGo 优先
-    const primary = chinese
-      ? { name: "Bing", fn: searchBing }
-      : { name: "DuckDuckGo", fn: searchDuckDuckGo };
-    const fallback = chinese
-      ? { name: "DuckDuckGo", fn: searchDuckDuckGo }
-      : { name: "Bing", fn: searchBing };
+    const primary = pickPrimarySource();
+    const fallback = primary.name === "Bing" ? DUCKDUCKGO : BING;
 
     // ── Primary ──
     try {

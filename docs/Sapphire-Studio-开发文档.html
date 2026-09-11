@@ -105,26 +105,32 @@
 ├─────────────────────────────────────────────────────────┤
 │  SSE Transport    │  text/event-stream                  │
 │                   │  text | tool-call | tool-result     │
-│                   │  tool-error | done | error          │
+│                   │  tool-error | reflection | done     │
+├─────────────────────────────────────────────────────────┤
+│  Agent Loop       │  手写 ReAct 循环 (chatService.ts)   │
+│                   │  每轮 stopWhen: isStepCount(1)      │
 ├─────────────────────────────────────────────────────────┤
 │  AI SDK v7        │  streamText() + generateText()      │
 │                   │  @ai-sdk/openai (DeepSeek 适配)     │
 ├─────────────────────────────────────────────────────────┤
-│  Model            │  deepseek-v4-flash (默认)           │
-│                   │  deepseek-v4-pro (深度思考)         │
+│  Model            │  CMS 模型管理启用的平台优先         │
+│                   │  未配置时回退 DEEPSEEK_* 环境变量   │
 ├─────────────────────────────────────────────────────────┤
-│  Agent System     │  Sapphire AI (v4-flash, 始终联网)   │
+│  Agent System     │  Sapphire AI (v4-flash, 按需联网)   │
 │                   │  深度思考 (v4-pro, 逐步推理)        │
 ├─────────────────────────────────────────────────────────┤
-│  Tools (server)   │  webSearch  → Bing HTML + DDG 降级  │
+│  Tools (server)   │  webSearch → Bing/DDG 按环境选主源  │
+│                   │  fetchWebPage → cheerio 提取正文    │
 │                   │  getWeather → wttr.in               │
 │                   │  getCurrentTime → Intl.DateTime     │
-│                   │  calculate  → sandboxed Function     │
+│                   │  calculate → sandboxed Function     │
+├─────────────────────────────────────────────────────────┤
+│  Reflection       │  自检工具结果质量，问题回灌给模型   │
+│                   │  读 confidence/retryable，零额外调用│
 ├─────────────────────────────────────────────────────────┤
 │  Persistence      │  Supabase: conversations + messages │
-│                   │  标题自动生成 (generateText)         │
-│                   │  长对话摘要 (20 条触发)              │
-│                   │  Forced Reply 兜底                  │
+│                   │  tool_calls JSONB 含 trace 字段     │
+│                   │  标题生成 + 长对话摘要 (20 条触发)  │
 └─────────────────────────────────────────────────────────┘
   </div>
 
@@ -185,7 +191,8 @@
 │   └── ai-client.ts           # DeepSeek 客户端 (懒加载 + Proxy)
 ├── services/
 │   ├── chatService.ts         # streamText + SSE + 标题生成 + forced reply
-│   ├── chatTools.ts           # Tool 定义 (Bing → DuckDuckGo 搜索等)
+│   ├── chatTools.ts           # @deprecated，转发到 src/tools/
+│   ├── agentReflection.ts     # 反思步骤：自检工具结果质量
 │   ├── searchService.ts       # 搜索服务 (Bing HTML 抓取 + DuckDuckGo 降级)
 │   ├── messageService.ts      # 消息 CRUD (Supabase)
 │   ├── conversationService.ts # 对话 CRUD
@@ -227,25 +234,41 @@ export const CHAT_MODEL = "deepseek-v4-flash";</code></pre>
 <!-- ========== 6. Tools ========== -->
 <div class="card" id="tools">
   <h2><span>🧰</span>六、AI 工具集</h2>
-  <p>文件：<code>src/services/chatTools.ts</code>。四个工具均在服务端执行，失败时 throw error（AI SDK 发 tool-error 事件，UI 显示红标❌）。最多 5 步工具调用链。</p>
+  <p>文件：<code>src/tools/</code>（每个工具一个目录，barrel 导出在 <code>src/tools/index.ts</code>）。五个工具均在服务端执行，返回值统一包成 <code>ToolResult&lt;T&gt;</code>——含 <code>metadata</code>（来源 / 可信度 / 耗时）和分级 <code>error</code>（错误码 / 是否可重试 / 降级结果）。</p>
+  <p>工具链长度<strong>不由代码限制</strong>，由模型自己决定何时停止调用；<code>MAX_STEPS = 12</code> 只是失控安全网，触发时用一次无工具的 <code>streamText</code> 强制收尾。</p>
 
   <table>
     <tr><th style="width:120px">工具</th><th style="width:150px">数据源</th><th style="width:60px">Key</th><th>说明</th></tr>
-    <tr><td><code>webSearch</code></td><td>Bing → DuckDuckGo</td><td><span class="badge badge-free">免费</span></td><td>
-      <strong>Bing 优先</strong>（<code>cn.bing.com</code> 国内直连），三层降级解析。<br>
-      失败时自动回退 DuckDuckGo。10s 超时。
+    <tr><td><code>webSearch</code></td><td>Bing / DuckDuckGo</td><td><span class="badge badge-free">免费</span></td><td>
+      <strong>主源按环境选</strong>（开发 Bing / 生产 DuckDuckGo），另一个自动降级。<br>
+      cheerio 解析 HTML，8s 超时。返回 <code>degraded</code> 标记 + 按结果条数给可信度。
     </td></tr>
+    <tr><td><code>fetchWebPage</code></td><td>任意 URL</td><td><span class="badge badge-free">免费</span></td><td>抓取网页正文（cheerio 去脚本/导航），配合 webSearch 做深读。</td></tr>
     <tr><td><code>getWeather</code></td><td>wttr.in</td><td><span class="badge badge-free">免费</span></td><td>全球城市天气，JSON API。8s 超时。</td></tr>
     <tr><td><code>getCurrentTime</code></td><td>Intl.DateTimeFormat</td><td><span class="badge badge-free">内置</span></td><td>支持时区参数，默认 Asia/Shanghai。</td></tr>
     <tr><td><code>calculate</code></td><td>沙箱 new Function()</td><td><span class="badge badge-free">内置</span></td><td>Math 函数白名单，无全局访问。</td></tr>
   </table>
 
-  <h3>Bing 搜索三层降级</h3>
-  <ol class="steps">
-    <li>解析 <code>li.b_algo</code> 块（标准桌面版结构）</li>
-    <li>通用链接提取（过滤 bing/microsoft 自身链接，>5 字文本）</li>
-    <li>换 <code>cn.bing.com</code> 再试一次</li>
-  </ol>
+  <h3>双搜索源 + 环境决定主源</h3>
+  <p>两个源互为备份，主源按环境选（<code>pickPrimarySource()</code>）：</p>
+  <table>
+    <tr><th style="width:120px">环境</th><th style="width:140px">主源</th><th>原因</th></tr>
+    <tr><td>开发</td><td><code>Bing</code></td><td>本地网络到 DuckDuckGo 经常超时（实测 8s+ 才降级）</td></tr>
+    <tr><td>生产</td><td><code>DuckDuckGo</code></td><td>部署机 IP 更容易被 Bing 拦</td></tr>
+  </table>
+  <p>主源失败自动降级到另一个；两个都挂了返回 <code>ALL_SOURCES_FAILED</code>（retryable）。</p>
+  <div class="tip"><strong>注意：</strong>这条规则取代了早期的「中文→Bing、英文→DuckDuckGo」语言路由。查询语言不再影响源的选择。</div>
+
+  <h3>可信度（confidence）是怎么来的</h3>
+  <p><strong>不是算出来的，是手写的常数</strong>——表达的是「这个来源按构造值多少信任」，不是「结果和问题有多相关」：</p>
+  <table>
+    <tr><th style="width:180px">工具</th><th>取值</th></tr>
+    <tr><td><code>calculate</code> / <code>getCurrentTime</code></td><td>0.99（固定）</td></tr>
+    <tr><td><code>getWeather</code></td><td>0.92（固定）</td></tr>
+    <tr><td><code>fetchWebPage</code></td><td>0.85（固定）</td></tr>
+    <tr><td><code>webSearch</code></td><td>唯一有逻辑的：<br>主源成功 → 结果 ≥3 条 0.85 / 否则 0.7<br>降级成功 → 结果 ≥3 条 0.75 / 否则 0.6</td></tr>
+  </table>
+  <div class="tip"><strong>这带来两个已知问题：</strong>① 搜到 10 条结果但答非所问，照样 0.85；② 反思阈值 <code>0.8</code> 和这些取值是两个文件里的独立常数，谁改了数字另一处不会跟着变——曾经就因为「降级恰好等于 0.75 阈值」而永远静默。加测试钉住两者的关系是个便宜防线。</div>
   <div class="tip green"><strong>全部免费，零 API Key。</strong>只要配好 DEEPSEEK_API_KEY，AI 系统即用。</div>
 </div>
 
@@ -261,7 +284,7 @@ export const CHAT_MODEL = "deepseek-v4-flash";</code></pre>
       <td>Bot</td>
       <td><code>deepseek-v4-flash</code></td>
       <td>8192</td>
-      <td>默认助手，专业精准，始终联网。<br>Markdown 结构化输出 + 来源标注，搜索后必须总结分析。</td>
+      <td>默认助手，专业精准，<strong>按需联网</strong>。<br>Markdown 结构化输出 + 来源标注，搜索后必须总结分析。</td>
     </tr>
     <tr>
       <td><strong>深度思考</strong></td>
@@ -302,36 +325,136 @@ POST /api/chat
   │
   └─ ReadableStream.start()
        │
-       ├─ streamText({ model, system, messages, tools, stopWhen: isStepCount(5) })
+       ├─ 2. 手写 Agent 循环（for step = 1..MAX_STEPS）
        │    │
-       │    ├─ text-delta → SSE { type: "text", content }
-       │    ├─ tool-call  → SSE { type: "tool-call", toolCallId, toolName, args }
-       │    ├─ tool-result→ SSE { type: "tool-result", toolCallId, toolName, result }
-       │    ├─ tool-error → SSE { type: "tool-error", toolCallId, toolName, error }
-       │    └─ finish     → SSE { type: "done", finishReason }
+       │    ├─ streamText({ ..., stopWhen: isStepCount(1) })  ← 只跑一步，循环归我们
+       │    │    └─ chunk 转发 → SSE { text | tool-call | tool-result | tool-error }
+       │    │
+       │    ├─ calls = await result.toolCalls
+       │    ├─ calls.length === 0 → break          ← 正常出口：模型自己说完了
+       │    │
+       │    ├─ workingMessages.push(...responseMessages)   ← observation 回填
+       │    ├─ appendReflectionIfNeeded(...)       ← Reflect：自检结果质量
+       │    │    └─ 有问题 → 追加 user 消息 + SSE { reflection }
+       │    │
+       │    └─ step === MAX_STEPS → streamFinalAnswer()    ← 安全网兜底（无工具收尾）
        │
-       ├─ 如果 assistantContent 为空 → forced reply (generateText 补发)
-       ├─ saveAssistantMessage() → Supabase
+       ├─ SSE { type: "done", finishReason }       ← 整圈只发一次
+       ├─ saveAssistantMessage() → Supabase（tool_calls JSONB 含 trace 字段）
        ├─ controller.close()
        ├─ generateAndSaveTitle() → generateText() → Supabase
        └─ updateConversationTimestamp() + summarization check (≥20 条触发)
 
 Client (chat-store.ts):
   ├─ SSE 事件消费 → 更新 currentMessages state
+  ├─ reflection 事件 → 盖章到该轮工具记录上
   ├─ isSending=false → 移动对话到列表顶部
   └─ 5s 后 loadConversations() 取回服务器生成的标题
   </div>
+
+  <div class="tip"><strong>为什么循环要手写？</strong>AI SDK v7 的 <code>streamText</code> 默认 <code>stopWhen: isStepCount(1)</code>。不传 <code>stopWhen</code> 不等于「5 步」也不等于「无限」，而是<strong>一轮</strong>——工具结果永远进不到第二轮生成。这个默认值曾经让整个 Agent 退化成「单轮工具调用 + 手写补丁」，且没有任何报错。</div>
+
+  <h3>完整链路：从按回车到回答上屏</h3>
+  <div class="tip"><strong>行号核对于 2026-09-11。</strong>行号会随代码变动漂移——请以<strong>函数名和代码片段</strong>为准，行号只用来快速定位。</div>
+
+  <table>
+    <tr><th style="width:44px">#</th><th style="width:300px">位置</th><th>做什么</th></tr>
+    <tr><td>①</td><td><code>chat-input.tsx:19-31</code> <code>handleSubmit()</code></td><td>防空输入 + 清空输入框。其余全交给 store。</td></tr>
+    <tr><td>②</td><td><code>chat-store.ts:162-172</code> <code>sendMessage()</code></td><td>没有 <code>currentConversationId</code> 就先 <code>createConversation()</code>。</td></tr>
+    <tr><td>③</td><td><code>chat-store.ts:174-190</code></td><td>造用户消息对象 → 乐观上屏 → 快照历史。</td></tr>
+    <tr><td>④</td><td><code>chat-store.ts:193-202</code></td><td><strong>唯一一次跨网络发送</strong>（POST /api/chat）。</td></tr>
+    <tr><td>⑤</td><td><code>api/chat/route.ts:17-54</code></td><td>验 JWT → 校验参数 → 转交 chatService → 包成 SSE 响应。</td></tr>
+    <tr><td>⑥</td><td><code>chatService.ts:233-372</code></td><td>Agent 循环（见上方流程图）。</td></tr>
+    <tr><td>⑦</td><td><code>chat-store.ts:210-226</code></td><td>SSE 解析循环（读字节 → 切帧 → 拼残片）。</td></tr>
+    <tr><td>⑧</td><td><code>chat-store.ts:238-367</code></td><td>事件分发 switch，更新 <code>currentMessages</code>。</td></tr>
+    <tr><td>⑨</td><td><code>chat-store.ts:375-382</code></td><td>收尾：<code>isStreaming=false</code> / <code>isSending=false</code>。</td></tr>
+  </table>
+
+  <h4>③ 乐观更新 —— 全流程最关键的一段</h4>
+<pre><code>// chat-store.ts:174-190
+const userMessage: Message = {
+  id: crypto.randomUUID(),     // ★ id 由浏览器生成，服务器此刻不知道这条消息存在
+  role: "user", content, timestamp: new Date(),
+};
+const messagesBeforeSend = get().currentMessages;   // ★ 必须在下一行 set 之前快照
+set((state) => ({
+  currentMessages: [...state.currentMessages, userMessage],   // 立刻上屏
+  isSending: true, error: null,
+}));
+const assistantId = crypto.randomUUID();   // AI 消息的 id 也先占好</code></pre>
+  <ul>
+    <li><strong>为什么叫"乐观"</strong>：消息还没存进数据库就先显示了。用户感觉不到延迟，代价是本地和服务器可能不一致。</li>
+    <li><strong>★ 快照顺序不能反</strong>：<code>messagesBeforeSend</code> 必须在 <code>set()</code> 之前取。反了的话，发出去的"历史"里会包含这条新消息，模型会看到重复的用户提问。</li>
+    <li><strong>★ id 是自己造的</strong>：所以前端能在服务器返回之前就更新这条消息，不必等。</li>
+  </ul>
+
+  <h4>④ 请求体 —— 历史是前端现发的</h4>
+<pre><code>// chat-store.ts:196-201
+body: JSON.stringify({
+  conversationId: newConversationId,
+  message: content,
+  agentId: "default",                    // ← 硬编码，永远用默认 Agent
+  conversationHistory: messagesBeforeSend,   // ← 整个历史塞在这里
+}),</code></pre>
+  <p>服务端<strong>不会</strong>去查数据库拿历史。省一次往返的代价：前端状态错了模型看到的上下文就错了；长对话请求体越来越大；开两个标签页会互相打架。</p>
+
+  <h4>⑦ SSE 解析 —— 流式的全部秘密</h4>
+<pre><code>// chat-store.ts:210-226
+const reader = response.body!.getReader();
+const decoder = new TextDecoder();
+let buffer = "";
+while (true) {
+  const { done, value } = await reader.read();
+  if (done) break;
+  buffer += decoder.decode(value, { stream: true });
+  const lines = buffer.split("\n\n");   // SSE 帧以空行分隔
+  buffer = lines.pop() || "";           // ★ 残片留到下一轮
+  for (const line of lines) { /* JSON.parse(line.slice(6)) */ }
+}</code></pre>
+  <div class="tip"><strong>★ 这行是最容易写错的地方。</strong>网络包会在任意字节位置断开，一个 SSE 帧可能分两次到达。<code>pop()</code> 把最后一个（可能不完整的）片段留在 buffer 里等下一个包拼上。删掉它，就会随机丢事件、或者 JSON.parse 直接抛错。所谓"流式"没有魔法——就是一个 while 循环不停读字节。</div>
+
+  <h4>两条独立路径，写同一个 state</h4>
+  <table>
+    <tr><th style="width:120px">场景</th><th style="width:300px">走哪条路</th><th>写入方</th></tr>
+    <tr><td>发消息</td><td><code>POST /api/chat</code>（SSE）→ 事件驱动</td><td>客户端逐事件拼出内容</td></tr>
+    <tr><td>刷新 / 切对话</td><td><code>loadMessages()</code> → <code>GET /api/chat/conversations/[id]/messages</code></td><td>从 Supabase 读回来</td></tr>
+  </table>
+  <p>两条路都写 <code>currentMessages</code>，但代码完全不同。<strong>出问题时先判断是哪条路断的</strong>——这是排查聊天问题最重要的分流。<code>loadMessages</code> 里有一行 <code>timestamp ? new Date(m.timestamp) : new Date()</code>：JSON 传输后 <code>Date</code> 变成字符串，不转的话时间显示会挂。</p>
+
+  <h4>改需求该动哪几行</h4>
+  <table>
+    <tr><th style="width:240px">想做的事</th><th>改哪</th></tr>
+    <tr><td>换 Agent / 让用户选 Agent</td><td><code>chat-store.ts:199</code>（现在硬编码 <code>"default"</code>）</td></tr>
+    <tr><td>加"重新生成"按钮</td><td>复用 <code>193-202</code>，但 <code>conversationHistory</code> 要砍掉最后两条</td></tr>
+    <tr><td>历史改由服务端查库</td><td>删 <code>chat-store.ts:200</code>，改 <code>chatService.ts</code> 的 <code>toModelMessages()</code> 调用处</td></tr>
+    <tr><td>加/改 SSE 事件</td><td>服务端 <code>handleChunk()</code> + <code>types/chat/index.ts</code> + store 的 switch，<strong>三处必须同时改</strong></td></tr>
+    <tr><td>改 UI 展示</td><td><code>chat-message.tsx</code>（能显示什么取决于事件里带了哪些字段）</td></tr>
+    <tr><td>调循环上限</td><td><code>chatService.ts</code> 顶部的 <code>MAX_STEPS</code></td></tr>
+  </table>
 
   <h3>SSE 事件类型</h3>
   <table>
     <tr><th style="width:120px">事件</th><th>载荷</th></tr>
     <tr><td><code>text</code></td><td><code>{ content: string }</code> — 流式文字增量</td></tr>
-    <tr><td><code>tool-call</code></td><td><code>{ toolCallId, toolName, args }</code> — AI 发起工具调用</td></tr>
-    <tr><td><code>tool-result</code></td><td><code>{ toolCallId, toolName, result }</code> — 工具执行成功</td></tr>
-    <tr><td><code>tool-error</code></td><td><code>{ toolCallId, toolName, error }</code> — 工具执行失败</td></tr>
-    <tr><td><code>done</code></td><td><code>{ finishReason }</code> — 流结束</td></tr>
+    <tr><td><code>tool-call</code></td><td><code>{ toolCallId, toolName, args, step?, thought? }</code> — AI 发起工具调用（step 用于界面按轮分组）</td></tr>
+    <tr><td><code>tool-result</code></td><td><code>{ toolCallId, toolName, result, confidence?, latencyMs? }</code> — 工具执行成功</td></tr>
+    <tr><td><code>tool-error</code></td><td><code>{ toolCallId, toolName, error, step? }</code> — 工具执行失败</td></tr>
+    <tr><td><code>reflection</code></td><td><code>{ step, content }</code> — 结果自检发现问题，界面显示琥珀色告示</td></tr>
+    <tr><td><code>done</code></td><td><code>{ finishReason }</code> — 流结束（整圈只发一次，不是每轮）</td></tr>
     <tr><td><code>error</code></td><td><code>{ error: string }</code> — 流异常</td></tr>
   </table>
+
+  <h3>Agent Trace</h3>
+  <p>trace 字段直接挂在 <code>ToolCallRecord</code> 上，随 <code>messages.tool_calls</code>（JSONB）一起落库——<strong>零迁移、零新增列</strong>，刷新后仍可回放：</p>
+<pre><code>interface ToolCallRecord {
+  // ...原有字段
+  step?: number;        // 第几轮（同轮并行调用共享）
+  confidence?: number;  // 工具自报可信度
+  latencyMs?: number;   // 工具自报耗时
+  thought?: string;     // 调这个工具之前模型说了什么
+  reflection?: string;  // 这一轮结果自检的结论
+}</code></pre>
+  <p>前端 <code>chat-message.tsx</code> 按 <code>step</code> 分组渲染成「第 N 轮」区块（只有一轮时不显示标题），并展示模型的思考、工具可信度、以及反思告示。</p>
 </div>
 
 <!-- ========== 9. State ========== -->
@@ -368,8 +491,15 @@ Client (chat-store.ts):
   <h3>手动编辑标题</h3>
   <p>hover 对话项时标题右边出现 ✏️ 图标，点击 inline 编辑，Enter 保存 / Escape 取消，<code>PATCH /api/chat/conversations/[id]</code> 持久化。</p>
 
-  <h3>Forced Reply</h3>
-  <p>流结束后如果 assistantContent 太短（&lt; 30 字符）且有 tool 调用，自动调 <code>generateText</code> 补一发完整回答，确保用户不会看到空白或残缺回复。</p>
+  <h3>反思（Reflect）</h3>
+  <p>文件：<code>src/services/agentReflection.ts</code>。每一轮工具结果回填之后，检查它们的质量：</p>
+  <ul>
+    <li><code>success === false</code> → 报出错误码，并按 <code>error.retryable</code> 区分「换参数重试可能有帮助」还是「同样的参数重试不会有帮助」</li>
+    <li><code>metadata.confidence &lt; 0.8</code> → 报出「可信度低，可能不相关或信息不足」</li>
+  </ul>
+  <p>有问题就作为一条 <code>user</code> 消息追加进上下文，模型据此决定换关键词重试还是诚实收尾。</p>
+  <div class="tip green"><strong>刻意不做成额外的 LLM 调用。</strong>每轮都让模型自检会让 token 成本翻倍，而工具早就把判断依据放进了 <code>metadata</code>——确定性的活不该交给模型。</div>
+  <div class="tip"><strong>已删除：</strong>早期的 <code>generateForcedReply()</code>。它是在「循环转不起来」时用第二次不带工具的调用硬补答案的补丁，副作用是把状态文字重复输出一遍。循环修好后整个删掉了；现在只在步数安全网触发时才有 <code>streamFinalAnswer()</code>。</div>
 
   <h3>长对话摘要</h3>
   <p><strong>触发条件：</strong>对话消息数达到 20 条时自动触发。使用 <code>summaryService.ts</code>（原始 OpenAI SDK 指向 DeepSeek）摘要前半段历史，存入 <code>conversation_summaries</code> 表。fire-and-forget 执行，不阻塞流式响应。</p>
@@ -395,9 +525,11 @@ Client (chat-store.ts):
 
   <h3>添加新 Tool</h3>
   <ol class="steps">
-    <li>在 <code>src/services/chatTools.ts</code> 用 <code>tool({...})</code> 定义</li>
-    <li>加入 <code>chatTools</code> 导出对象</li>
-    <li>更新 system prompt（<code>src/config/agents.ts</code>）</li>
+    <li>建目录 <code>src/tools/myTool/myTool.tool.ts</code>，用 <code>tool({...})</code> 定义</li>
+    <li>返回值统一包成 <code>ToolResult&lt;T&gt;</code>（<code>src/tools/types.ts</code>）——<strong>务必带上 <code>metadata.confidence</code></strong>，否则反思步骤无从判断结果好坏</li>
+    <li>加入 <code>src/tools/index.ts</code> 的 <code>tools</code> 导出对象</li>
+    <li>更新 system prompt（<code>src/config/agents.ts</code>）说明这个能力</li>
+    <li>写单测，需要 cheerio 等 Node 库时加 <code>@jest-environment node</code></li>
   </ol>
 
   <h3>添加新 Agent</h3>
@@ -472,7 +604,8 @@ Client (chat-store.ts):
     <tr><th style="width:320px">文件</th><th>作用</th></tr>
     <tr><td><code>src/lib/ai-client.ts</code></td><td>DeepSeek 客户端（懒加载 + Proxy）</td></tr>
     <tr><td><code>src/services/chatService.ts</code></td><td>streamText + SSE + 标题 + forced reply + 摘要触发</td></tr>
-    <tr><td><code>src/services/chatTools.ts</code></td><td>Tool 定义（<strong>新增工具改这里</strong>）</td></tr>
+    <tr><td><code>src/tools/</code></td><td>Tool 实现，每工具一个目录（<strong>新增工具改这里</strong>）+ <code>types.ts</code> 统一返回结构</td></tr>
+    <tr><td><code>src/services/agentReflection.ts</code></td><td>反思步骤：消费 <code>metadata.confidence</code> / <code>error.retryable</code>，自检工具结果质量</td></tr>
     <tr><td><code>src/services/searchService.ts</code></td><td>Bing + DuckDuckGo 搜索实现</td></tr>
     <tr><td><code>src/services/messageService.ts</code></td><td>消息 CRUD</td></tr>
     <tr><td><code>src/services/conversationService.ts</code></td><td>对话 CRUD</td></tr>

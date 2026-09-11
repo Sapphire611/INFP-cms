@@ -20,7 +20,7 @@
 │  Tools            │  getWeather   → wttr.in             │
 │                   │  getCurrentTime → Intl.DateTimeFormat│
 │                   │  calculate    → sandboxed new Function│
-│                   │  webSearch    → DuckDuckGo HTML 抓取 │
+│                   │  webSearch    → Bing/DDG（按环境选）  │
 ├─────────────────────────────────────────────────────────┤
 │  Agent System     │  config/agents.ts                   │
 │                   │  每个 Agent 有独立的 system prompt  │
@@ -129,7 +129,8 @@ src/
 ├── middleware/                 # Auth middleware
 ├── navigation/                # Sidebar & search navigation
 ├── services/
-│   ├── chatService.ts         # streamText() + SSE + message persistence
+│   ├── chatService.ts         # Agent 循环（手写 ReAct）+ SSE + message persistence
+│   ├── agentReflection.ts     # 反思步骤：自检工具结果质量，有问题提示模型
 │   ├── aiProviderService.ts   # 模型平台 CRUD + resolveApiConfig() 运行时解析
 │   ├── messageService.ts      # Message CRUD (Supabase messages table)
 │   ├── summaryService.ts      # Conversation summarization (OpenAI SDK)
@@ -167,24 +168,33 @@ const model = createModelClient(apiConfig.apiKey, apiConfig.baseURL).chat(apiCon
 
 新增平台只需在 CMS 里加一条记录；要支持第三个平台（如 OpenAI、通义）则改 `src/types/ai-provider.ts` 的 `ProviderKind` 与 `PROVIDER_PRESETS`。
 
-### 2. Tools (`src/services/chatTools.ts`)
+### 2. Tools (`src/tools/`)
 
-Four tools are defined using the Vercel AI SDK v7 `tool()` helper. Each tool has a Zod `inputSchema` and an async `execute` function. **All tools run server-side** inside `streamText()`.
+Five tools are defined using the Vercel AI SDK v7 `tool()` helper, one folder each under `src/tools/`, barrel-exported from `src/tools/index.ts`. Each has a Zod `inputSchema` and an async `execute`. **All tools run server-side** inside `streamText()`.
+
+Every tool returns `ToolResult<T>` (`src/tools/types.ts`) — `metadata { source, confidence, latencyMs }` plus a graded `error { code, message, retryable, fallback }`. **Always set `confidence`**: `agentReflection.ts` consumes it to decide whether a result is trustworthy.
 
 | Tool | Source | Auth Required | Description |
 |------|--------|---------------|-------------|
-| `getWeather` | [wttr.in](https://wttr.in) | No | Free weather API, returns JSON (`?format=j1`). 8s timeout. |
-| `getCurrentTime` | `Intl.DateTimeFormat` | No | Built-in JS. Supports timezone parameter, defaults to `Asia/Shanghai`. |
-| `calculate` | Sandboxed `new Function()` | No | Math expression evaluator. Allowlist of Math functions (`sin`, `sqrt`, `log`, etc.). No global access. |
-| `webSearch` | DuckDuckGo HTML | No | Scrapes `html.duckduckgo.com/html/`. Parses result blocks for title/snippet/url. Max 8 results, 10s timeout. |
+| `getWeather` | [wttr.in](https://wttr.in) | No | Free weather API, returns JSON (`?format=j1`). 8s timeout. `confidence: 0.92` |
+| `getCurrentTime` | `Intl.DateTimeFormat` | No | Built-in JS. Supports timezone parameter, defaults to `Asia/Shanghai`. `confidence: 0.99` |
+| `calculate` | Sandboxed `new Function()` | No | Math expression evaluator. Allowlist of Math functions (`sin`, `sqrt`, `log`, etc.). No global access. `confidence: 0.99` |
+| `webSearch` | Bing / DuckDuckGo | No | **Primary source is environment-dependent** (`pickPrimarySource()`): dev → Bing, prod → DuckDuckGo; the other is the fallback. cheerio parses the HTML, 8s timeout. `confidence` varies: primary ≥3 results 0.85 / <3 → 0.7; degraded ≥3 → 0.75 / <3 → 0.6 |
+| `fetchWebPage` | Any URL | No | cheerio strips scripts/nav and extracts body text. `confidence: 0.85` |
+
+All `confidence` values are **hand-assigned constants, not computed**. They encode "how much this source is trusted by construction", NOT "how relevant these results are to the question" — a search returning 10 irrelevant results still scores 0.85. See the caveat in `docs/ai-agent-learning-roadmap.md` §2.2.
 
 **Adding a new tool:**
 
-1. Define it in `src/services/chatTools.ts` using `tool({...})`
-2. Add it to the `chatTools` export object
-3. Update the system prompt in `src/config/agents.ts` or `src/services/chatService.ts` to describe the new capability
+1. Create `src/tools/myTool/myTool.tool.ts` using `tool({...})`
+2. Return `success(...)` / `failure(...)` from `src/tools/types.ts` — include `metadata.confidence`
+3. Add it to the `tools` export object in `src/tools/index.ts`
+4. Update the system prompt in `src/config/agents.ts` to describe the capability
+5. Add a test; if the tool pulls in Node-only libs (cheerio), tag it `@jest-environment node`
 
-All tools are passed to `streamText()` via the `tools: chatTools` parameter. The model decides when to call them based on its system prompt.
+All tools are passed to `streamText()` via the `tools` parameter. The model decides when to call them based on its system prompt.
+
+> `src/services/chatTools.ts` still exists but is **deprecated** — it just re-exports `tools` for backwards compatibility.
 
 ### 3. Agent System (`src/config/agents.ts`)
 
@@ -208,7 +218,7 @@ interface AgentConfig {
 
 | ID | Name | Key Behavior |
 |----|------|-------------|
-| `default` | Sapphire AI | 专业精准，始终联网；结构化输出（Markdown + 来源标注），搜索后必须总结分析 |
+| `default` | Sapphire AI | 专业精准，**按需**联网；结构化输出（Markdown + 来源标注），搜索后必须总结分析 |
 | `deep-think` | 深度思考 | 逐步推理，深度分析；使用 deepseek-v4-pro，展示「分析→推导→结论」过程 |
 
 **Adding a new agent:**
@@ -256,7 +266,11 @@ The complete data flow for a user message:
 **Key design decisions:**
 - Messages are stored in **Supabase** (`messages` table). The server saves user message before streaming and assistant message after streaming completes.
 - When switching conversations, messages are fetched via `GET /api/chat/conversations/[id]/messages`.
-- Tool calls are limited to **5 steps** (`stopWhen: isStepCount(5)`) to prevent infinite loops.
+- **Agent loop is hand-written** in `chatService.ts` (NOT delegated to the SDK). Each iteration calls `streamText({ ..., stopWhen: isStepCount(1) })` — one generation + its tool executions — then pushes `result.responseMessages` back into `workingMessages` and loops. This is what feeds tool results into the next round (the ReAct observation step).
+- **The loop's normal exit is the model itself**: when a round returns no tool calls, the model is done and the loop breaks. `MAX_STEPS` (12) is only a runaway safety net; if it trips, one final tool-less `streamText()` forces an answer.
+- **Reflection step** (`src/services/agentReflection.ts`): after each round's tool results are appended, `appendReflectionIfNeeded()` inspects their `ToolResult` output — `success === false` (reports the error code and whether `retryable`) or `metadata.confidence < 0.75` (reports low reliability). Problems are pushed back as an extra `user` message so the model can retry with different keywords or answer honestly. **This is deliberately not an extra LLM call** — the judgment was already encoded in the tool metadata. This is the only place that consumes `ToolResult.metadata`; the fields were previously write-only.
+- ⚠️ AI SDK v7's `streamText` defaults to `stopWhen: isStepCount(1)`. Omitting `stopWhen` entirely does NOT mean "5 steps" or "unlimited" — it means one round, and tool results never reach the model. This was a real bug here; `src/__tests__/services/chatService.test.ts` now locks the behavior in.
+- `done` is emitted **once**, after the whole loop — not per round (the frontend would otherwise mark the message finished mid-loop).
 - Post-stream side effects (message save, timestamp update, summarization) fire-and-forget — they don't block the response.
 
 ### 5. SSE Event Types
@@ -266,11 +280,18 @@ Defined in `src/types/chat/index.ts` as `ChatStreamEvent`:
 | Event | Direction | Payload |
 |-------|-----------|---------|
 | `text` | Server → Client | `{ type: "text", content: string }` |
-| `tool-call` | Server → Client | `{ type: "tool-call", toolCallId, toolName, args }` |
-| `tool-result` | Server → Client | `{ type: "tool-result", toolCallId, toolName, result }` |
-| `tool-error` | Server → Client | `{ type: "tool-error", toolCallId, toolName, error }` |
+| `tool-call` | Server → Client | `{ type: "tool-call", toolCallId, toolName, args, step?, thought? }` |
+| `tool-result` | Server → Client | `{ type: "tool-result", toolCallId, toolName, result, confidence?, latencyMs? }` |
+| `tool-error` | Server → Client | `{ type: "tool-error", toolCallId, toolName, error, step? }` |
+| `reflection` | Server → Client | `{ type: "reflection", step, content }` — 结果自检发现问题 |
 | `done` | Server → Client | `{ type: "done", finishReason }` |
 | `error` | Bidirectional | `{ type: "error", error: string }` |
+
+The `step` / `thought` / `confidence` / `latencyMs` fields exist so the UI can replay the agent's
+process. `chat-message.tsx` groups tool calls by `step` into "第 N 轮" blocks (headers hidden when
+there's only one round), shows the model's `thought` before each action, the tool's self-reported
+`confidence`, and any `reflection` as an amber notice. These same fields ride along in
+`messages.tool_calls` (JSONB) so a saved conversation still shows the process on reload.
 
 ### 6. State Management (`src/stores/chat/`)
 
@@ -319,29 +340,38 @@ Key actions:
 
 ### Adding a New AI Tool
 
-1. **Define the tool** in `src/services/chatTools.ts`:
+1. **Define the tool** in `src/tools/myTool/myTool.tool.ts`:
    ```typescript
    import { tool } from "ai";
    import { z } from "zod";
+   import { success, failure, type ToolResult } from "../types";
 
    export const myTool = tool({
      description: "工具描述，告诉模型何时调用",
      inputSchema: z.object({
        param: z.string().describe("参数说明"),
      }),
-     execute: async (input) => {
-       // Server-side execution logic
-       return { result: "..." };
+     execute: async (input): Promise<ToolResult<MyData>> => {
+       const start = Date.now();
+       try {
+         const data = await doSomething(input.param);
+         return success(data, {
+           source: "my-source",
+           confidence: 0.9,          // ← 必填，反思步骤靠它判断结果质量
+           latencyMs: Date.now() - start,
+         });
+       } catch (err) {
+         return failure("FETCH_FAILED", String(err), { retryable: true });
+       }
      },
    });
-
-   // Add to the export object
-   export const chatTools = { webSearch, getWeather, getCurrentTime, calculate, myTool };
    ```
 
-2. **Update the system prompt** in `src/config/agents.ts` or `chatService.ts` to describe the new tool's capability.
+2. **Register it** in `src/tools/index.ts` — both the `export` and the `tools` object.
 
-3. **Update types** if the tool returns novel data structures.
+3. **Update the system prompt** in `src/config/agents.ts` to describe the new tool's capability.
+
+4. **Write a test** that mocks the network layer (see `src/tools/webSearch/webSearch.tool.test.ts`).
 
 ### Adding a New Agent
 
@@ -386,7 +416,7 @@ Key actions:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | Yes | Supabase anonymous key |
 | `SUPABASE_SERVICE_ROLE_KEY` | Yes (admin ops) | Supabase service role key — bypasses RLS |
 
-**Note:** The AI tools (weather, search, time, calculate) require **no API keys** — they use free services (wttr.in, DuckDuckGo) or built-in JS APIs.
+**Note:** The AI tools (weather, search, time, calculate, fetchWebPage) require **no API keys** — they use free services (wttr.in, Bing/DuckDuckGo) or built-in JS APIs.
 
 ## Important Files
 
@@ -396,7 +426,8 @@ Key actions:
 - `src/app/(main)/cms/models/` — 模型管理页面 + 表单弹窗
 - `src/app/api/ai-providers/` — 平台增删改查 + `[id]/test` 连通性测试
 - `src/types/ai-provider.ts` — 平台类型、预设、密钥打码
-- `src/services/chatService.ts` — Main streaming logic, SSE conversion, summarization trigger
+- `src/services/chatService.ts` — Agent loop (hand-written ReAct), SSE conversion, summarization trigger
+- `src/services/agentReflection.ts` — Reflection step: consumes `ToolResult.metadata` to flag bad tool results
 - `src/config/agents.ts` — Agent configurations (add new agents here)
 - `src/app/api/chat/route.ts` — SSE endpoint that pipes the stream to the client
 

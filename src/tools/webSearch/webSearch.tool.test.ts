@@ -1,11 +1,16 @@
 /**
- * Unit tests for webSearch tool — Bing/DuckDuckGo language routing
+ * Unit tests for webSearch tool — 按环境选主搜索源，另一个自动降级
  * @jest-environment node
  */
 
 jest.mock("ai");
 
 import { webSearch } from "./webSearch.tool";
+
+/** @types/node 把 process.env.NODE_ENV 标成只读，测试里要临时改它 */
+function setNodeEnv(value: string | undefined) {
+  (process.env as Record<string, string | undefined>).NODE_ENV = value;
+}
 
 // Realistic Bing HTML for "上海天气" query
 const bingHtml = `
@@ -44,42 +49,61 @@ const ddgHtml = `
 </div>
 </body></html>`;
 
-describe("webSearch tool — language routing", () => {
+describe("webSearch tool — 搜索源优先级", () => {
+  const originalEnv = process.env.NODE_ENV;
+
+  const bingResponse = () =>
+    new Response(bingHtml, { status: 200, headers: { "content-type": "text/html" } });
+  const ddgResponse = () =>
+    new Response(ddgHtml, { status: 200, headers: { "content-type": "text/html" } });
+
   beforeEach(() => {
     global.fetch = jest.fn();
   });
 
-  // ── Language routing ──
+  afterEach(() => {
+    setNodeEnv(originalEnv);
+  });
 
-  it("routes Chinese query to Bing primary", async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce(
-      new Response(bingHtml, { status: 200, headers: { "content-type": "text/html" } })
-    );
+  // ── 环境决定主源 ──
+
+  it("开发环境 → Bing 做主源", async () => {
+    setNodeEnv("development");
+    (global.fetch as jest.Mock).mockResolvedValueOnce(bingResponse());
 
     const result = await webSearch.execute!({ query: "上海天气" });
     expect(result.success).toBe(true);
     expect(result.data.source).toBe("Bing");
     expect(result.data.degraded).toBe(false);
-    expect(result.data.results.length).toBeGreaterThan(0);
   });
 
-  it("routes English query to DuckDuckGo primary", async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce(
-      new Response(ddgHtml, { status: 200, headers: { "content-type": "text/html" } })
-    );
+  it("生产环境 → DuckDuckGo 做主源", async () => {
+    setNodeEnv("production");
+    (global.fetch as jest.Mock).mockResolvedValueOnce(ddgResponse());
 
-    const result = await webSearch.execute!({ query: "weather forecast" });
+    const result = await webSearch.execute!({ query: "上海天气" });
     expect(result.success).toBe(true);
     expect(result.data.source).toBe("DuckDuckGo");
     expect(result.data.degraded).toBe(false);
   });
 
-  // ── Bing parsing ──
+  it("查询语言不再影响源的选择（曾经中文走 Bing、英文走 DDG）", async () => {
+    setNodeEnv("development");
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce(bingResponse());
+    const chinese = await webSearch.execute!({ query: "上海天气" });
+    expect(chinese.data.source).toBe("Bing");
+
+    (global.fetch as jest.Mock).mockResolvedValueOnce(bingResponse());
+    const english = await webSearch.execute!({ query: "weather forecast" });
+    expect(english.data.source).toBe("Bing");
+  });
+
+  // ── 解析 ──
 
   it("parses Bing search results correctly", async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce(
-      new Response(bingHtml, { status: 200, headers: { "content-type": "text/html" } })
-    );
+    setNodeEnv("development");
+    (global.fetch as jest.Mock).mockResolvedValueOnce(bingResponse());
 
     const result = await webSearch.execute!({ query: "上海天气" });
     expect(result.data.results.length).toBe(3);
@@ -88,12 +112,9 @@ describe("webSearch tool — language routing", () => {
     expect(result.data.results[0].snippet).toBeTruthy();
   });
 
-  // ── DuckDuckGo parsing ──
-
   it("parses DuckDuckGo search results correctly", async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce(
-      new Response(ddgHtml, { status: 200, headers: { "content-type": "text/html" } })
-    );
+    setNodeEnv("production");
+    (global.fetch as jest.Mock).mockResolvedValueOnce(ddgResponse());
 
     const result = await webSearch.execute!({ query: "weather" });
     expect(result.data.results.length).toBe(2);
@@ -102,16 +123,13 @@ describe("webSearch tool — language routing", () => {
     expect(result.data.results[0].snippet).toBeTruthy();
   });
 
-  // ── Fallback on primary failure ──
+  // ── 主源失败降级 ──
 
-  it("falls back to DuckDuckGo when Bing fails (Chinese query)", async () => {
+  it("Bing 失败 → 降级到 DuckDuckGo", async () => {
+    setNodeEnv("development");
     (global.fetch as jest.Mock)
-      // Bing fails
       .mockRejectedValueOnce(new Error("Bing timeout"))
-      // DDG succeeds
-      .mockResolvedValueOnce(
-        new Response(ddgHtml, { status: 200, headers: { "content-type": "text/html" } })
-      );
+      .mockResolvedValueOnce(ddgResponse());
 
     const result = await webSearch.execute!({ query: "上海天气" });
     expect(result.success).toBe(true);
@@ -120,14 +138,11 @@ describe("webSearch tool — language routing", () => {
     expect(result.metadata.confidence).toBeLessThan(0.85);
   });
 
-  it("falls back to Bing when DuckDuckGo fails (English query)", async () => {
+  it("DuckDuckGo 失败 → 降级到 Bing", async () => {
+    setNodeEnv("production");
     (global.fetch as jest.Mock)
-      // DDG fails
       .mockRejectedValueOnce(new Error("DDG timeout"))
-      // Bing succeeds
-      .mockResolvedValueOnce(
-        new Response(bingHtml, { status: 200, headers: { "content-type": "text/html" } })
-      );
+      .mockResolvedValueOnce(bingResponse());
 
     const result = await webSearch.execute!({ query: "weather forecast" });
     expect(result.success).toBe(true);
@@ -135,9 +150,10 @@ describe("webSearch tool — language routing", () => {
     expect(result.data.degraded).toBe(true);
   });
 
-  // ── Both exhausted ──
+  // ── 两个源都挂 ──
 
   it("returns failure when both engines fail", async () => {
+    setNodeEnv("development");
     (global.fetch as jest.Mock)
       .mockRejectedValueOnce(new Error("Bing down"))
       .mockRejectedValueOnce(new Error("DDG down"));
@@ -148,15 +164,26 @@ describe("webSearch tool — language routing", () => {
     expect(result.error?.retryable).toBe(true);
   });
 
-  // ── Confidence ──
+  // ── 可信度取值（agentReflection 的阈值 0.8 就卡在这张表上）──
 
-  it("sets higher confidence with more results", async () => {
-    (global.fetch as jest.Mock).mockResolvedValueOnce(
-      new Response(bingHtml, { status: 200, headers: { "content-type": "text/html" } })
-    );
+  it("主源成功且结果充足 → 0.85", async () => {
+    setNodeEnv("development");
+    (global.fetch as jest.Mock).mockResolvedValueOnce(bingResponse());
 
     const result = await webSearch.execute!({ query: "上海天气" });
-    // 3 results >= 3 → confidence 0.85
+    // 3 results >= 3 → 0.85（高于反思阈值 0.8，不触发自检）
     expect(result.metadata.confidence).toBe(0.85);
+  });
+
+  it("降级成功但结果偏少 → 0.6（会触发反思）", async () => {
+    setNodeEnv("development");
+    (global.fetch as jest.Mock)
+      .mockRejectedValueOnce(new Error("Bing timeout"))
+      .mockResolvedValueOnce(ddgResponse()); // 2 条结果
+
+    const result = await webSearch.execute!({ query: "上海天气" });
+    // 降级 + <3 条 → 0.6
+    expect(result.data.degraded).toBe(true);
+    expect(result.metadata.confidence).toBe(0.6);
   });
 });
