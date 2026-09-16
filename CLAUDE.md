@@ -179,7 +179,7 @@ Every tool returns `ToolResult<T>` (`src/tools/types.ts`) — `metadata { source
 | `getWeather` | [wttr.in](https://wttr.in) | No | Free weather API, returns JSON (`?format=j1`). 8s timeout. `confidence: 0.92` |
 | `getCurrentTime` | `Intl.DateTimeFormat` | No | Built-in JS. Supports timezone parameter, defaults to `Asia/Shanghai`. `confidence: 0.99` |
 | `calculate` | Sandboxed `new Function()` | No | Math expression evaluator. Allowlist of Math functions (`sin`, `sqrt`, `log`, etc.). No global access. `confidence: 0.99` |
-| `webSearch` | Bing / DuckDuckGo | No | **Primary source is environment-dependent** (`pickPrimarySource()`): dev → Bing, prod → DuckDuckGo; the other is the fallback. cheerio parses the HTML, 8s timeout. `confidence` varies: primary ≥3 results 0.85 / <3 → 0.7; degraded ≥3 → 0.75 / <3 → 0.6 |
+| `webSearch` | Bing / DuckDuckGo | No | **Primary source is always Bing**; DuckDuckGo is the fallback. It was environment-dependent (dev → Bing, prod → DDG) until 2026-09-16, when a live check showed DDG serves an anti-bot challenge page (HTTP 202, 0 results) to datacenter/VPN IPs — so production degraded to Bing on *every* search, pinning `confidence` at 0.75 and firing reflection every round. cheerio parses the HTML, 8s timeout. `confidence` varies: primary ≥3 results 0.85 / <3 → 0.7; degraded ≥3 → 0.75 / <3 → 0.6 |
 | `fetchWebPage` | Any URL | No | cheerio strips scripts/nav and extracts body text. `confidence: 0.85` |
 
 All `confidence` values are **hand-assigned constants, not computed**. They encode "how much this source is trusted by construction", NOT "how relevant these results are to the question" — a search returning 10 irrelevant results still scores 0.85. See the caveat in `docs/ai-agent-learning-roadmap.md` §2.2.

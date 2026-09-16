@@ -1,16 +1,11 @@
 /**
- * Unit tests for webSearch tool — 按环境选主搜索源，另一个自动降级
+ * Unit tests for webSearch tool — 主源固定 Bing，DuckDuckGo 自动降级
  * @jest-environment node
  */
 
 jest.mock("ai");
 
 import { webSearch } from "./webSearch.tool";
-
-/** @types/node 把 process.env.NODE_ENV 标成只读，测试里要临时改它 */
-function setNodeEnv(value: string | undefined) {
-  (process.env as Record<string, string | undefined>).NODE_ENV = value;
-}
 
 // Realistic Bing HTML for "上海天气" query
 const bingHtml = `
@@ -35,6 +30,11 @@ const bingHtml = `
 
 // Realistic DuckDuckGo HTML for "weather" query
 // Note: using <span> instead of <td> because cheerio strips orphan <td> tags (HTML spec)
+//
+// 两个 result 刻意用 DDG 的两种链接形态：
+//   1. 直接是目标地址
+//   2. //duckduckgo.com/l/?uddg=<encoded> 跳转包装（真实 DDG 更常见的就是这种）
+// 两种都必须还原成可抓取的真实 URL —— 见 resolveDdgUrl 的注释。
 const ddgHtml = `
 <html><body>
 <div class="result">
@@ -43,53 +43,48 @@ const ddgHtml = `
   <span class="result__url">weather.com</span>
 </div>
 <div class="result">
-  <a class="result__a" href="https://openweathermap.org/">OpenWeatherMap</a>
+  <a class="result__a" href="//duckduckgo.com/l/?uddg=https%3A%2F%2Fopenweathermap.org%2F&rut=abc123">OpenWeatherMap</a>
   <span class="result__snippet">Weather API and forecasts for any location worldwide</span>
   <span class="result__url">openweathermap.org</span>
 </div>
 </body></html>`;
 
 describe("webSearch tool — 搜索源优先级", () => {
-  const originalEnv = process.env.NODE_ENV;
-
   const bingResponse = () =>
     new Response(bingHtml, { status: 200, headers: { "content-type": "text/html" } });
   const ddgResponse = () =>
     new Response(ddgHtml, { status: 200, headers: { "content-type": "text/html" } });
 
+  /** DDG 现在是降级源：必须先让主源 Bing 挂掉，才走得到它 */
+  const withBingDown = (ddg: Response) =>
+    (global.fetch as jest.Mock)
+      .mockRejectedValueOnce(new Error("Bing timeout"))
+      .mockResolvedValueOnce(ddg);
+
   beforeEach(() => {
     global.fetch = jest.fn();
   });
 
-  afterEach(() => {
-    setNodeEnv(originalEnv);
-  });
+  // ── 主源固定 Bing ──
 
-  // ── 环境决定主源 ──
+  // 曾经是「dev → Bing / prod → DuckDuckGo」。2026-09-16 实测推翻了它：
+  // DDG 对数据中心/VPN IP 返回反爬挑战页（0 条结果）→ 线上每次搜索都降级、
+  // confidence 恒为 0.75 → 反思每轮误报。这条测试锁住「不再按环境切」，防改回去。
+  it("生产环境也用 Bing 做主源（不再按环境切换）", async () => {
+    const originalEnv = process.env.NODE_ENV;
+    (process.env as Record<string, string | undefined>).NODE_ENV = "production";
 
-  it("开发环境 → Bing 做主源", async () => {
-    setNodeEnv("development");
     (global.fetch as jest.Mock).mockResolvedValueOnce(bingResponse());
-
     const result = await webSearch.execute!({ query: "上海天气" });
+
+    (process.env as Record<string, string | undefined>).NODE_ENV = originalEnv;
+
     expect(result.success).toBe(true);
     expect(result.data.source).toBe("Bing");
     expect(result.data.degraded).toBe(false);
   });
 
-  it("生产环境 → DuckDuckGo 做主源", async () => {
-    setNodeEnv("production");
-    (global.fetch as jest.Mock).mockResolvedValueOnce(ddgResponse());
-
-    const result = await webSearch.execute!({ query: "上海天气" });
-    expect(result.success).toBe(true);
-    expect(result.data.source).toBe("DuckDuckGo");
-    expect(result.data.degraded).toBe(false);
-  });
-
   it("查询语言不再影响源的选择（曾经中文走 Bing、英文走 DDG）", async () => {
-    setNodeEnv("development");
-
     (global.fetch as jest.Mock).mockResolvedValueOnce(bingResponse());
     const chinese = await webSearch.execute!({ query: "上海天气" });
     expect(chinese.data.source).toBe("Bing");
@@ -102,7 +97,6 @@ describe("webSearch tool — 搜索源优先级", () => {
   // ── 解析 ──
 
   it("parses Bing search results correctly", async () => {
-    setNodeEnv("development");
     (global.fetch as jest.Mock).mockResolvedValueOnce(bingResponse());
 
     const result = await webSearch.execute!({ query: "上海天气" });
@@ -113,23 +107,56 @@ describe("webSearch tool — 搜索源优先级", () => {
   });
 
   it("parses DuckDuckGo search results correctly", async () => {
-    setNodeEnv("production");
-    (global.fetch as jest.Mock).mockResolvedValueOnce(ddgResponse());
+    withBingDown(ddgResponse());
 
     const result = await webSearch.execute!({ query: "weather" });
+    expect(result.data.source).toBe("DuckDuckGo");
     expect(result.data.results.length).toBe(2);
     expect(result.data.results[0].title).toBe("National Weather Service");
-    expect(result.data.results[0].url).toBe("weather.com");
     expect(result.data.results[0].snippet).toBeTruthy();
+  });
+
+  // ── DDG 的 URL 必须是可抓取的（曾经取的是显示文本）──
+  //
+  // 以前这里取 .result__url 的文本（"weather.com"），那不是合法 URL，
+  // 喂给 fetchPage 会被判非法 —— research 这类二跳抓取就全废了。
+
+  it("从 DDG 的 href 取出真实 URL，而不是显示文本", async () => {
+    withBingDown(ddgResponse());
+
+    const result = await webSearch.execute!({ query: "weather" });
+    expect(result.data.results[0].url).toBe("https://weather.com/");
+  });
+
+  it("解开 DDG 的 uddg 跳转包装，还原目标 URL", async () => {
+    withBingDown(ddgResponse());
+
+    const result = await webSearch.execute!({ query: "weather" });
+    // //duckduckgo.com/l/?uddg=https%3A%2F%2Fopenweathermap.org%2F&rut=abc123
+    expect(result.data.results[1].url).toBe("https://openweathermap.org/");
+  });
+
+  it("DDG 结果里没有 href 时退回显示文本，不崩", async () => {
+    withBingDown(
+      new Response(
+        `<html><body><div class="result">
+           <a class="result__a">No Link Result</a>
+           <span class="result__snippet">snippet text here</span>
+           <span class="result__url">example.com</span>
+         </div></body></html>`,
+        { status: 200, headers: { "content-type": "text/html" } }
+      )
+    );
+
+    const result = await webSearch.execute!({ query: "weather" });
+    expect(result.success).toBe(true);
+    expect(result.data.results[0].url).toBe("example.com");
   });
 
   // ── 主源失败降级 ──
 
   it("Bing 失败 → 降级到 DuckDuckGo", async () => {
-    setNodeEnv("development");
-    (global.fetch as jest.Mock)
-      .mockRejectedValueOnce(new Error("Bing timeout"))
-      .mockResolvedValueOnce(ddgResponse());
+    withBingDown(ddgResponse());
 
     const result = await webSearch.execute!({ query: "上海天气" });
     expect(result.success).toBe(true);
@@ -138,22 +165,9 @@ describe("webSearch tool — 搜索源优先级", () => {
     expect(result.metadata.confidence).toBeLessThan(0.85);
   });
 
-  it("DuckDuckGo 失败 → 降级到 Bing", async () => {
-    setNodeEnv("production");
-    (global.fetch as jest.Mock)
-      .mockRejectedValueOnce(new Error("DDG timeout"))
-      .mockResolvedValueOnce(bingResponse());
-
-    const result = await webSearch.execute!({ query: "weather forecast" });
-    expect(result.success).toBe(true);
-    expect(result.data.source).toBe("Bing");
-    expect(result.data.degraded).toBe(true);
-  });
-
   // ── 两个源都挂 ──
 
   it("returns failure when both engines fail", async () => {
-    setNodeEnv("development");
     (global.fetch as jest.Mock)
       .mockRejectedValueOnce(new Error("Bing down"))
       .mockRejectedValueOnce(new Error("DDG down"));
@@ -167,7 +181,6 @@ describe("webSearch tool — 搜索源优先级", () => {
   // ── 可信度取值（agentReflection 的阈值 0.8 就卡在这张表上）──
 
   it("主源成功且结果充足 → 0.85", async () => {
-    setNodeEnv("development");
     (global.fetch as jest.Mock).mockResolvedValueOnce(bingResponse());
 
     const result = await webSearch.execute!({ query: "上海天气" });
@@ -176,10 +189,7 @@ describe("webSearch tool — 搜索源优先级", () => {
   });
 
   it("降级成功但结果偏少 → 0.6（会触发反思）", async () => {
-    setNodeEnv("development");
-    (global.fetch as jest.Mock)
-      .mockRejectedValueOnce(new Error("Bing timeout"))
-      .mockResolvedValueOnce(ddgResponse()); // 2 条结果
+    withBingDown(ddgResponse()); // 2 条结果
 
     const result = await webSearch.execute!({ query: "上海天气" });
     // 降级 + <3 条 → 0.6

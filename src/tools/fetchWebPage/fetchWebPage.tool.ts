@@ -164,12 +164,88 @@ function extractText(html: string): { title: string; text: string } {
 // Tool Definition
 // ═══════════════════════════════════════════════════════════════
 
+/**
+ * 抓取实现本体。
+ *
+ * 和 tool() 定义分开，是为了让组合工具（research）能直接复用 ——
+ * 走 `fetchWebPage.execute()` 会撞上 SDK 的返回类型（ToolResult | AsyncIterable）。
+ */
+export async function fetchPage(url: string): Promise<ToolResult<PageData>> {
+  const start = Date.now();
+
+  // ── 安全检查 ──
+  if (isBlockedUrl(url)) {
+    return failure("BLOCKED_URL", "不允许访问该 URL（内网地址或非 http/https 协议）", {
+      retryable: false,
+    });
+  }
+
+  try {
+    const res = await fetch(url, {
+      signal: AbortSignal.timeout(12000),
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml",
+        "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
+      },
+    });
+
+    if (!res.ok) {
+      return failure("HTTP_ERROR", `网页请求失败: HTTP ${res.status}`, {
+        retryable: res.status >= 500 || res.status === 429,
+      });
+    }
+
+    // 只处理 HTML / 纯文本，拒绝二进制
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("text/html") && !contentType.includes("text/plain")) {
+      return failure("UNSUPPORTED_TYPE", `不支持的内容类型: ${contentType}`, {
+        retryable: false,
+        fallback: {
+          suggestion:
+            "该 URL 不是 HTML 页面，可能是 PDF/图片/视频等二进制文件，请直接从搜索结果摘要中获取信息",
+        },
+      });
+    }
+
+    const html = await res.text();
+    const { title, text } = extractText(html);
+
+    const truncated = text.length > MAX_TEXT_LENGTH;
+    const textContent = truncated ? text.slice(0, MAX_TEXT_LENGTH) + "…" : text;
+
+    // 检测纯 JS 渲染页面（正文为空）
+    if (!textContent.trim()) {
+      return failure("EMPTY_CONTENT", "网页正文为空，可能是纯 JS 渲染页面", {
+        retryable: false,
+        fallback: {
+          suggestion: "该页面可能依赖 JavaScript 渲染，无法直接抓取。请从搜索结果摘要中获取信息",
+        },
+      });
+    }
+
+    return success(
+      { url, title, textContent, textLength: text.length, truncated },
+      { source: url, confidence: 0.85, latencyMs: Date.now() - start }
+    );
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const isTimeout =
+      msg.includes("timeout") || msg.includes("abort") || msg.includes("Timeout");
+    return failure(isTimeout ? "TIMEOUT" : "FETCH_ERROR", `网页抓取失败: ${msg}`, {
+      retryable: isTimeout,
+    });
+  }
+}
+
 export const fetchWebPage = tool({
   description: [
     "抓取指定网页并提取正文文本内容。",
     "何时调用：用户让你「打开这个链接」「看看这篇文章说了什么」、",
-    "或者 webSearch 找到相关页面后需要查看详细内容时。",
-    "典型链式调用：webSearch 找到链接 → fetchWebPage 抓取内容 → 基于内容分析/总结。",
+    "或者已知具体链接需要查看详细内容时。",
+    "如果要基于多篇正文做分析/对比/总结，用 research（它内部会搜索并并行抓取），",
+    "不要自己一页页抓 —— 那是串行的，每篇都要多一轮往返。",
     "返回：网页标题 + 纯文本正文（最多 6000 字符）。",
   ].join(" "),
   inputSchema: z.object({
@@ -177,73 +253,5 @@ export const fetchWebPage = tool({
       .string()
       .describe("完整的网页 URL，如 https://example.com/article，必须是 http/https 协议"),
   }),
-  execute: async (input): Promise<ToolResult<PageData>> => {
-    const { url } = input;
-    const start = Date.now();
-
-    // ── 安全检查 ──
-    if (isBlockedUrl(url)) {
-      return failure("BLOCKED_URL", "不允许访问该 URL（内网地址或非 http/https 协议）", {
-        retryable: false,
-      });
-    }
-
-    try {
-      const res = await fetch(url, {
-        signal: AbortSignal.timeout(12000),
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept": "text/html,application/xhtml+xml",
-          "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8",
-        },
-      });
-
-      if (!res.ok) {
-        return failure("HTTP_ERROR", `网页请求失败: HTTP ${res.status}`, {
-          retryable: res.status >= 500 || res.status === 429,
-        });
-      }
-
-      // 只处理 HTML / 纯文本，拒绝二进制
-      const contentType = res.headers.get("content-type") || "";
-      if (!contentType.includes("text/html") && !contentType.includes("text/plain")) {
-        return failure("UNSUPPORTED_TYPE", `不支持的内容类型: ${contentType}`, {
-          retryable: false,
-          fallback: {
-            suggestion:
-              "该 URL 不是 HTML 页面，可能是 PDF/图片/视频等二进制文件，请直接从搜索结果摘要中获取信息",
-          },
-        });
-      }
-
-      const html = await res.text();
-      const { title, text } = extractText(html);
-
-      const truncated = text.length > MAX_TEXT_LENGTH;
-      const textContent = truncated ? text.slice(0, MAX_TEXT_LENGTH) + "…" : text;
-
-      // 检测纯 JS 渲染页面（正文为空）
-      if (!textContent.trim()) {
-        return failure("EMPTY_CONTENT", "网页正文为空，可能是纯 JS 渲染页面", {
-          retryable: false,
-          fallback: {
-            suggestion: "该页面可能依赖 JavaScript 渲染，无法直接抓取。请从搜索结果摘要中获取信息",
-          },
-        });
-      }
-
-      return success(
-        { url, title, textContent, textLength: text.length, truncated },
-        { source: url, confidence: 0.85, latencyMs: Date.now() - start }
-      );
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      const isTimeout =
-        msg.includes("timeout") || msg.includes("abort") || msg.includes("Timeout");
-      return failure(isTimeout ? "TIMEOUT" : "FETCH_ERROR", `网页抓取失败: ${msg}`, {
-        retryable: isTimeout,
-      });
-    }
-  },
+  execute: async (input): Promise<ToolResult<PageData>> => fetchPage(input.url),
 });

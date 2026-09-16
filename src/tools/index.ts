@@ -17,12 +17,14 @@ export { getWeather } from "./getWeather/getWeather.tool";
 export { getCurrentTime } from "./getCurrentTime/getCurrentTime.tool";
 export { calculate } from "./calculate/calculate.tool";
 export { fetchWebPage } from "./fetchWebPage/fetchWebPage.tool";
+export { research } from "./research/research.tool";
 
 import { webSearch } from "./webSearch/webSearch.tool";
 import { getWeather } from "./getWeather/getWeather.tool";
 import { getCurrentTime } from "./getCurrentTime/getCurrentTime.tool";
 import { calculate } from "./calculate/calculate.tool";
 import { fetchWebPage } from "./fetchWebPage/fetchWebPage.tool";
+import { research } from "./research/research.tool";
 
 export const tools = {
   webSearch,
@@ -30,4 +32,5 @@ export const tools = {
   getCurrentTime,
   calculate,
   fetchWebPage,
+  research,
 } as const;

@@ -2,8 +2,7 @@
  * webSearch tool — Bing / DuckDuckGo 双源，零 API key。
  * HTML parsing via cheerio (jQuery-like DOM API), replacing fragile regex.
  *
- * 主源按环境选（见 pickPrimarySource）：开发用 Bing，生产用 DuckDuckGo，
- * 另一个自动作为降级源。
+ * 主源固定 Bing，DuckDuckGo 作为降级源 —— 为什么不再按环境选，见 searchWeb 顶部。
  *
  * Error grading:
  *   - 主源 TIMEOUT → retryable, 降级到另一个源
@@ -17,13 +16,13 @@ import { success, failure, type ToolResult } from "../types";
 
 // ─── Shared Types ───────────────────────────────────────────
 
-interface SearchResultItem {
+export interface SearchResultItem {
   title: string;
   snippet: string;
   url: string;
 }
 
-interface SearchData {
+export interface SearchData {
   source: string;
   query: string;
   totalResults: number;
@@ -39,10 +38,36 @@ interface SearchData {
 //   <div class="result">
 //     <a class="result__a" href="...">标题文本</a>
 //     <td class="result__snippet">摘要文本</td>
-//     <td class="result__url">显示的 URL</td>
+//     <td class="result__url">显示的 URL</td>   ← 人看的，不是 href
 //   </div>
 //
 // 我们用 cheerio 的 .find() + .text() 提取，不再用正则抠。
+//
+// ⚠️ 取 URL 必须走 href，不能走 .result__url 的文本：
+// 那个文本是「weather.com」或「example.com › 路径」这种显示形式，不是合法 URL。
+// 只拿它去喂 fetchPage 会被判非法（new URL() 抛错），research 这类二跳抓取就全废。
+
+/**
+ * 把 DDG 结果里的 href 还原成可访问的目标 URL。
+ *
+ * DDG 的链接有两种形态：
+ *   1. 直接就是目标地址：https://weather.com/
+ *   2. 跳转包装：//duckduckgo.com/l/?uddg=https%3A%2F%2Fweather.com%2F&rut=...
+ *      真正的目标藏在 uddg 参数里，不解开就没法二跳。
+ *
+ * 返回 null 表示这个 href 不是可用的 http(s) 地址。
+ */
+function resolveDdgUrl(href: string | undefined | null): string | null {
+  if (!href) return null;
+  const absolute = href.startsWith("//") ? `https:${href}` : href;
+
+  try {
+    const parsed = new URL(absolute);
+    return parsed.searchParams.get("uddg") ?? (absolute.startsWith("http") ? absolute : null);
+  } catch {
+    return null;
+  }
+}
 
 async function searchDuckDuckGo(query: string): Promise<SearchResultItem[]> {
   const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
@@ -67,13 +92,18 @@ async function searchDuckDuckGo(query: string): Promise<SearchResultItem[]> {
     const $el = $(el);
 
     // 标题在 <a class="result__a"> 里
-    const title = $el.find(".result__a").text().trim();
+    const $titleLink = $el.find(".result__a").first();
+    const title = $titleLink.text().trim();
 
     // 摘要在 <td class="result__snippet"> 里
     const snippet = $el.find(".result__snippet").text().trim();
 
-    // URL 在 <td class="result__url"> 里（显示用，不是 href）
-    const link = $el.find(".result__url").text().trim();
+    // URL：优先从 href 还原（含 uddg 跳转包装），实在拿不到才退回显示文本。
+    const $urlEl = $el.find(".result__url").first();
+    const link =
+      resolveDdgUrl($titleLink.attr("href")) ??
+      resolveDdgUrl($urlEl.attr("href")) ??
+      $urlEl.text().trim();
 
     if (title && snippet) {
       results.push({ title, snippet, url: link || "无链接" });
@@ -199,15 +229,86 @@ const BING: SearchProvider = { name: "Bing", fn: searchBing };
 const DUCKDUCKGO: SearchProvider = { name: "DuckDuckGo", fn: searchDuckDuckGo };
 
 /**
- * 主搜索源按环境选：
- *   - 开发：Bing。本地网络到 DuckDuckGo 经常超时（实测 8s+ 才降级），Bing 快得多
- *   - 生产：DuckDuckGo。部署机 IP 更容易被 Bing 拦
+ * 搜索实现本体。
  *
- * ⚠️ 这里不再看查询语言。改动前是「中文 → Bing，英文 → DuckDuckGo」，
- * 那条规则被环境优先级取代了。
+ * 和 tool() 定义分开，是为了让组合工具（research）能直接复用。
+ * 走 `webSearch.execute()` 是行不通的：SDK 把 execute 的返回类型声明成
+ * `ToolResult | AsyncIterable<ToolResult>`（它允许流式工具），于是每处取值
+ * 都要先 cast —— 白白把这个工具耦死在 SDK 的签名上。
  */
-function pickPrimarySource(): SearchProvider {
-  return process.env.NODE_ENV === "production" ? DUCKDUCKGO : BING;
+export async function searchWeb(query: string): Promise<ToolResult<SearchData>> {
+  const start = Date.now();
+
+  // ── 主源固定 Bing ──
+  //
+  // 曾经按环境选（dev → Bing / prod → DuckDuckGo，理由是「部署机 IP 更容易被 Bing 拦」）。
+  // 2026-09-16 实测推翻了它：DDG 的 html 端点对数据中心/VPN IP 直接返回反爬挑战页
+  // （HTTP 202 +「Select all squares containing a duck」），`.result` 一个都没有，
+  // searchDuckDuckGo() 于是抛「未找到搜索结果」。后果是线上**每次搜索**都降级到 Bing：
+  //
+  //   degraded 恒为 true → confidence 恒为 0.75 → 低于 agentReflection 的 0.8 阈值
+  //   → 反思每轮都塞一条「结果可信度低」，模型可能白跑几轮换关键词
+  //
+  // 也就是说那个环境优先级在线上从没生效过，只是把降级路径的成本变成了常态。
+  // Bing 在两个环境都正常（实测 10 条 b_algo），固定用它。
+  //
+  // ⚠️ 这里也不看查询语言。最早是「中文 → Bing，英文 → DuckDuckGo」，被环境优先级取代，
+  // 现在两者都不成立。
+  const primary = BING;
+  const fallback = DUCKDUCKGO;
+
+  // ── Primary ──
+  try {
+    const results = await primary.fn(query);
+    return success(
+      {
+        source: primary.name,
+        query,
+        totalResults: results.length,
+        results,
+        degraded: false,
+      },
+      {
+        source: primary.name,
+        confidence: results.length >= 3 ? 0.85 : 0.7,
+        latencyMs: Date.now() - start,
+      }
+    );
+  } catch (primaryErr) {
+    const primaryMsg =
+      primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
+    console.warn(`${primary.name} failed, falling back to ${fallback.name}:`, primaryMsg);
+
+    // ── Fallback ──
+    try {
+      const results = await fallback.fn(query);
+      return success(
+        {
+          source: fallback.name,
+          query,
+          totalResults: results.length,
+          results,
+          degraded: true,
+        },
+        {
+          source: `${fallback.name} (${primary.name} 降级)`,
+          confidence: results.length >= 3 ? 0.75 : 0.6,
+          latencyMs: Date.now() - start,
+        }
+      );
+    } catch (fallbackErr) {
+      const fbMsg =
+        fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
+      return failure("ALL_SOURCES_FAILED", "所有搜索引擎均失败", {
+        retryable: true,
+        fallback: {
+          [`${primary.name}Error`]: primaryMsg,
+          [`${fallback.name}Error`]: fbMsg,
+          suggestion: "请稍后重试，或尝试更换搜索关键词",
+        },
+      });
+    }
+  }
 }
 
 export const webSearch = tool({
@@ -217,6 +318,7 @@ export const webSearch = tool({
     "最新动态、活动信息等需要联网获取数据的场景。",
     "返回结果包含标题、摘要、URL — 基于这些信息给出完整分析，标注来源。",
     "搜索结果不足时可换关键词重试（如中文换英文或相反）。",
+    "需要读多篇正文做分析/对比/总结时，用 research 一次走完，不要先搜再一页页抓。",
   ].join(" "),
   inputSchema: z.object({
     query: z
@@ -225,64 +327,5 @@ export const webSearch = tool({
         "搜索关键词。建议：中文搜中文内容，英文搜英文内容；关键词精简到 1-5 个词，不要用完整句子"
       ),
   }),
-  execute: async (input): Promise<ToolResult<SearchData>> => {
-    const { query } = input;
-    const start = Date.now();
-
-    const primary = pickPrimarySource();
-    const fallback = primary.name === "Bing" ? DUCKDUCKGO : BING;
-
-    // ── Primary ──
-    try {
-      const results = await primary.fn(query);
-      return success(
-        {
-          source: primary.name,
-          query,
-          totalResults: results.length,
-          results,
-          degraded: false,
-        },
-        {
-          source: primary.name,
-          confidence: results.length >= 3 ? 0.85 : 0.7,
-          latencyMs: Date.now() - start,
-        }
-      );
-    } catch (primaryErr) {
-      const primaryMsg =
-        primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
-      console.warn(`${primary.name} failed, falling back to ${fallback.name}:`, primaryMsg);
-
-      // ── Fallback ──
-      try {
-        const results = await fallback.fn(query);
-        return success(
-          {
-            source: fallback.name,
-            query,
-            totalResults: results.length,
-            results,
-            degraded: true,
-          },
-          {
-            source: `${fallback.name} (${primary.name} 降级)`,
-            confidence: results.length >= 3 ? 0.75 : 0.6,
-            latencyMs: Date.now() - start,
-          }
-        );
-      } catch (fallbackErr) {
-        const fbMsg =
-          fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
-        return failure("ALL_SOURCES_FAILED", "所有搜索引擎均失败", {
-          retryable: true,
-          fallback: {
-            [`${primary.name}Error`]: primaryMsg,
-            [`${fallback.name}Error`]: fbMsg,
-            suggestion: "请稍后重试，或尝试更换搜索关键词",
-          },
-        });
-      }
-    }
-  },
+  execute: async (input): Promise<ToolResult<SearchData>> => searchWeb(input.query),
 });

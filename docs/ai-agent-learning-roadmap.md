@@ -1,7 +1,7 @@
 # Node.js 全栈 → AI Agent 工程师 学习路线图
 
 > 基于 Sapphire Studio 项目现状，结合已有技术栈的务实进阶路径。
-> 最后更新：2026-09-11（按代码核对，已实现的环节已删除，只留待办）
+> 最后更新：2026-09-16（按代码核对，已实现的环节已删除，只留待办）
 
 ---
 
@@ -12,7 +12,7 @@
 | 1.1 提示词工程 | ✅ 已完成 | `src/config/agents.ts` |
 | 1.2 Tool Design 进阶 | ✅ 已完成 | `src/tools/` |
 | **2.1 Agentic Loop** | ✅ **已完成**（含反思） | `src/services/chatService.ts` + `agentReflection.ts` |
-| 2.2 工具组合与编排 | ⚠️ 结果验证已做，编排未做 | `src/services/agentReflection.ts` |
+| 2.2 工具组合与编排 | ⚠️ 结果验证 ✅ / 链式编排 ✅ / 条件路由 ❌ | `src/tools/research/` |
 | 2.3 结构化输出 | ✅ 已做（trace 落在 `ToolCallRecord` 上） | `src/types/chat/index.ts` |
 | 3.1 Memory | ⚠️ Working ✅ / Episodic ❌ | `src/services/summaryService.ts` |
 | 3.2 Multi-Agent | ❌ 未实现（只有手动切换） | `src/config/agents.ts` |
@@ -27,6 +27,7 @@
 - **1.2 Tool Design 进阶** —— `src/tools/types.ts` 的 `ToolResult<T>` 就是本节要求的设计：`metadata { source, confidence, latencyMs }` + `error { code, retryable, fallback }`。`webSearch` 已实现错误分级（主源失败 → retryable → 降级另一个源；空结果 → 低 confidence）。本节建议的 `fetchWebPage` 工具（cheerio 解析正文）也已建好，`search → fetch → summarize` 链在 prompt 里已描述。
   **⚠️ 但有个当时没意识到的坑**：`confidence` 全是手写常数，不是算出来的 —— 详见 2.2 末尾。这个认知影响了整个反思机制的可信度。
 - **2.1 Agentic Loop 全部** —— `chatService.ts` 手写 ReAct 循环 + `agentReflection.ts` 的反思步骤。详见下方 2.1。
+- **2.2 的链式编排** —— `src/tools/research/`：把 `search → fetch → summarize` 从「写死在提示词里、靠模型自觉」变成原子工具，一次调用定死动作（并行抓前 3 篇正文，每篇截断 2500 字符）。**剩余未做**：代码层主导的重试（自动换关键词重跑）、条件路由、两源并行竞速，见 2.2。
 - **3.1 的 Working Memory** —— 对话历史（`toModelMessages()`）+ 20 条触发摘要（`summaryService.ts`）已满足。
 - **3.6 Provider 抽象** —— `aiProviderService.resolveApiConfig()`：CMS「模型管理」的平台优先，未配置回退 `DEEPSEEK_*` 环境变量；支持 DeepSeek / 智谱 GLM，密钥打码、连通性测试齐全。（**剩余未做**：按任务复杂度自动选模型的 `selectModel()` 路由，见第三层末尾。）
 
@@ -40,6 +41,7 @@
 | Agent 配置化 | system prompt / model / temperature 可切换 |
 | 对话持久化 | Supabase messages + summaries 表 |
 | 历史摘要 | 20 条触发自动摘要 |
+| 显式工具编排 | `research` 组合工具：search → 并行 fetch → 汇总 |
 | **手写 Agent 循环** | 自己转 ReAct 循环，不依赖 SDK 隐式行为 |
 | 多平台凭证管理 | CMS 模型管理（DB 优先 + env 兜底） |
 
@@ -148,24 +150,89 @@ fetchWebPage 0.85、webSearch 0.85（结果充足）/ 0.75（降级）/ 0.7（�
 
 ### 2.2 工具组合与编排
 
-当前工具是扁平的：
+工具还是扁平的，但已经有一个组合工具：
 
 ```typescript
-export const tools = { webSearch, getWeather, getCurrentTime, calculate, fetchWebPage };
+export const tools = { webSearch, getWeather, getCurrentTime, calculate, fetchWebPage, research };
 ```
 
 Agent 需要：
 
 | 能力 | 说明 | 现状 |
 |---|---|---|
-| **工具依赖图** | search → fetch_page → extract → analyze | 循环已支持，但靠 prompt 引导，无代码层编排 |
-| **并行工具调用** | 同时查天气和搜索新闻 | 靠 SDK 默认行为，无显式控制 |
+| **工具依赖图** | search → fetch_page → extract → analyze | ✅ 链式编排已做（`research` 把 search → fetch → summarize 钉成原子工具）；extract/analyze 仍由模型做 |
+| **并行工具调用** | 同时查天气和搜索新闻 | ⚠️ 仅工具内部：`research` 用 `Promise.all` 并行抓 3 篇；跨工具的并行仍靠 SDK 默认行为 |
 | **条件工具路由** | 根据上一步结果决定下一步用什么工具 | ❌ 无代码层逻辑 |
 | **工具结果验证** | 检查工具返回是否有效，无效则重试或换方案 | ✅ 已做（`agentReflection.ts` 消费 `confidence` / `retryable`） |
 
-**注意**：结果验证（`metadata.confidence` / `error.retryable`）已经在 2.1 的反思步骤里做了 ——
+#### 已完成：显式链式编排（2026-09-16，`src/tools/research/`）
+
+`webSearch → fetchWebPage` 这条链以前**只写在提示词里** —— 走不走、走几步、抓几个页面
+全看模型当轮的心情，同一个问题问两次结果可能完全不同。`research` 把它封装成原子工具：
+一次调用定死「搜一次 → 并行抓前 3 篇正文（每篇截断 2500 字符）→ 汇总」。
+
+三个设计点：
+
+- **存在的理由是「钉死流程」，不是省调用次数**。代码层定死抓 3 篇，代价是模型失去了
+  「先看搜索结果、再挑哪条值得读」的判断机会 —— 所以 `webSearch` 并存，查一个事实用它。
+- **并行抓取**：模型自己走这条链只能是串行的（每轮才看得到上一轮结果），
+  `Promise.all` 一次发出去，顺带少一轮 LLM 往返（少发一遍全量上下文）。
+- **组合工具没有自己的可信度**，只能从子结果推（`deriveConfidence()`）：
+  全抓到 → 继承搜索的 0.85 / 0.75；部分抓到 → 0.78；全没抓 → 0.5。
+  0.78 是**刻意避开** 0.8 的 —— 反思用的是严格小于，取值恰好等于阈值就会静默，
+  webSearch 的 0.75 在这里踩过一次。
+
+**顺带修的 DDG URL 解析**（`resolveDdgUrl()`）：DDG 结果的 URL 原本是从 `.result__url` 的
+**显示文本**里取的（`weather.com › 路径`，不是合法 URL），喂给 `fetchPage` 会被判非法。
+现在走 `href`，并把 `uddg` 跳转参数解开。
+
+> ⚠️ 但 2026-09-16 实测发现**这条路径在生产里根本走不到** —— 见下一节。
+
+**还没做的**：结果验证（`metadata.confidence` / `error.retryable`）在 2.1 的反思步骤里做了，
 但**只做到了"告诉模型"**。真正让代码层主导重试（自动换关键词重跑一次，而不是提示模型去跑）
-还没做，那属于本节的编排范畴。
+还没做。
+
+#### ⚠️ 实测：那个「生产用 DDG」的主源是假的（2026-09-16）
+
+拿真网络把 `searchWeb()` 按 `NODE_ENV=production` 跑了一遍（临时测试，跑完删了）：
+
+| 场景 | 主源 | 实际来源 | degraded | confidence | 反思 |
+|---|---|---|---|---|---|
+| dev | Bing | Bing | `false` | 0.85 | 不触发 |
+| prod | DuckDuckGo | **Bing（降级）** | `true` | **0.75** | **每次都触发** |
+| prod + research | DuckDuckGo | Bing（降级） | `true` | 0.78 | 每次都触发 |
+
+原因：DDG 的 html 端点对**数据中心 / VPN IP** 直接返回反爬挑战页 ——
+
+```
+HTTP 202, 14210 bytes, "Select all squares containing a duck"
+class="result" 出现次数: 0        uddg 出现次数: 0      （3/3 次一致）
+```
+
+`.result` 一个都没有 → `searchDuckDuckGo()` 抛「未找到搜索结果」→ 降级。也就是说
+`pickPrimarySource()` 那个环境优先级**在线上从来没生效过**，它只是把降级路径的成本
+变成了常态：
+
+```
+每次搜索 degraded=true → confidence 0.75 → 低于 0.8 阈值
+→ 反思每轮都塞一条「结果可信度低」→ 模型可能白跑几轮换关键词
+```
+
+**这条实测正好回答了第 2 周那个悬着的问题**（「0.8 这个阈值吵不吵？」）——
+不是「偶尔抽风」，是恒为真。**但正确答案不是调阈值，是拆掉那个假主源。**
+处置：主源固定 Bing，DDG 留作降级（`webSearch.tool.ts` 的 `searchWeb()`），
+并加了测试锁住「不再按环境切换」。
+
+三个可迁移的教训：
+
+1. **报数字之前，先确认那条路径上真的有数据。** 「环境 A 走 X、环境 B 走 Y」这种分叉，
+   不实测等于没写 —— 更糟的是它决定了**降级路径是不是常态**，而常态化的降级会静默地
+   污染下游所有基于它的判断（这里就是反思）。
+2. **`res.ok` 不等于「拿到了想要的东西」。** 202 是 2xx，挑战页被当成正常响应往下解析，
+   最后报的是「未找到搜索结果」—— 读起来像「关键词不好」，把「IP 被拦」这个真因盖住了。
+   错误信息说不清真因，就等于没有错误信息。
+3. **手写 fixture 会掩盖真实世界。** DDG 的解析测试一直是绿的，因为 fixture 是照着想象
+   写的；真实 DDG 连结果页都不给。测试锁住的是**解析器的行为**，不是**这条路走得通**。
 
 #### ⚠️ 更根本的问题：confidence 是手写的，不是算出来的（2026-09-11）
 
@@ -177,6 +244,7 @@ Agent 需要：
 | `getWeather` | 0.92 | 写死的常数 |
 | `fetchWebPage` | 0.85 | 写死的常数 |
 | `webSearch` | 0.85 / 0.7 / 0.75 / 0.6 | **唯一有逻辑的**：`结果条数 ≥3 ? 高 : 低`，再按主源/降级分档 |
+| `research` | 0.5 / 0.78 / 继承搜索 | 由抓取成功篇数推导（`deriveConfidence()`），仍然不看"抓到的正文是否答非所问" |
 
 **它是"来源可信度"的先验，不是"与问题相关性"的测量。** 搜到 10 条结果但完全答非所问，
 照样拿 0.85——反思永远不会对"自信的跑题"报警。
@@ -455,13 +523,13 @@ function selectModel(task: Task): Model {
 ```
 现在 → 第 2 周：用起来 + 攒数据 ★ 最高优先级
   ├── 拿真实对话检验：反思触发后模型到底换没换关键词？
-  ├── 0.8 这个阈值吵不吵？（DDG 抽风时每轮都提示，可能反而浪费轮次）
+  ├── ~~0.8 这个阈值吵不吵？~~ ✅ 已答（2026-09-16）：不是因为 DDG 抽风，是假主源让它恒为真，
+  │     已把主源固定成 Bing。剩下的是「反思触发后模型有没有照做」还没有数据
   ├── 把 token 用量也记进 trace（现在是空白）
   └── 阅读：ReAct 论文 / Reflexion 论文（对照自己的实现看）
 
-第 3-4 周：工具编排
+第 3-4 周：工具编排（链式编排已完成，见 2.2）
   ├── 代码层主导重试：confidence 低时自动换关键词重跑，而不是提示模型去跑
-  ├── 实现工具链式调用 (search → fetch → summarize) 的显式编排
   ├── 条件路由：根据上一步结果决定下一步用哪个工具
   └── webSearch 的两个源目前是"主源失败才降级"，可以考虑并行竞速
 
@@ -533,15 +601,18 @@ function selectModel(task: Task): Model {
 - ❌ 不需要从头学 Python（Node.js/TypeScript 生态已足够成熟）
 - ❌ 不需要换框架（AI SDK + DeepSeek + Supabase 是完整的技术栈）
 - ❌ 不需要从零写 Agent（已有 streaming、tool calling、persistence 基础设施）
-- ❌ 不需要再练 提示词工程 / 工具设计 / 多平台凭证管理 / Agent 循环与反思（已完成，见进度总览）
+- ❌ 不需要再练 提示词工程 / 工具设计 / 多平台凭证管理 / Agent 循环与反思 / 工具链式编排（已完成，见进度总览）
 
 ### 你需要重点突破的
 
 1. **可观测性**：过程能在界面上回放了，但数据只跟着单条消息走 ——
    没法回答"最近 100 次对话里反思触发了多少次、模型照做了几次"
 2. **评估体系**：没有 eval 的 Agent 质量无法保证
-3. **代码层编排**：现在重试的决策权交给了模型（我们只提示）；下一步是让代码自己重跑
-4. **阈值需要数据才能调**：0.8 是照着工具取值表推出来的，不是测出来的
+3. **代码层编排**：链式流程已经钉死了（`research`），但重试的决策权还在模型手里（我们只提示）；
+   下一步是让代码自己重跑
+4. **阈值需要数据才能调**：0.8 是照着工具取值表推出来的，不是测出来的。
+   （2026-09-16 补：实测把「降级恒为真」这个假信号拆了，阈值本身暂时不用动 ——
+   剩下的未知是 `research` 的 0.78 分档会不会让「3 篇里 1 篇 403」也误报）
 
 ### 第一步建议
 
