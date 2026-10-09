@@ -324,6 +324,22 @@ Key actions:
 - Middleware protects `/dashboard` routes
 - Users must have `isActive: true` to login. Only `admin` and `user` types can access the CMS.
 
+### 权限模型 (RBAC)
+
+**两套东西，别混：**
+
+| | 含义 |
+|---|---|
+| `users.user_type` | `'admin'` = **超级管理员**，全局后门（所有权限检查直接放行）；`'user'` = 普通用户 |
+| `roles` + `user_roles` | 普通用户的权限来源 —— 所有已分配角色的权限**并集** |
+
+- **超级管理员不可创建**：新增用户表单里根本没有这个选项；`createUser()` 收到 `userType='admin'` 直接抛 `SUPER_ADMIN_NOT_CREATABLE`；`POST /api/users` 与 `PATCH /api/users/[id]` 都 403。只能后台改库。
+- **角色 `role_super_admin` 不可分配**：`isAssignableRole()`（`src/types/permission.ts`）把它挡在新增/编辑弹窗的选项外，接口也拒。它和 `user_type='admin'` 是两回事。
+- **新增/编辑用户的「用户类型」= 角色（单选）**。新用户一律写 `user_type='user'`，权限全部来自所选角色。
+- **超管专属路由**：`SUPER_ADMIN_ONLY_ROUTES`（目前只有 `/cms/models` —— 里面存 API 密钥）。middleware 拦、侧边栏 `superAdminOnly` 不渲染、`/api/ai-providers` 全部 `admin-only`。
+- **权限管理对普通角色只读**：`GET /api/roles`、`GET /api/roles/[id]`、`GET /api/permissions` 要 `users:view`；写接口仍 `admin-only`；页面按钮看 `usePermissions().isSuperAdmin`。
+- **超管账号受保护**：`PATCH`/`DELETE /api/users/[id]` 里，非 admin 动不了 `user_type='admin'` 的账号（否则拿到 `users:update` 就能重置超管密码顶掉他）。
+
 ### Database Operations
 
 - **Always use service layer functions** instead of direct Supabase calls
