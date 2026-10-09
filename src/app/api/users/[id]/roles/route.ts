@@ -1,21 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/jwt";
-import { findUserById } from "@/services/userService";
-import {
-  assignRolesToUser,
-  getUserRoles,
-  hasPermission,
-  isSensitiveRole,
-  userEditBlockReason,
-} from "@/services/permissionService";
-import {
-  SENSITIVE_ROLE_NOT_GRANTABLE,
-  SUPER_ADMIN_NOT_CREATABLE,
-  isAssignableRole,
-} from "@/types/permission";
+import { assignRolesToUser, getUserRoles, hasPermission } from "@/services/permissionService";
+import { SUPER_ADMIN_NOT_CREATABLE, isAssignableRole } from "@/types/permission";
 
 // GET /api/users/[id]/roles — get roles assigned to a user
-// 编辑弹窗要用（选中当前角色），users:view 即可 —— 角色本来就在用户列表里露着
+// 编辑弹窗只读展示当前角色用，users:view 即可 —— 角色本来就在用户列表里露着
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await requireAuth();
@@ -31,10 +20,13 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 // PUT /api/users/[id]/roles — replace all roles for a user
+//
+// 角色只有超管能分配：编辑弹窗里普通管理员的角色字段是只读的，接口也只收超管 ——
+// 否则管理员挑个「查看者」就能把别人（或自己）降级。role_super_admin 更是永远不可分配。
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await requireAuth();
-    if (!(await hasPermission(auth.id, auth.userType, "users", "update"))) {
+    if (auth.userType !== "admin") {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -45,22 +37,9 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: "roleIds must be an array" }, { status: 400 });
     }
 
-    // 换角色 = 改用户，走和 PATCH 一样的保护：超管只有超管能动，管理员之间互相不能动
-    // （用户不存在时 findUserById 自己会抛，不会漏过检查）
-    const target = await findUserById(id);
-    const blockReason = await userEditBlockReason(auth, target, "修改");
-    if (blockReason) {
-      return NextResponse.json({ error: blockReason }, { status: 403 });
-    }
-
-    // 两道闸：超管角色永远不可分配；敏感角色（带用户管理写权限）只有超管能授 ——
-    // 否则管理员给自己或新账号挂一个带 users:update 的角色，就能无限复制管理员
     for (const roleId of roleIds) {
       if (!isAssignableRole(roleId)) {
         return NextResponse.json({ error: SUPER_ADMIN_NOT_CREATABLE }, { status: 403 });
-      }
-      if (auth.userType !== "admin" && (await isSensitiveRole(roleId))) {
-        return NextResponse.json({ error: SENSITIVE_ROLE_NOT_GRANTABLE }, { status: 403 });
       }
     }
 

@@ -44,8 +44,6 @@ interface RoleOption {
   id: string;
   name: string;
   description: string | null;
-  /** 带用户管理写权限 —— 只有超管能授 */
-  isSensitive?: boolean;
 }
 
 interface EditUserDialogProps {
@@ -65,6 +63,10 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
   const [lockedRole, setLockedRole] = useState<RoleOption | null>(null);
   const [rolesLoading, setRolesLoading] = useState(false);
   const { isSuperAdmin } = usePermissions();
+
+  // 角色只读：只有超管能改（超管自己的账号也只看，它不走角色体系）。
+  // 普通管理员的弹窗里，角色是个禁用的输入框 —— 免得下拉里挑个「查看者」就把人降级了。
+  const canAssignRole = isSuperAdmin && !isSuperAdminUser;
 
   const form = useForm<UserFormData>({
     resolver: zodResolver(userFormSchema),
@@ -102,16 +104,15 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
         const allRoles: RoleOption[] = allRolesRes.ok ? ((await allRolesRes.json()).roles ?? []) : [];
         const currentRoleId: string = userRolesRes.ok ? (((await userRolesRes.json()).roles ?? [])[0]?.id ?? "") : "";
 
-        // 不在可授予列表里的：超级管理员角色（只能改库分配）、
-        // 以及敏感角色（带用户管理权限，只有超管能授）—— 后者非超管根本也编辑不到
-        const grantable = (r: RoleOption) => isAssignableRole(r.id) && (isSuperAdmin || !r.isSensitive);
+        // 超级管理员角色不在可分配列表里（只能改库分配）；用户当前挂着它就只读展示，
+        // 免得保存时被静默抹掉
         const currentRole = allRoles.find((r) => r.id === currentRoleId);
         const locked =
-          currentRoleId && !(currentRole ? grantable(currentRole) : isAssignableRole(currentRoleId))
+          currentRoleId && !isAssignableRole(currentRoleId)
             ? (currentRole ?? { id: currentRoleId, name: currentRoleId, description: null })
             : null;
 
-        setRoles(allRoles.filter(grantable));
+        setRoles(allRoles.filter((r) => isAssignableRole(r.id)));
         setLockedRole(locked);
         setSelectedRoleId(locked ? locked.id : allRoles.some((r) => r.id === currentRoleId) ? currentRoleId : "");
       } finally {
@@ -123,7 +124,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
   }, [open, user, isSuperAdmin]);
 
   const onSubmit = async (data: UserFormData) => {
-    if (!isSuperAdminUser && !selectedRoleId) {
+    if (canAssignRole && !selectedRoleId) {
       toast.error("请为用户选择角色");
       return;
     }
@@ -144,13 +145,14 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
         body: JSON.stringify(submitData),
       });
 
-      const rolesRes = isSuperAdminUser
-        ? null
-        : await fetch(`/api/users/${user.id}/roles`, {
+      // 角色只读时压根不发这个请求 —— 接口也只收超管
+      const rolesRes = canAssignRole
+        ? await fetch(`/api/users/${user.id}/roles`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ roleIds: [selectedRoleId] }),
-          });
+          })
+        : null;
 
       if (userRes.ok && (!rolesRes || rolesRes.ok)) {
         toast.success("更新用户成功");
@@ -166,6 +168,9 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
     }
   };
 
+  // 只读展示用：当前角色名可能在可分配列表里，也可能落在 lockedRole（超管角色，改库才有）上
+  const selectedRoleName = roles.find((r) => r.id === selectedRoleId)?.name ?? lockedRole?.name ?? "";
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
@@ -175,13 +180,15 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-            {isSuperAdminUser ? (
+            {!canAssignRole ? (
               <FormItem>
                 <FormLabel>角色</FormLabel>
                 <FormControl>
-                  <Input value="超级管理员" disabled readOnly />
+                  <Input value={isSuperAdminUser ? "超级管理员" : selectedRoleName} disabled readOnly />
                 </FormControl>
-                <p className="text-muted-foreground text-xs">系统唯一，不可通过界面分配</p>
+                <p className="text-muted-foreground text-xs">
+                  {isSuperAdminUser ? "系统唯一，不可通过界面分配" : "角色只有超级管理员能改"}
+                </p>
               </FormItem>
             ) : (
               <FormItem>
@@ -199,7 +206,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
                   <SelectContent>
                     {lockedRole && (
                       <SelectItem value={lockedRole.id} disabled>
-                        {lockedRole.name}（{isSuperAdmin ? "仅可后台分配" : "仅超管可分配"}）
+                        {lockedRole.name}（仅可后台分配）
                       </SelectItem>
                     )}
                     {roles.map((role) => (

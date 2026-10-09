@@ -155,7 +155,7 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
                       ))}
                     </SelectContent>
                   </Select>
-                  {noRoles && (
+                  {noRoles && !hasHiddenRoles && (
                     <p className="text-muted-foreground text-sm">暂无可用角色，请先在「权限管理」中创建角色</p>
                   )}
                   {hasHiddenRoles && (
