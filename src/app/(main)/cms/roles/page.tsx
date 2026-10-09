@@ -54,10 +54,9 @@ export default function RolesPage() {
   const [forbidden, setForbidden] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingRole, setEditingRole] = useState<Role | null>(null);
-  const { hasPermission } = usePermissions();
-  const canCreate = hasPermission("users", "create");
-  const canUpdate = hasPermission("users", "update");
-  const canDelete = hasPermission("users", "delete");
+  // 权限管理对普通角色只读 —— 改角色等于改全站权限（/api/roles 的写接口也是 admin-only）
+  const { isSuperAdmin } = usePermissions();
+  const canManage = isSuperAdmin;
 
   const fetchRoles = useCallback(async () => {
     setLoading(true);
@@ -145,7 +144,7 @@ export default function RolesPage() {
           <h1 className="text-2xl font-bold">权限管理</h1>
           <p className="text-muted-foreground">管理角色与功能权限</p>
         </div>
-        {canCreate && (
+        {canManage && (
           <Button onClick={handleAdd}>
             <Plus className="mr-2 h-4 w-4" />
             新增角色
@@ -173,7 +172,7 @@ export default function RolesPage() {
                       <CardTitle className="text-base">{role.name}</CardTitle>
                     </div>
                     <div className="flex gap-1">
-                      {canUpdate && (
+                      {canManage && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -183,7 +182,7 @@ export default function RolesPage() {
                           <Pencil className="h-4 w-4" />
                         </Button>
                       )}
-                      {canDelete && (
+                      {canManage && (
                         <Button
                           variant="ghost"
                           size="icon"

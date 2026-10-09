@@ -24,11 +24,13 @@ function getUserInfoFromCookie(): UserInfo | null {
 export function usePermissions() {
   const userInfo = useMemo(() => getUserInfoFromCookie(), []);
 
+  const isSuperAdmin = userInfo?.userType === "admin";
+
   const hasPermission = (module: string, action: string): boolean => {
     if (!userInfo) return false;
-    if (userInfo.userType === "admin") return true;
+    if (isSuperAdmin) return true;
     return (userInfo.permissions ?? []).includes(`${module}:${action}`);
   };
 
-  return { hasPermission };
+  return { hasPermission, isSuperAdmin };
 }

@@ -11,7 +11,8 @@ jest.mock("jsonwebtoken", () => ({
 
 import { verify } from "jsonwebtoken";
 
-const mockVerify = verify as jest.MockedFunction<typeof verify>;
+// jsonwebtoken 的 verify 是重载函数，jest mock 下推不出返回类型，这里放宽
+const mockVerify = verify as unknown as jest.Mock;
 
 function createMockRequest(pathname: string, cookies: Record<string, string> = {}) {
   const cookieMap = new Map(Object.entries(cookies));
@@ -83,14 +84,14 @@ describe("authMiddleware", () => {
       expect(res.headers.get("Location")).toBe("http://localhost:3000/chat");
     });
 
-    it("redirects from /register to /chat", () => {
+    it("redirects from /auth/* to /chat", () => {
       mockVerify.mockReturnValue({
         id: "user-1",
         userType: "admin",
         permissions: [],
       });
 
-      const req = createMockRequest("/register", authCookies);
+      const req = createMockRequest("/auth/anything", authCookies);
       const res = authMiddleware(req);
 
       expect(res.headers.get("Location")).toBe("http://localhost:3000/chat");
@@ -156,6 +157,68 @@ describe("authMiddleware", () => {
 
       const res = authMiddleware(req);
       expect(res.headers.get("Location")).toBeNull();
+    });
+
+    it("allows a regular user with users:view into 权限管理", () => {
+      mockVerify.mockReturnValue({
+        id: "user-4",
+        userType: "user",
+        permissions: ["users:view"],
+      });
+
+      const req = createMockRequest("/cms/roles", {
+        "auth-token": "valid-token",
+        "user-info": JSON.stringify({}),
+      });
+
+      expect(authMiddleware(req).headers.get("Location")).toBeNull();
+    });
+
+    it("blocks a regular user from /cms/models even with models:view", () => {
+      mockVerify.mockReturnValue({
+        id: "user-5",
+        userType: "user",
+        permissions: ["models:view", "users:view"],
+      });
+
+      const req = createMockRequest("/cms/models", {
+        "auth-token": "valid-token",
+        "user-info": JSON.stringify({}),
+      });
+
+      const res = authMiddleware(req);
+      expect(res.status).toBe(307);
+      expect(res.headers.get("Location")).toBe("http://localhost:3000/unauthorized");
+    });
+
+    it("blocks a regular user from sub-paths of /cms/models", () => {
+      mockVerify.mockReturnValue({
+        id: "user-6",
+        userType: "user",
+        permissions: ["models:view"],
+      });
+
+      const req = createMockRequest("/cms/models/anything", {
+        "auth-token": "valid-token",
+        "user-info": JSON.stringify({}),
+      });
+
+      expect(authMiddleware(req).headers.get("Location")).toBe("http://localhost:3000/unauthorized");
+    });
+
+    it("allows the super admin into /cms/models", () => {
+      mockVerify.mockReturnValue({
+        id: "admin-1",
+        userType: "admin",
+        permissions: [],
+      });
+
+      const req = createMockRequest("/cms/models", {
+        "auth-token": "valid-token",
+        "user-info": JSON.stringify({}),
+      });
+
+      expect(authMiddleware(req).headers.get("Location")).toBeNull();
     });
   });
 });

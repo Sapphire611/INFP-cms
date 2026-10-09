@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/jwt";
-import { listRoles, createRole } from "@/services/permissionService";
+import { hasPermission, listRoles, createRole } from "@/services/permissionService";
 
 // GET /api/roles — list all roles
+//
+// 只读：有 users:view 就能看；改角色仍然只有超管（见下面的 POST）
 export async function GET() {
   try {
     const auth = await requireAuth();
-    if (auth.userType !== "admin") {
+    if (!(await hasPermission(auth.id, auth.userType, "users", "view"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const roles = await listRoles();

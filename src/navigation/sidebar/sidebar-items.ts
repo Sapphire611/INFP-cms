@@ -18,6 +18,8 @@ export interface NavMainItem {
   comingSoon?: boolean;
   newTab?: boolean;
   isNew?: boolean;
+  /** 只对超级管理员显示（对应 SUPER_ADMIN_ONLY_ROUTES） */
+  superAdminOnly?: boolean;
 }
 
 export interface NavGroup {
@@ -55,6 +57,7 @@ export const sidebarItems: NavGroup[] = [
         title: "模型管理",
         url: "/cms/models",
         icon: KeyRound,
+        superAdminOnly: true,
       },
       {
         title: "AI 对话",

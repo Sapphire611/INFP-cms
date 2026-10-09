@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { verify } from "jsonwebtoken";
-import { ROUTE_PERMISSIONS } from "@/types/permission";
+import { ROUTE_PERMISSIONS, SUPER_ADMIN_ONLY_ROUTES } from "@/types/permission";
 import type { JWTPayload } from "@/lib/jwt";
 
 function decodeToken(token: string): JWTPayload | null {
@@ -29,7 +29,7 @@ export function authMiddleware(req: NextRequest) {
   }
 
   // Redirect authenticated users away from auth pages
-  if (isLoggedIn && (pathname === "/login" || pathname === "/register" || pathname.startsWith("/auth"))) {
+  if (isLoggedIn && (pathname === "/login" || pathname.startsWith("/auth"))) {
     return NextResponse.redirect(new URL("/chat", req.url));
   }
 
@@ -47,6 +47,11 @@ export function authMiddleware(req: NextRequest) {
 
     // admin bypasses all permission checks
     if (payload.userType !== "admin") {
+      // 超管专属路由：不看权限，直接拦（含其子路径）
+      if (SUPER_ADMIN_ONLY_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`))) {
+        return NextResponse.redirect(new URL("/unauthorized", req.url));
+      }
+
       const requiredPermission = ROUTE_PERMISSIONS[pathname];
       if (requiredPermission && !payload.permissions?.includes(requiredPermission)) {
         return NextResponse.redirect(new URL("/unauthorized", req.url));

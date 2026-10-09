@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/jwt";
-import { getRoleWithPermissions, updateRole, deleteRole } from "@/services/permissionService";
+import { hasPermission, getRoleWithPermissions, updateRole, deleteRole } from "@/services/permissionService";
 
 // GET /api/roles/[id]
+//
+// 只读：有 users:view 就能看；改 / 删仍然只有超管
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const auth = await requireAuth();
-    if (auth.userType !== "admin") {
+    if (!(await hasPermission(auth.id, auth.userType, "users", "view"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const { id } = await params;

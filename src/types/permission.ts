@@ -34,11 +34,30 @@ export interface UserRole {
   roleName: string;
 }
 
+/**
+ * 「权限管理」里种子数据自带的超级管理员角色 —— 等于全权限。
+ * 只能由后台直接改库分配：界面不展示、接口不接收（见 isAssignableRole）。
+ */
+export const SUPER_ADMIN_ROLE_ID = 'role_super_admin';
+
+/** 该角色是否可以由界面 / 接口分配给用户（超级管理员除外） */
+export function isAssignableRole(roleId: string): boolean {
+  return roleId !== SUPER_ADMIN_ROLE_ID;
+}
+
+/** 拒绝创建超级管理员时的统一文案（服务层抛错与接口响应共用） */
+export const SUPER_ADMIN_NOT_CREATABLE = '超级管理员不可创建，请直接改库分配';
+
 // Route → required permission mapping
 export const ROUTE_PERMISSIONS: Record<string, PermissionKey> = {
   '/cms/dashboard': 'dashboard:view',
   '/cms/users': 'users:view',
   '/cms/wechat-users': 'wechat_users:view',
   '/cms/roles': 'users:view', // Roles management requires users:view permission
-  '/cms/models': 'models:view',
 };
+
+/**
+ * 只有超级管理员能进的路由 —— 权限系统管不着，别人一律进不去。
+ * 模型管理里存着 API 密钥，连「只读」都不给。
+ */
+export const SUPER_ADMIN_ONLY_ROUTES: string[] = ['/cms/models'];

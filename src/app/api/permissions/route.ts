@@ -1,12 +1,14 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/jwt";
-import { listPermissions } from "@/services/permissionService";
+import { hasPermission, listPermissions } from "@/services/permissionService";
 
 // GET /api/permissions — list all permissions grouped by module
+//
+// 只读：有 users:view 就能看（权限管理页面对普通角色开放查看）
 export async function GET() {
   try {
     const auth = await requireAuth();
-    if (auth.userType !== "admin") {
+    if (!(await hasPermission(auth.id, auth.userType, "users", "view"))) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
