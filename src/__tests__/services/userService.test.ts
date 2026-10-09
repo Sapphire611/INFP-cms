@@ -26,6 +26,7 @@ import {
   getUserStats,
   getUserGrowthStats,
 } from "@/services/userService";
+import { SUPER_ADMIN_NOT_CREATABLE } from "@/types/permission";
 
 const mockDbUser = {
   id: "1",
@@ -90,6 +91,28 @@ describe("findUsers", () => {
     expect(result.pagination.total).toBe(55);
     expect(result.pagination.totalPages).toBe(6);
   });
+
+  it("filters by role through the user_roles join table", async () => {
+    // from('users') 先建、from('user_roles') 后建，所以队列是这个顺序
+    setupFromSequence([
+      { data: [mockDbUser], count: 1 }, // users query
+      { data: [{ user_id: "1" }] }, // user_roles lookup
+    ]);
+
+    const result = await findUsers({ roleId: "role_viewer" }, { page: 1, pageSize: 10 });
+
+    expect(result.users).toHaveLength(1);
+    expect(result.pagination.total).toBe(1);
+  });
+
+  it("returns an empty page when nobody has the role", async () => {
+    setupFrom([]); // user_roles lookup → no members
+
+    const result = await findUsers({ roleId: "role_nobody" }, { page: 1, pageSize: 10 });
+
+    expect(result.users).toHaveLength(0);
+    expect(result.pagination.total).toBe(0);
+  });
 });
 
 describe("findUserById", () => {
@@ -117,11 +140,26 @@ describe("createUser", () => {
       username: "testuser",
       email: "test@test.com",
       password: "password123",
-      userType: "admin",
+      userType: "user",
     });
 
     expect(user.username).toBe("testuser");
     expect(user.userType).toBe("admin");
+  });
+
+  it("refuses to create a super admin, without touching the database", async () => {
+    mockClient.from.mockClear();
+
+    await expect(
+      createUser({
+        username: "hacker",
+        email: "hacker@test.com",
+        password: "password123",
+        userType: "admin",
+      }),
+    ).rejects.toThrow(SUPER_ADMIN_NOT_CREATABLE);
+
+    expect(mockClient.from).not.toHaveBeenCalled();
   });
 });
 

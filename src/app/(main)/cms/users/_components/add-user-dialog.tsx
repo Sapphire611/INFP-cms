@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useEffect, useState } from "react";
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -19,6 +20,14 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { isAssignableRole } from "@/types/permission";
+
+/** 「权限管理」里配置的角色 —— 新用户的权限就是从这里来 */
+interface RoleOption {
+  id: string;
+  name: string;
+  description: string | null;
+}
 
 const userFormSchema = z.object({
   username: z.string().min(2, "用户名至少 2 位"),
@@ -26,7 +35,7 @@ const userFormSchema = z.object({
   email: z.string().email("邮箱格式不正确"),
   password: z.string().min(6, "密码至少 6 位"),
   phone: z.string().optional(),
-  userType: z.enum(["admin", "user"]),
+  roleId: z.string().min(1, "请选择角色"),
 });
 
 type UserFormData = z.infer<typeof userFormSchema>;
@@ -38,6 +47,9 @@ interface AddUserDialogProps {
 }
 
 export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialogProps) {
+  const [roles, setRoles] = useState<RoleOption[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
+
   const form = useForm<UserFormData>({
     resolver: zodResolver(userFormSchema),
     defaultValues: {
@@ -46,18 +58,30 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
       email: "",
       password: "",
       phone: "",
-      userType: "user",
+      roleId: "",
     },
   });
+
+  // 角色列表来自「权限管理」；超级管理员角色不由界面分配
+  useEffect(() => {
+    if (!open) return;
+
+    setRolesLoading(true);
+    fetch("/api/roles")
+      .then((res) => (res.ok ? res.json() : { roles: [] }))
+      .then((data) => setRoles((data.roles ?? []).filter((r: RoleOption) => isAssignableRole(r.id))))
+      .catch(() => setRoles([]))
+      .finally(() => setRolesLoading(false));
+  }, [open]);
 
   const onSubmit = async (data: UserFormData) => {
     try {
       // 构建请求数据
-      const requestData: any = {
+      const requestData = {
         username: data.username,
         email: data.email,
         password: data.password,
-        userType: data.userType,
+        roleId: data.roleId,
         profile: {
           name: data.name,
           phone: data.phone,
@@ -88,32 +112,44 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
     }
   };
 
+  const selectedRole = roles.find((r) => r.id === form.watch("roleId"));
+  const noRoles = !rolesLoading && roles.length === 0;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>新增用户</DialogTitle>
-          <DialogDescription>请填写以下信息以创建新用户。</DialogDescription>
+          <DialogDescription>请填写以下信息以创建新用户。权限由所选角色决定。</DialogDescription>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
-              name="userType"
+              name="roleId"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>用户类型</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <FormLabel>角色</FormLabel>
+                  <Select onValueChange={field.onChange} value={field.value} disabled={noRoles}>
                     <FormControl>
                       <SelectTrigger>
-                        <SelectValue placeholder="选择用户类型" />
+                        <SelectValue placeholder={rolesLoading ? "加载中..." : "选择角色"} />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="admin">管理员</SelectItem>
-                      <SelectItem value="user">普通用户</SelectItem>
+                      {roles.map((role) => (
+                        <SelectItem key={role.id} value={role.id}>
+                          {role.name}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
+                  {noRoles && (
+                    <p className="text-muted-foreground text-sm">暂无可用角色，请先在「权限管理」中创建角色</p>
+                  )}
+                  {selectedRole?.description && (
+                    <p className="text-muted-foreground text-xs">{selectedRole.description}</p>
+                  )}
                   <FormMessage />
                 </FormItem>
               )}
@@ -188,7 +224,9 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
               <Button type="button" variant="outline" onClick={() => onOpenChange?.(false)}>
                 取消
               </Button>
-              <Button type="submit">创建</Button>
+              <Button type="submit" disabled={noRoles}>
+                创建
+              </Button>
             </DialogFooter>
           </form>
         </Form>

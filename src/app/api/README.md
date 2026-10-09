@@ -42,8 +42,9 @@ CMS 用户登录接口。
 
 ### `POST /api/users`
 创建新用户。
-- 请求体：`{ email, password, name, userType }`
-- 调用方：`src/components/register-form.tsx`, `src/app/(main)/cms/users/_components/add-user-dialog.tsx`
+- 请求体：`{ email, password, username, roleId, profile }`
+- 调用方：`src/app/(main)/cms/users/_components/add-user-dialog.tsx`
+- 鉴权：需 `users:create`；`userType='admin'` 与超级管理员角色一律拒绝
 
 ### `GET /api/users/[id]`
 获取单个用户详情。

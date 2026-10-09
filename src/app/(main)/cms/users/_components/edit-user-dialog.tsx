@@ -9,7 +9,6 @@ import { toast } from "sonner";
 import * as z from "zod";
 
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +20,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
+import { isAssignableRole } from "@/types/permission";
 
 import { UserWithCallback } from "./types";
 
@@ -30,7 +29,6 @@ const userFormSchema = z.object({
   name: z.string().min(1, "姓名为必填项"),
   email: z.string().email("邮箱格式不正确"),
   phone: z.string().optional(),
-  userType: z.enum(["admin", "user"]),
   password: z
     .string()
     .optional()
@@ -41,7 +39,7 @@ const userFormSchema = z.object({
 
 type UserFormData = z.infer<typeof userFormSchema>;
 
-interface Role {
+interface RoleOption {
   id: string;
   name: string;
   description: string | null;
@@ -55,8 +53,13 @@ interface EditUserDialogProps {
 }
 
 export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: EditUserDialogProps) {
-  const [roles, setRoles] = useState<Role[]>([]);
-  const [selectedRoleIds, setSelectedRoleIds] = useState<Set<string>>(new Set());
+  // 超级管理员（user_type='admin'）不进角色体系，界面上也不给他分配角色
+  const isSuperAdminUser = user.userType === "admin";
+
+  const [roles, setRoles] = useState<RoleOption[]>([]);
+  const [selectedRoleId, setSelectedRoleId] = useState<string>("");
+  // 用户当前挂着、但界面上不允许分配的角色（超级管理员）—— 只读展示，避免保存时被静默抹掉
+  const [lockedRole, setLockedRole] = useState<RoleOption | null>(null);
   const [rolesLoading, setRolesLoading] = useState(false);
 
   const form = useForm<UserFormData>({
@@ -66,7 +69,6 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
       name: user.profileName || "",
       email: user.email,
       phone: user.profilePhone || "",
-      userType: user.userType,
       password: undefined,
     },
   });
@@ -80,9 +82,10 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
       name: user.profileName || "",
       email: user.email,
       phone: user.profilePhone || "",
-      userType: user.userType,
       password: undefined,
     });
+
+    if (isSuperAdminUser) return;
 
     const loadRoles = async () => {
       setRolesLoading(true);
@@ -91,14 +94,24 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
           fetch("/api/roles"),
           fetch(`/api/users/${user.id}/roles`),
         ]);
-        if (allRolesRes.ok) {
-          const { roles: allRoles } = await allRolesRes.json();
-          setRoles(allRoles);
-        }
-        if (userRolesRes.ok) {
-          const { roles: userRoles } = await userRolesRes.json();
-          setSelectedRoleIds(new Set(userRoles.map((r: Role) => r.id)));
-        }
+
+        const allRoles: RoleOption[] = allRolesRes.ok ? ((await allRolesRes.json()).roles ?? []) : [];
+        const currentRoleId: string = userRolesRes.ok ? (((await userRolesRes.json()).roles ?? [])[0]?.id ?? "") : "";
+
+        // 超级管理员角色不在可分配列表里
+        const assignable = allRoles.filter((r) => isAssignableRole(r.id));
+        const locked =
+          currentRoleId && !isAssignableRole(currentRoleId)
+            ? (allRoles.find((r) => r.id === currentRoleId) ?? {
+                id: currentRoleId,
+                name: currentRoleId,
+                description: "仅可后台分配",
+              })
+            : null;
+
+        setRoles(assignable);
+        setLockedRole(locked);
+        setSelectedRoleId(locked ? locked.id : assignable.some((r) => r.id === currentRoleId) ? currentRoleId : "");
       } finally {
         setRolesLoading(false);
       }
@@ -107,46 +120,42 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
     loadRoles();
   }, [open, user]);
 
-  const toggleRole = (id: string) => {
-    setSelectedRoleIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  };
-
   const onSubmit = async (data: UserFormData) => {
+    if (!isSuperAdminUser && !selectedRoleId) {
+      toast.error("请为用户选择角色");
+      return;
+    }
+
     try {
       const submitData: any = {
         username: data.username,
         email: data.email,
-        userType: data.userType,
         profile: { name: data.name, phone: data.phone },
       };
       if (data.password && data.password.trim() !== "") {
         submitData.password = data.password;
       }
 
-      const [userRes, rolesRes] = await Promise.all([
-        fetch(`/api/users/${user.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(submitData),
-        }),
-        fetch(`/api/users/${user.id}/roles`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roleIds: Array.from(selectedRoleIds) }),
-        }),
-      ]);
+      const userRes = await fetch(`/api/users/${user.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(submitData),
+      });
 
-      if (userRes.ok && rolesRes.ok) {
+      const rolesRes = isSuperAdminUser
+        ? null
+        : await fetch(`/api/users/${user.id}/roles`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ roleIds: [selectedRoleId] }),
+          });
+
+      if (userRes.ok && (!rolesRes || rolesRes.ok)) {
         toast.success("更新用户成功");
         onUserUpdated?.();
         onOpenChange(false);
       } else {
-        const error = await (userRes.ok ? rolesRes : userRes).json();
+        const error = await (userRes.ok && rolesRes ? rolesRes : userRes).json();
         toast.error(error.error ?? "更新用户失败");
       }
     } catch (error) {
@@ -154,8 +163,6 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
       toast.error("更新用户失败");
     }
   };
-
-  const watchedUserType = form.watch("userType");
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -166,32 +173,56 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            {isSuperAdminUser ? (
+              <FormItem>
+                <FormLabel>角色</FormLabel>
+                <FormControl>
+                  <Input value="超级管理员" disabled readOnly />
+                </FormControl>
+                <p className="text-muted-foreground text-xs">系统唯一，不可通过界面分配</p>
+              </FormItem>
+            ) : (
+              <FormItem>
+                <FormLabel>角色</FormLabel>
+                <Select
+                  onValueChange={setSelectedRoleId}
+                  value={selectedRoleId}
+                  disabled={rolesLoading || (!lockedRole && roles.length === 0)}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder={rolesLoading ? "加载中..." : "选择角色"} />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {lockedRole && (
+                      <SelectItem value={lockedRole.id} disabled>
+                        {lockedRole.name}（仅可后台分配）
+                      </SelectItem>
+                    )}
+                    {roles.map((role) => (
+                      <SelectItem key={role.id} value={role.id}>
+                        {role.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {!rolesLoading && roles.length === 0 && !lockedRole && (
+                  <p className="text-muted-foreground text-sm">暂无可用角色，请先在「权限管理」中创建角色</p>
+                )}
+                <FormMessage />
+              </FormItem>
+            )}
+
             <FormField
               control={form.control}
               name="username"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>用户名</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="userType"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>用户类型</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value}>
-                    <FormControl>
-                      <SelectTrigger><SelectValue placeholder="选择用户类型" /></SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="admin">管理员</SelectItem>
-                      <SelectItem value="user">普通用户</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -202,7 +233,9 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>姓名</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -213,7 +246,9 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>邮箱</FormLabel>
-                  <FormControl><Input type="email" {...field} /></FormControl>
+                  <FormControl>
+                    <Input type="email" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -224,7 +259,9 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>联系电话</FormLabel>
-                  <FormControl><Input {...field} /></FormControl>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
@@ -235,44 +272,13 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>密码（留空则不修改）</FormLabel>
-                  <FormControl><Input type="password" {...field} /></FormControl>
+                  <FormControl>
+                    <Input type="password" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
-
-            {/* Role assignment — only for non-admin users */}
-            {watchedUserType === "user" && (
-              <>
-                <Separator />
-                <div className="space-y-2">
-                  <FormLabel>分配角色</FormLabel>
-                  {rolesLoading ? (
-                    <p className="text-muted-foreground text-sm">加载角色中...</p>
-                  ) : roles.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">暂无可用角色，请先在「权限管理」中创建角色</p>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-2">
-                      {roles.map((role) => (
-                        <div key={role.id} className="flex items-center gap-2 rounded-md border p-2">
-                          <Checkbox
-                            id={`role-${role.id}`}
-                            checked={selectedRoleIds.has(role.id)}
-                            onCheckedChange={() => toggleRole(role.id)}
-                          />
-                          <label htmlFor={`role-${role.id}`} className="cursor-pointer text-sm">
-                            {role.name}
-                            {role.description && (
-                              <span className="text-muted-foreground block text-xs">{role.description}</span>
-                            )}
-                          </label>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>

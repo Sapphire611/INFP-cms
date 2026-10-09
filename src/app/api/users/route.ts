@@ -1,17 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/jwt";
 import { findUsers, createUser, findByEmail, findByUsername } from "@/services/userService";
-import { getBatchUserRoles } from "@/services/permissionService";
+import {
+  getBatchUserRoles,
+  hasPermission,
+  assignRolesToUser,
+  getRoleWithPermissions,
+} from "@/services/permissionService";
+import { SUPER_ADMIN_NOT_CREATABLE, isAssignableRole } from "@/types/permission";
 
-type UserType = 'admin' | 'user';
+type UserType = "admin" | "user";
 
 interface CreateUserRequest {
   username: string;
   email: string;
   password: string;
-  userType: UserType;
-  profile: {
-    name: string;
+  /** 用户类型 = 权限管理里的角色。只用来拦截 'admin'，实际写库恒为 'user' */
+  userType?: UserType;
+  roleId?: string;
+  profile?: {
+    name?: string;
     phone?: string;
   };
 }
@@ -45,12 +53,13 @@ export async function GET(request: NextRequest) {
     const { page, limit } = extractPaginationParams(url);
     const search = url.searchParams.get("search") ?? undefined;
     const userType = url.searchParams.get("userType") as UserType | null;
+    const roleId = url.searchParams.get("roleId") ?? undefined;
     const isActiveParam = url.searchParams.get("isActive");
     const isActive = isActiveParam ? isActiveParam === "true" : undefined;
 
     // Use service to fetch users
     const result = await findUsers(
-      { search, userType: userType ?? undefined, isActive },
+      { search, userType: userType ?? undefined, roleId, isActive },
       { page, pageSize: limit }
     );
 
@@ -79,10 +88,37 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/users - 创建新用户
+//
+// 用户类型 = 权限管理里的角色：新用户一律 user_type='user'，权限由所选角色决定。
+// 超级管理员（user_type='admin' 与 role_super_admin 角色）只由后台改库产生。
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuth();
+
+    if (!(await hasPermission(auth.id, auth.userType, "users", "create"))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body: CreateUserRequest = await request.json();
-    const { username, email, password, userType, profile } = body;
+    const { username, email, password, userType, roleId, profile } = body;
+
+    // 界面已不提供「管理员」选项，这里再兜一层：接口也不接受
+    if (userType === "admin") {
+      return NextResponse.json({ error: SUPER_ADMIN_NOT_CREATABLE }, { status: 403 });
+    }
+
+    if (!roleId) {
+      return NextResponse.json({ error: "请为用户选择角色" }, { status: 400 });
+    }
+
+    // 超级管理员角色同样不可分配 —— 否则等于绕开上面的拦截造出第二个万能账号
+    if (!isAssignableRole(roleId)) {
+      return NextResponse.json({ error: SUPER_ADMIN_NOT_CREATABLE }, { status: 403 });
+    }
+
+    if (!(await getRoleWithPermissions(roleId))) {
+      return NextResponse.json({ error: "角色不存在" }, { status: 400 });
+    }
 
     // 检查用户是否已存在
     const existingUserByEmail = await findByEmail(email);
@@ -100,13 +136,23 @@ export async function POST(request: NextRequest) {
       username,
       email,
       password,
-      userType,
-      profileName: profile.name,
-      profilePhone: profile.phone,
+      userType: "user",
+      roleId,
+      profileName: profile?.name,
+      profilePhone: profile?.phone,
     });
+
+    // 绑定角色 —— 权限的唯一来源
+    await assignRolesToUser(user.id, [roleId]);
 
     return NextResponse.json(user, { status: 201 });
   } catch (error) {
+    if (error instanceof Error && error.message === SUPER_ADMIN_NOT_CREATABLE) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("Error creating user:", error);
     return NextResponse.json({ error: "Failed to create user" }, { status: 500 });
   }

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAuth } from "@/lib/jwt";
 import { findUserById, updateUser, deleteUser, findByEmail, findByUsername } from "@/services/userService";
+import { hasPermission } from "@/services/permissionService";
+import { SUPER_ADMIN_NOT_CREATABLE } from "@/types/permission";
 
-type UserType = 'admin' | 'user';
+type UserType = "admin" | "user";
 
 interface UpdateUserRequest {
   username?: string;
@@ -17,6 +20,12 @@ interface UpdateUserRequest {
 // GET /api/users/[id] - 获取单个用户
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAuth();
+
+    if (!(await hasPermission(auth.id, auth.userType, "users", "view"))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { id } = await params;
     const user = await findUserById(id);
 
@@ -26,6 +35,9 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 
     return NextResponse.json(user);
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("Error fetching user:", error);
     return NextResponse.json({ error: "Failed to fetch user" }, { status: 500 });
   }
@@ -34,14 +46,30 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
 // PATCH /api/users/[id] - 更新用户
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAuth();
+
+    if (!(await hasPermission(auth.id, auth.userType, "users", "update"))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { id } = await params;
     const body: UpdateUserRequest = await request.json();
     const { username, email, password, userType, profile } = body;
+
+    // 超级管理员只由后台改库产生 —— 这里也不能把人升级成管理员
+    if (userType === "admin") {
+      return NextResponse.json({ error: SUPER_ADMIN_NOT_CREATABLE }, { status: 403 });
+    }
 
     // 查找用户
     const existingUser = await findUserById(id);
     if (!existingUser) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // 超级管理员账号只有超级管理员本人能改 —— 否则拿到 users:update 就能重置你的密码顶掉你
+    if (existingUser.userType === "admin" && auth.userType !== "admin") {
+      return NextResponse.json({ error: "无权修改超级管理员" }, { status: 403 });
     }
 
     // 检查邮箱是否已被其他用户使用
@@ -75,6 +103,9 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 
     return NextResponse.json(user);
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("Error updating user:", error);
     return NextResponse.json({ error: "Failed to update user" }, { status: 500 });
   }
@@ -83,7 +114,20 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
 // DELETE /api/users/[id] - 删除用户
 export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const auth = await requireAuth();
+
+    if (!(await hasPermission(auth.id, auth.userType, "users", "delete"))) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const { id } = await params;
+
+    // 超级管理员账号只有超级管理员本人能删
+    const existingUser = await findUserById(id);
+    if (existingUser.userType === "admin" && auth.userType !== "admin") {
+      return NextResponse.json({ error: "无权删除超级管理员" }, { status: 403 });
+    }
+
     const user = await deleteUser(id);
 
     if (!user) {
@@ -92,6 +136,9 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     return NextResponse.json({ message: "User deleted successfully" });
   } catch (error) {
+    if (error instanceof Error && error.message === "Unauthorized") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     console.error("Error deleting user:", error);
     return NextResponse.json({ error: "Failed to delete user" }, { status: 500 });
   }

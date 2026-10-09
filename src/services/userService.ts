@@ -1,6 +1,7 @@
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { hashPassword } from '@/lib/auth';
 import { hashPasswordWithSHA256 } from '@/lib/crypto';
+import { SUPER_ADMIN_NOT_CREATABLE } from '@/types/permission';
 
 // Keep existing interfaces for compatibility
 export interface CreateUserRequest {
@@ -8,6 +9,7 @@ export interface CreateUserRequest {
   email: string;
   password: string;
   userType: 'admin' | 'user';
+  roleId?: string;
   profileName?: string;
   profilePhone?: string;
   profileAvatar?: string;
@@ -27,6 +29,7 @@ export interface UpdateUserRequest {
 export interface FindUsersQuery {
   search?: string;
   userType?: 'admin' | 'user';
+  roleId?: string;
   isActive?: boolean;
 }
 
@@ -56,7 +59,7 @@ export async function findUsers(
   query: FindUsersQuery = {},
   pagination: PaginationOptions = { page: 1, pageSize: 10 }
 ) {
-  const { search, userType, isActive } = query;
+  const { search, userType, roleId, isActive } = query;
   const { page, pageSize } = pagination;
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
@@ -75,6 +78,22 @@ export async function findUsers(
   // User type filtering
   if (userType) {
     queryBuilder = queryBuilder.eq('user_type', userType);
+  }
+
+  // Role filtering — 角色挂在 user_roles 关联表上，先捞出该角色下的用户 id
+  if (roleId) {
+    const { data: links, error: linkError } = await supabaseAdmin
+      .from('user_roles')
+      .select('user_id')
+      .eq('role_id', roleId);
+
+    if (linkError) throw linkError;
+
+    const memberIds = (links ?? []).map((link) => link.user_id);
+    if (memberIds.length === 0) {
+      return { users: [], pagination: { page, pageSize, total: 0, totalPages: 0 } };
+    }
+    queryBuilder = queryBuilder.in('id', memberIds);
   }
 
   // Active status filtering
@@ -144,8 +163,15 @@ export async function findUserById(id: string) {
 
 /**
  * Create user using Supabase
+ *
+ * 超级管理员（user_type = 'admin'）拒绝创建 —— 只由后台改库产生。
+ * 角色不在这里写：user_roles 归 permissionService.assignRolesToUser()。
  */
 export async function createUser(data: CreateUserRequest) {
+  if (data.userType === 'admin') {
+    throw new Error(SUPER_ADMIN_NOT_CREATABLE);
+  }
+
   const sha256 = await hashPasswordWithSHA256(data.password);
   const hashedPassword = await hashPassword(sha256);
 
