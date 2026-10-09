@@ -39,4 +39,6 @@ export interface UserResponse {
   createdAt: Date;
   updatedAt: Date;
   roles?: UserRole[];
+  /** 持有带用户管理写权限的角色 —— 普通管理员不能编辑他（列表接口下发，供前端判断） */
+  isAdmin?: boolean;
 }

@@ -38,5 +38,6 @@ export function usePermissions() {
     return (userInfo.permissions ?? []).includes(`${module}:${action}`);
   };
 
-  return { hasPermission, isSuperAdmin };
+  // userId 只为界面判断（「这行是不是我自己」）；cookie 前端可伪造，别拿它当权限依据
+  return { hasPermission, isSuperAdmin, userId: userInfo?.id ?? null };
 }

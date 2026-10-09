@@ -20,6 +20,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { usePermissions } from "@/hooks/use-permissions";
 import { isAssignableRole } from "@/types/permission";
 
 import { UserWithCallback } from "./types";
@@ -43,6 +44,8 @@ interface RoleOption {
   id: string;
   name: string;
   description: string | null;
+  /** 带用户管理写权限 —— 只有超管能授 */
+  isSensitive?: boolean;
 }
 
 interface EditUserDialogProps {
@@ -61,6 +64,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
   // 用户当前挂着、但界面上不允许分配的角色（超级管理员）—— 只读展示，避免保存时被静默抹掉
   const [lockedRole, setLockedRole] = useState<RoleOption | null>(null);
   const [rolesLoading, setRolesLoading] = useState(false);
+  const { isSuperAdmin } = usePermissions();
 
   const form = useForm<UserFormData>({
     resolver: zodResolver(userFormSchema),
@@ -98,27 +102,25 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
         const allRoles: RoleOption[] = allRolesRes.ok ? ((await allRolesRes.json()).roles ?? []) : [];
         const currentRoleId: string = userRolesRes.ok ? (((await userRolesRes.json()).roles ?? [])[0]?.id ?? "") : "";
 
-        // 超级管理员角色不在可分配列表里
-        const assignable = allRoles.filter((r) => isAssignableRole(r.id));
+        // 不在可授予列表里的：超级管理员角色（只能改库分配）、
+        // 以及敏感角色（带用户管理权限，只有超管能授）—— 后者非超管根本也编辑不到
+        const grantable = (r: RoleOption) => isAssignableRole(r.id) && (isSuperAdmin || !r.isSensitive);
+        const currentRole = allRoles.find((r) => r.id === currentRoleId);
         const locked =
-          currentRoleId && !isAssignableRole(currentRoleId)
-            ? (allRoles.find((r) => r.id === currentRoleId) ?? {
-                id: currentRoleId,
-                name: currentRoleId,
-                description: "仅可后台分配",
-              })
+          currentRoleId && !(currentRole ? grantable(currentRole) : isAssignableRole(currentRoleId))
+            ? (currentRole ?? { id: currentRoleId, name: currentRoleId, description: null })
             : null;
 
-        setRoles(assignable);
+        setRoles(allRoles.filter(grantable));
         setLockedRole(locked);
-        setSelectedRoleId(locked ? locked.id : assignable.some((r) => r.id === currentRoleId) ? currentRoleId : "");
+        setSelectedRoleId(locked ? locked.id : allRoles.some((r) => r.id === currentRoleId) ? currentRoleId : "");
       } finally {
         setRolesLoading(false);
       }
     };
 
     loadRoles();
-  }, [open, user]);
+  }, [open, user, isSuperAdmin]);
 
   const onSubmit = async (data: UserFormData) => {
     if (!isSuperAdminUser && !selectedRoleId) {
@@ -197,7 +199,7 @@ export function EditUserDialog({ user, open, onOpenChange, onUserUpdated }: Edit
                   <SelectContent>
                     {lockedRole && (
                       <SelectItem value={lockedRole.id} disabled>
-                        {lockedRole.name}（仅可后台分配）
+                        {lockedRole.name}（{isSuperAdmin ? "仅可后台分配" : "仅超管可分配"}）
                       </SelectItem>
                     )}
                     {roles.map((role) => (

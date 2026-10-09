@@ -1,4 +1,10 @@
-import { firstAccessibleRoute, isAssignableRole, SUPER_ADMIN_ROLE_ID, ROUTE_PERMISSIONS } from "@/types/permission";
+import {
+  firstAccessibleRoute,
+  isAdminPermission,
+  isAssignableRole,
+  SUPER_ADMIN_ROLE_ID,
+  ROUTE_PERMISSIONS,
+} from "@/types/permission";
 
 describe("isAssignableRole", () => {
   it("refuses the super admin role", () => {
@@ -8,6 +14,23 @@ describe("isAssignableRole", () => {
   it("accepts ordinary roles", () => {
     expect(isAssignableRole("role_content_manager")).toBe(true);
     expect(isAssignableRole("role_viewer")).toBe(true);
+  });
+});
+
+describe("isAdminPermission", () => {
+  it("counts users write permissions", () => {
+    expect(isAdminPermission("users:create")).toBe(true);
+    expect(isAdminPermission("users:update")).toBe(true);
+    expect(isAdminPermission("users:delete")).toBe(true);
+  });
+
+  it("does not count users:view — 查看者不算管理员", () => {
+    expect(isAdminPermission("users:view")).toBe(false);
+  });
+
+  it("ignores other modules", () => {
+    expect(isAdminPermission("wechat_users:update")).toBe(false);
+    expect(isAdminPermission("dashboard:view")).toBe(false);
   });
 });
 

@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/jwt";
-import { hasPermission, listRoles, createRole } from "@/services/permissionService";
+import { getSensitiveRoleIds, hasPermission, listRoles, createRole } from "@/services/permissionService";
 
 // GET /api/roles — list all roles
 //
 // 只读：有 users:view 就能看；改角色仍然只有超管（见下面的 POST）
+// isSensitive = 带用户管理写权限，这种角色只有超管能授予 —— 用户弹窗据此过滤下拉项
 export async function GET() {
   try {
     const auth = await requireAuth();
@@ -12,7 +13,10 @@ export async function GET() {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
     const roles = await listRoles();
-    return NextResponse.json({ roles });
+    const sensitiveIds = await getSensitiveRoleIds(roles.map((r) => r.id));
+    return NextResponse.json({
+      roles: roles.map((r) => ({ ...r, isSensitive: sensitiveIds.has(r.id) })),
+    });
   } catch {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

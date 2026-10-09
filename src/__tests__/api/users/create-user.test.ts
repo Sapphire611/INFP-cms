@@ -4,18 +4,34 @@
 
 import { POST } from "../../../app/api/users/route";
 import { createUser, findByEmail, findByUsername } from "../../../services/userService";
-import { hasPermission, assignRolesToUser, getRoleWithPermissions } from "../../../services/permissionService";
+import {
+  hasPermission,
+  assignRolesToUser,
+  getRoleWithPermissions,
+  isSensitiveRole,
+} from "../../../services/permissionService";
 import { requireAuth } from "../../../lib/jwt";
-import { SUPER_ADMIN_NOT_CREATABLE, SUPER_ADMIN_ROLE_ID } from "../../../types/permission";
+import {
+  SENSITIVE_ROLE_NOT_GRANTABLE,
+  SUPER_ADMIN_NOT_CREATABLE,
+  SUPER_ADMIN_ROLE_ID,
+} from "../../../types/permission";
 
 jest.mock("../../../services/userService");
-jest.mock("../../../services/permissionService");
+jest.mock("../../../services/permissionService", () => ({
+  ...jest.requireActual("../../../services/permissionService"),
+  hasPermission: jest.fn(),
+  assignRolesToUser: jest.fn(),
+  getRoleWithPermissions: jest.fn(),
+  isSensitiveRole: jest.fn(),
+}));
 jest.mock("../../../lib/jwt");
 jest.mock("../../../lib/supabase-admin", () => ({ supabaseAdmin: {} }));
 
 const mockRequireAuth = requireAuth as jest.Mock;
 const mockHasPermission = hasPermission as jest.Mock;
 const mockGetRole = getRoleWithPermissions as jest.Mock;
+const mockIsSensitiveRole = isSensitiveRole as jest.Mock;
 const mockAssignRoles = assignRolesToUser as jest.Mock;
 const mockCreateUser = createUser as jest.Mock;
 const mockFindByEmail = findByEmail as jest.Mock;
@@ -51,6 +67,7 @@ describe("POST /api/users", () => {
     mockRequireAuth.mockResolvedValue({ id: "admin", userType: "admin", permissions: [] });
     mockHasPermission.mockResolvedValue(true);
     mockGetRole.mockResolvedValue(CONTENT_MANAGER);
+    mockIsSensitiveRole.mockResolvedValue(false);
     mockAssignRoles.mockResolvedValue(undefined);
     mockCreateUser.mockResolvedValue(createdUser);
     mockFindByEmail.mockResolvedValue(null);
@@ -118,6 +135,37 @@ describe("POST /api/users", () => {
 
     expect(response.status).toBe(409);
     expect(mockCreateUser).not.toHaveBeenCalled();
+  });
+
+  it("refuses to let an admin grant a sensitive role", async () => {
+    mockRequireAuth.mockResolvedValue({ id: "u1", userType: "user", permissions: ["users:create"] });
+    mockIsSensitiveRole.mockResolvedValue(true);
+
+    const response = await POST(makeRequest(validBody));
+    const data = await response.json();
+
+    expect(response.status).toBe(403);
+    expect(data.error).toBe(SENSITIVE_ROLE_NOT_GRANTABLE);
+    expect(mockCreateUser).not.toHaveBeenCalled();
+    expect(mockAssignRoles).not.toHaveBeenCalled();
+  });
+
+  it("lets an admin grant a non-sensitive role", async () => {
+    mockRequireAuth.mockResolvedValue({ id: "u1", userType: "user", permissions: ["users:create"] });
+
+    const response = await POST(makeRequest(validBody));
+
+    expect(response.status).toBe(201);
+    expect(mockCreateUser).toHaveBeenCalled();
+  });
+
+  it("lets the super admin grant a sensitive role", async () => {
+    mockIsSensitiveRole.mockResolvedValue(true);
+
+    const response = await POST(makeRequest(validBody));
+
+    expect(response.status).toBe(201);
+    expect(mockCreateUser).toHaveBeenCalled();
   });
 
   it("creates a regular user bound to the chosen role", async () => {

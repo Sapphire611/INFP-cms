@@ -20,6 +20,7 @@ import {
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { usePermissions } from "@/hooks/use-permissions";
 import { isAssignableRole } from "@/types/permission";
 
 /** 「权限管理」里配置的角色 —— 新用户的权限就是从这里来 */
@@ -27,6 +28,8 @@ interface RoleOption {
   id: string;
   name: string;
   description: string | null;
+  /** 带用户管理写权限 —— 只有超管能授 */
+  isSensitive?: boolean;
 }
 
 const userFormSchema = z.object({
@@ -49,6 +52,8 @@ interface AddUserDialogProps {
 export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialogProps) {
   const [roles, setRoles] = useState<RoleOption[]>([]);
   const [rolesLoading, setRolesLoading] = useState(false);
+  const [hasHiddenRoles, setHasHiddenRoles] = useState(false);
+  const { isSuperAdmin } = usePermissions();
 
   const form = useForm<UserFormData>({
     resolver: zodResolver(userFormSchema),
@@ -62,17 +67,23 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
     },
   });
 
-  // 角色列表来自「权限管理」；超级管理员角色不由界面分配
+  // 角色列表来自「权限管理」。两种角色不给挂：超级管理员角色（只能改库分配），
+  // 以及带用户管理权限的敏感角色 —— 否则管理员能自己造一个管理员出来
   useEffect(() => {
     if (!open) return;
 
     setRolesLoading(true);
     fetch("/api/roles")
       .then((res) => (res.ok ? res.json() : { roles: [] }))
-      .then((data) => setRoles((data.roles ?? []).filter((r: RoleOption) => isAssignableRole(r.id))))
+      .then((data) => {
+        const all: RoleOption[] = data.roles ?? [];
+        const grantable = (r: RoleOption) => isAssignableRole(r.id) && (isSuperAdmin || !r.isSensitive);
+        setRoles(all.filter(grantable));
+        setHasHiddenRoles(all.some((r) => !grantable(r)));
+      })
       .catch(() => setRoles([]))
       .finally(() => setRolesLoading(false));
-  }, [open]);
+  }, [open, isSuperAdmin]);
 
   const onSubmit = async (data: UserFormData) => {
     try {
@@ -146,6 +157,9 @@ export function AddUserDialog({ open, onOpenChange, onUserAdded }: AddUserDialog
                   </Select>
                   {noRoles && (
                     <p className="text-muted-foreground text-sm">暂无可用角色，请先在「权限管理」中创建角色</p>
+                  )}
+                  {hasHiddenRoles && (
+                    <p className="text-muted-foreground text-xs">带用户管理权限的角色只有超级管理员能授予，已隐藏</p>
                   )}
                   {selectedRole?.description && (
                     <p className="text-muted-foreground text-xs">{selectedRole.description}</p>

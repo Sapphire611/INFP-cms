@@ -338,7 +338,10 @@ Key actions:
 - **新增/编辑用户的「用户类型」= 角色（单选）**。新用户一律写 `user_type='user'`，权限全部来自所选角色。
 - **超管专属路由**：`SUPER_ADMIN_ONLY_ROUTES`（目前只有 `/cms/models` —— 里面存 API 密钥）。middleware 拦、侧边栏 `superAdminOnly` 不渲染、`/api/ai-providers` 全部 `admin-only`。
 - **权限管理对普通角色只读**：`GET /api/roles`、`GET /api/roles/[id]`、`GET /api/permissions` 要 `users:view`；写接口仍 `admin-only`；页面按钮看 `usePermissions().isSuperAdmin`。
-- **超管账号受保护**：`PATCH`/`DELETE /api/users/[id]` 里，非 admin 动不了 `user_type='admin'` 的账号（否则拿到 `users:update` 就能重置超管密码顶掉他）。
+- **谁能动谁**：超管随便；其余人**只能动自己 + 普通用户**。超管账号动不了（否则拿到 `users:update` 就能重置超管密码），**别的管理员也动不了**（同级互相改密码 = 互相顶号）。规则收在 `permissionService.userEditBlockReason()`，`PATCH`/`DELETE /api/users/[id]`、`PUT /api/users/[id]/roles` 三处共用。
+- **「管理员」的定义**：持有带 `users:create` / `users:update` / `users:delete` 任一权限的**角色**（`isAdminPermission()`）。`users:view` 不算 —— 只读的「查看者」仍归管理员管。用户列表接口会下发 `isAdmin` 标记，前端据此隐藏编辑/删除按钮（接口照样拦）。
+- **敏感角色只有超管能授**：「管理员」角色只有超管能给 —— 否则拿到 `users:create` 就能自己造一个管理员，人数就失控了。`POST /api/users` 与 `PUT /api/users/[id]/roles` 都查 `isSensitiveRole()`；新增/编辑用户弹窗对非超管**直接隐藏**这类选项（`GET /api/roles` 下发 `isSensitive`）。角色本身的创建/修改本来就 `admin-only`。
+- **`PUT /api/users/[id]/roles` 要 `users:update`**（原来是 admin-only，导致非超管的编辑弹窗保存必失败）；同时补上了 `role_super_admin` 的拦截 —— 之前只有界面和 `POST` 拦得住它。
 
 ### Database Operations
 

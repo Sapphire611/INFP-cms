@@ -15,8 +15,13 @@ jest.mock("@supabase/supabase-js", () => {
 });
 
 import {
+  getAdminUserIds,
+  getSensitiveRoleIds,
   getUserPermissions,
   hasPermission,
+  isSensitiveRole,
+  isUserAdmin,
+  userEditBlockReason,
   listRoles,
   createRole,
   deleteRole,
@@ -246,6 +251,111 @@ describe("getBatchUserRoles", () => {
   it("throws on error", async () => {
     setupFrom(null, new Error("DB error"));
     await expect(getBatchUserRoles(["user-1"])).rejects.toThrow("DB error");
+  });
+});
+
+describe("getAdminUserIds", () => {
+  it("marks a role holding users:update as an admin", async () => {
+    setupFrom([
+      { user_id: "user-1", roles: { role_permissions: [{ permissions: { module: "users", action: "update" } }] } },
+      { user_id: "user-2", roles: { role_permissions: [{ permissions: { module: "dashboard", action: "view" } }] } },
+    ]);
+
+    const admins = await getAdminUserIds(["user-1", "user-2"]);
+    expect(admins.has("user-1")).toBe(true);
+    expect(admins.has("user-2")).toBe(false);
+  });
+
+  it("does not count users:view — 只读的查看者仍归管理员管", async () => {
+    setupFrom([
+      { user_id: "user-1", roles: { role_permissions: [{ permissions: { module: "users", action: "view" } }] } },
+    ]);
+
+    expect((await getAdminUserIds(["user-1"])).size).toBe(0);
+  });
+
+  it("skips users with no roles", async () => {
+    setupFrom([{ user_id: "user-1", roles: null }]);
+    expect((await getAdminUserIds(["user-1"])).size).toBe(0);
+  });
+
+  it("returns an empty set without querying when given no ids", async () => {
+    mockClient.from.mockClear();
+
+    const admins = await getAdminUserIds([]);
+
+    expect(admins.size).toBe(0);
+    expect(mockClient.from).not.toHaveBeenCalled();
+  });
+
+  it("isUserAdmin applies the same rule", async () => {
+    setupFrom([
+      { user_id: "user-1", roles: { role_permissions: [{ permissions: { module: "users", action: "delete" } }] } },
+    ]);
+    expect(await isUserAdmin("user-1")).toBe(true);
+  });
+});
+
+describe("getSensitiveRoleIds", () => {
+  it("marks roles holding users write permissions as sensitive", async () => {
+    setupFrom([
+      { role_id: "role_a", permissions: { module: "users", action: "update" } },
+      { role_id: "role_b", permissions: { module: "users", action: "view" } },
+      { role_id: "role_c", permissions: { module: "wechat_users", action: "delete" } },
+    ]);
+
+    const sensitive = await getSensitiveRoleIds(["role_a", "role_b", "role_c"]);
+    expect(sensitive.has("role_a")).toBe(true);
+    expect(sensitive.has("role_b")).toBe(false);
+    expect(sensitive.has("role_c")).toBe(false);
+  });
+
+  it("returns an empty set without querying when given no ids", async () => {
+    mockClient.from.mockClear();
+
+    expect((await getSensitiveRoleIds([])).size).toBe(0);
+    expect(mockClient.from).not.toHaveBeenCalled();
+  });
+
+  it("isSensitiveRole applies the same rule", async () => {
+    setupFrom([{ role_id: "role_a", permissions: { module: "users", action: "delete" } }]);
+    expect(await isSensitiveRole("role_a")).toBe(true);
+  });
+});
+
+describe("userEditBlockReason", () => {
+  const CONTENT_MANAGER = { id: "u3", userType: "user" };
+
+  it("lets the super admin touch anyone", async () => {
+    const reason = await userEditBlockReason({ id: "u1", userType: "admin" }, { id: "u2", userType: "user" }, "删除");
+    expect(reason).toBeNull();
+  });
+
+  it("lets people edit themselves without querying permissions", async () => {
+    mockClient.from.mockClear();
+
+    expect(await userEditBlockReason(CONTENT_MANAGER, CONTENT_MANAGER, "修改")).toBeNull();
+    expect(mockClient.from).not.toHaveBeenCalled();
+  });
+
+  it("blocks touching the super admin", async () => {
+    const reason = await userEditBlockReason(CONTENT_MANAGER, { id: "u1", userType: "admin" }, "修改");
+    expect(reason).toBe("无权修改超级管理员");
+  });
+
+  it("blocks touching another admin", async () => {
+    setupFrom([
+      { user_id: "u2", roles: { role_permissions: [{ permissions: { module: "users", action: "update" } }] } },
+    ]);
+
+    const reason = await userEditBlockReason(CONTENT_MANAGER, { id: "u2", userType: "user" }, "删除");
+    expect(reason).toBe("无权删除其他管理员");
+  });
+
+  it("allows touching a plain user", async () => {
+    setupFrom([{ user_id: "u2", roles: null }]);
+
+    expect(await userEditBlockReason(CONTENT_MANAGER, { id: "u2", userType: "user" }, "修改")).toBeNull();
   });
 });
 

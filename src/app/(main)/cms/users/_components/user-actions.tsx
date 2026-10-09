@@ -35,11 +35,15 @@ interface UserActionsProps {
 export function UserActions({ user, onUserUpdated }: UserActionsProps) {
   const [isEditOpen, setIsEditOpen] = React.useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = React.useState(false);
-  const { hasPermission } = usePermissions();
+  const { hasPermission, isSuperAdmin, userId } = usePermissions();
   const canUpdate = hasPermission("users", "update");
   const canDelete = hasPermission("users", "delete");
 
-  if (!canUpdate && !canDelete) return null;
+  // 超管谁都能管；其他人只能动自己和普通用户 —— 别的管理员、超管一律不给按钮
+  // （接口同样会拦，这里只是别让人点了才吃 403）
+  const isLocked = !isSuperAdmin && userId !== user.id && (user.userType === "admin" || !!user.isAdmin);
+
+  if (isLocked || (!canUpdate && !canDelete)) return null;
 
   const handleDelete = async () => {
     try {

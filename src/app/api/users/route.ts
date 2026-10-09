@@ -2,12 +2,18 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/jwt";
 import { findUsers, createUser, findByEmail, findByUsername } from "@/services/userService";
 import {
+  getAdminUserIds,
   getBatchUserRoles,
   hasPermission,
   assignRolesToUser,
   getRoleWithPermissions,
+  isSensitiveRole,
 } from "@/services/permissionService";
-import { SUPER_ADMIN_NOT_CREATABLE, isAssignableRole } from "@/types/permission";
+import {
+  SENSITIVE_ROLE_NOT_GRANTABLE,
+  SUPER_ADMIN_NOT_CREATABLE,
+  isAssignableRole,
+} from "@/types/permission";
 
 type UserType = "admin" | "user";
 
@@ -65,11 +71,13 @@ export async function GET(request: NextRequest) {
 
     // Batch fetch roles for all users
     const userIds = result.users.map((u: any) => u.id);
-    const rolesByUser = await getBatchUserRoles(userIds);
+    const [rolesByUser, adminIds] = await Promise.all([getBatchUserRoles(userIds), getAdminUserIds(userIds)]);
 
     const usersWithRoles = result.users.map((u: any) => ({
       ...u,
       roles: (rolesByUser.get(u.id) ?? []).map((r) => ({ id: r.id, name: r.name })),
+      // 「管理员」标记 —— 前端据此隐藏编辑/删除按钮，接口那边照样会拦
+      isAdmin: adminIds.has(u.id),
     }));
 
     return NextResponse.json({
@@ -118,6 +126,11 @@ export async function POST(request: NextRequest) {
 
     if (!(await getRoleWithPermissions(roleId))) {
       return NextResponse.json({ error: "角色不存在" }, { status: 400 });
+    }
+
+    // 敏感角色（带用户管理写权限）只有超管能授 —— 否则管理员能自己造一个管理员，人数就控制不住了
+    if (auth.userType !== "admin" && (await isSensitiveRole(roleId))) {
+      return NextResponse.json({ error: SENSITIVE_ROLE_NOT_GRANTABLE }, { status: 403 });
     }
 
     // 检查用户是否已存在

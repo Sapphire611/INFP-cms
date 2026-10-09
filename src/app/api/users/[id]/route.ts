@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/jwt";
 import { findUserById, updateUser, deleteUser, findByEmail, findByUsername } from "@/services/userService";
-import { hasPermission } from "@/services/permissionService";
+import { hasPermission, userEditBlockReason } from "@/services/permissionService";
 import { SUPER_ADMIN_NOT_CREATABLE } from "@/types/permission";
 
 type UserType = "admin" | "user";
@@ -67,9 +67,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // 超级管理员账号只有超级管理员本人能改 —— 否则拿到 users:update 就能重置你的密码顶掉你
-    if (existingUser.userType === "admin" && auth.userType !== "admin") {
-      return NextResponse.json({ error: "无权修改超级管理员" }, { status: 403 });
+    // 超管谁都能管，其余人只能改自己 + 普通用户
+    const blockReason = await userEditBlockReason(auth, existingUser, "修改");
+    if (blockReason) {
+      return NextResponse.json({ error: blockReason }, { status: 403 });
     }
 
     // 检查邮箱是否已被其他用户使用
@@ -122,10 +123,11 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
 
     const { id } = await params;
 
-    // 超级管理员账号只有超级管理员本人能删
+    // 与 PATCH 同一条规矩：超管只有超管能删，其余人只能删自己 + 普通用户
     const existingUser = await findUserById(id);
-    if (existingUser.userType === "admin" && auth.userType !== "admin") {
-      return NextResponse.json({ error: "无权删除超级管理员" }, { status: 403 });
+    const blockReason = await userEditBlockReason(auth, existingUser, "删除");
+    if (blockReason) {
+      return NextResponse.json({ error: blockReason }, { status: 403 });
     }
 
     const user = await deleteUser(id);

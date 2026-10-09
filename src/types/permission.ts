@@ -48,6 +48,19 @@ export function isAssignableRole(roleId: string): boolean {
 /** 拒绝创建超级管理员时的统一文案（服务层抛错与接口响应共用） */
 export const SUPER_ADMIN_NOT_CREATABLE = '超级管理员不可创建，请直接改库分配';
 
+/**
+ * 「管理员」的判定标准：持有带用户管理写权限的角色。
+ * 管理员之间互相不可编辑（见 PATCH/DELETE /api/users/[id]）—— 否则拿到 users:update
+ * 就能重置同级管理员的密码，把人顶掉。
+ * users:view 不算：只读的「查看者」仍旧归管理员管。
+ */
+export function isAdminPermission(permissionKey: string): boolean {
+  return permissionKey === 'users:create' || permissionKey === 'users:update' || permissionKey === 'users:delete';
+}
+
+/** 非超管想授予敏感角色时的统一文案 —— 否则管理员能再造一个管理员，人数就控制不住了 */
+export const SENSITIVE_ROLE_NOT_GRANTABLE = '该角色带用户管理权限，只有超级管理员能授予';
+
 // Route → required permission mapping
 export const ROUTE_PERMISSIONS: Record<string, PermissionKey> = {
   '/cms/dashboard': 'dashboard:view',
