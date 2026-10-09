@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Plus, Search } from "lucide-react";
 
@@ -13,11 +13,12 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDataTableInstance } from "@/hooks/use-data-table-instance";
 import { usePermissions } from "@/hooks/use-permissions";
+import { isAssignableRole } from "@/types/permission";
 import { UserResponse } from "@/types/user";
 
 import { AddUserDialog } from "./_components/add-user-dialog";
 import { UserWithCallback } from "./_components/types";
-import { userColumns } from "./_components/user-columns";
+import { buildRoleColorMap, buildUserColumns } from "./_components/user-columns";
 
 // 定义分页信息接口
 export interface PaginationInfo {
@@ -28,8 +29,14 @@ export interface PaginationInfo {
 }
 
 interface Filters {
-  userType?: string;
+  roleId?: string;
   search?: string;
+}
+
+/** 筛选用，「权限管理」里的角色 */
+interface RoleOption {
+  id: string;
+  name: string;
 }
 
 export default function UsersPage() {
@@ -37,7 +44,8 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [filters, setFilters] = useState<Filters>({});
-  const [selectedUserType, setSelectedUserType] = useState<string>("all");
+  const [selectedRoleId, setSelectedRoleId] = useState<string>("all");
+  const [roles, setRoles] = useState<RoleOption[]>([]);
   const [searchTerm, setSearchTerm] = useState<string>("");
   const [pagination, setPagination] = useState<PaginationInfo>({
     total: 0,
@@ -92,16 +100,24 @@ export default function UsersPage() {
     fetchUsers(1, pagination.limit);
   }, [fetchUsers, pagination.limit]);
 
-  const handleUserTypeFilterChange = (value: string) => {
-    setSelectedUserType(value);
+  // 筛选下拉的角色列表来自「权限管理」（超管角色不由界面分配，也不参与筛选）
+  useEffect(() => {
+    fetch("/api/roles")
+      .then((res) => (res.ok ? res.json() : { roles: [] }))
+      .then((data) => setRoles((data.roles ?? []).filter((r: RoleOption) => isAssignableRole(r.id))))
+      .catch(() => setRoles([]));
+  }, []);
+
+  const handleRoleFilterChange = (value: string) => {
+    setSelectedRoleId(value);
     if (value === "all") {
       setFilters((prev) => {
         const newFilters = { ...prev };
-        delete newFilters.userType;
+        delete newFilters.roleId;
         return newFilters;
       });
     } else {
-      setFilters((prev) => ({ ...prev, userType: value }));
+      setFilters((prev) => ({ ...prev, roleId: value }));
     }
   };
 
@@ -123,9 +139,12 @@ export default function UsersPage() {
     }
   };
 
+  // 每个角色一个固定颜色：按「权限管理」返回的角色顺序分配
+  const columns = useMemo(() => buildUserColumns(buildRoleColorMap(roles.map((r) => r.id))), [roles]);
+
   const table = useDataTableInstance({
     data: users,
-    columns: userColumns,
+    columns,
     getRowId: (row) => row.id,
     meta: {
       pagination: {
@@ -187,14 +206,17 @@ export default function UsersPage() {
         </div>
         <div className="flex items-center gap-4">
           <div className="w-[200px]">
-            <Select value={selectedUserType} onValueChange={handleUserTypeFilterChange}>
+            <Select value={selectedRoleId} onValueChange={handleRoleFilterChange}>
               <SelectTrigger>
-                <SelectValue placeholder="用户类型" />
+                <SelectValue placeholder="角色" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">全部用户</SelectItem>
-                <SelectItem value="admin">管理员</SelectItem>
-                <SelectItem value="user">普通用户</SelectItem>
+                <SelectItem value="all">全部角色</SelectItem>
+                {roles.map((role) => (
+                  <SelectItem key={role.id} value={role.id}>
+                    {role.name}
+                  </SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>
@@ -203,7 +225,7 @@ export default function UsersPage() {
       </div>
 
       <div className="overflow-hidden rounded-lg border">
-        <DataTable table={table} columns={userColumns} />
+        <DataTable table={table} columns={columns} />
       </div>
 
       <DataTablePagination
