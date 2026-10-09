@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Settings, LayoutDashboard } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -12,31 +11,13 @@ import {
 } from "@/components/ui/tooltip";
 import { useAuth } from "@/hooks/use-auth";
 
-function AdminCmsLink() {
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  useEffect(() => {
-    const cookie = document.cookie
-      .split("; ")
-      .find((row) => row.startsWith("user-info="));
-    if (cookie) {
-      try {
-        const data = JSON.parse(
-          decodeURIComponent(cookie.split("=").slice(1).join("="))
-        );
-        setIsAdmin(data.userType === "admin");
-      } catch {
-        // ignore
-      }
-    }
-  }, []);
-
-  if (!isAdmin) return null;
+function AdminCmsLink({ href }: { href: string | null }) {
+  if (!href) return null;
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Link href="/cms/dashboard">
+        <Link href={href}>
           <Button
             variant="ghost"
             size="icon"
@@ -51,14 +32,15 @@ function AdminCmsLink() {
   );
 }
 
-export function IconSidebar() {
+/** cmsHref 由 chat/layout 在服务端按 JWT 权限算好：有任一 CMS 模块的查看权限就有入口 */
+export function IconSidebar({ cmsHref }: { cmsHref: string | null }) {
   const { user } = useAuth();
 
   return (
     <div className="w-14 h-full flex flex-col items-center border-r bg-muted/5 py-3 shrink-0">
       {/* Top: CMS link */}
       <div className="flex flex-col items-center gap-1">
-        <AdminCmsLink />
+        <AdminCmsLink href={cmsHref} />
       </div>
 
       {/* Spacer */}

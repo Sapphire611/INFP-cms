@@ -61,3 +61,14 @@ export const ROUTE_PERMISSIONS: Record<string, PermissionKey> = {
  * 模型管理里存着 API 密钥，连「只读」都不给。
  */
 export const SUPER_ADMIN_ONLY_ROUTES: string[] = ['/cms/models'];
+
+/**
+ * 该用户能进的第一条 CMS 路由（一条都进不去则返回 null）。
+ * 「切换到 CMS」入口用它决定跳哪 —— 写死 /cms/dashboard 会把只有 users:view 的人弹到 /unauthorized。
+ */
+export function firstAccessibleRoute(can: (permissionKey: string) => boolean): string | null {
+  for (const [path, key] of Object.entries(ROUTE_PERMISSIONS)) {
+    if (can(key)) return path;
+  }
+  return null;
+}

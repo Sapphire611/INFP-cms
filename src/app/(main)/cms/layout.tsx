@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 
 import { Separator } from "@/components/ui/separator";
 import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { verifyAuth } from "@/lib/jwt";
 import { cn } from "@/lib/utils";
 import {
   SIDEBAR_VARIANT_VALUES,
@@ -37,9 +38,14 @@ export default async function Layout({ children }: Readonly<{ children: ReactNod
     collapsible: sidebarCollapsible,
   };
 
+  // 权限在服务端定：JWT 是验签过的（user-info cookie 前端可伪造，只能拿来显示）。
+  // 放服务端还有个好处 —— 侧边栏一次渲染到位，不会先按「无权限」画一遍再补上。
+  const auth = await verifyAuth();
+  const isSuperAdmin = auth?.userType === "admin";
+
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
-      <AppSidebar variant={sidebarVariant} collapsible={sidebarCollapsible} />
+      <AppSidebar variant={sidebarVariant} collapsible={sidebarCollapsible} isSuperAdmin={isSuperAdmin} />
       <SidebarInset
         data-content-layout={contentLayout}
         className={cn(

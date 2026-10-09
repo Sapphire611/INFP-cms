@@ -13,7 +13,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { APP_CONFIG } from "@/config/app-config";
-import { usePermissions } from "@/hooks/use-permissions";
 import { sidebarItems } from "@/navigation/sidebar/sidebar-items";
 
 import { NavMain } from "./nav-main";
@@ -56,9 +55,12 @@ const data = {
   ],
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { isSuperAdmin } = usePermissions();
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  /** 由服务端 cms/layout 验签 JWT 后传入，避免客户端首屏拿不到权限导致菜单闪现 */
+  isSuperAdmin?: boolean;
+}
 
+export function AppSidebar({ isSuperAdmin = false, ...props }: AppSidebarProps) {
   // 超管专属入口（模型管理）对其他人直接不渲染
   const items = sidebarItems.map((group) => ({
     ...group,
