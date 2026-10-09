@@ -152,12 +152,6 @@ export default function UserLoginPage() {
 
           {/* Links */}
           <div className="text-center text-sm text-muted-foreground space-y-2">
-            <p>
-              还没有账户？{" "}
-              <Link href="/register" className="text-primary hover:underline font-medium">
-                立即注册
-              </Link>
-            </p>
             <p className="text-xs">
               管理员？{" "}
               <Link href="/cms/login" className="hover:underline">

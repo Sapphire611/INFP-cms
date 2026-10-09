@@ -141,7 +141,6 @@
 **使用位置**:
 - `src/lib/auth.ts` - 密码格式验证和自动升级
 - `src/components/login-form.tsx` - 登录表单
-- `src/components/register-form.tsx` - 注册表单
 - `src/scripts/manage-user-passwords.ts` - 密码管理脚本
 - `src/scripts/generate-password-hash.ts` - 密码哈希生成
 - `src/scripts/set-password.ts` - 密码设置脚本

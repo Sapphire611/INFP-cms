@@ -17,11 +17,9 @@ test.describe("Login Page", () => {
     await expect(page.locator("header")).toContainText("Sapphire Studio");
   });
 
-  test("has link to register page", async ({ page }) => {
+  test("has no register entry — accounts are created from the CMS", async ({ page }) => {
     await page.goto("/login");
-    const registerLink = page.locator("a").filter({ hasText: "立即注册" });
-    await expect(registerLink).toBeVisible();
-    await expect(registerLink).toHaveAttribute("href", "/register");
+    await expect(page.locator("a").filter({ hasText: "立即注册" })).toHaveCount(0);
   });
 
   test("has link to admin login", async ({ page }) => {
