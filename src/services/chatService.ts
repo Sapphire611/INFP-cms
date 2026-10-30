@@ -290,7 +290,7 @@ export async function streamChatResponse(
           // 新一轮开始，"思考"重新累积
           state.roundText = "";
 
-          for await (const chunk of result.fullStream) {
+          for await (const chunk of result.stream) {
             handleChunk(chunk, state, send, step);
           }
 
@@ -464,7 +464,7 @@ async function streamFinalAnswer(
 
   let fullContent = "";
 
-  for await (const chunk of result.fullStream) {
+  for await (const chunk of result.stream) {
     if (chunk.type === "text-delta") {
       fullContent += chunk.text;
       send({ type: "text", content: chunk.text });

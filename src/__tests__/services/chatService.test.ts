@@ -118,7 +118,7 @@ function buildStepResult(step: ScriptedStep) {
   chunks.push({ type: "finish", finishReason: step.finishReason ?? "stop" });
 
   return {
-    fullStream: (async function* () {
+    stream: (async function* () {
       for (const c of chunks) yield c;
     })(),
     toolCalls: Promise.resolve(calls),
